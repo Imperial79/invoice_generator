@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:invoice_generator/Essentials/KScaffold.dart';
@@ -22,8 +24,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   final _formKey = GlobalKey<FormState>();
   final _taxFormKey = GlobalKey<FormState>();
   final tax = TextEditingController();
-  final sgst = TextEditingController();
-  final cgst = TextEditingController();
+  final gst = TextEditingController();
 
   List<String> tableFields = [
     "Sl. No.",
@@ -96,7 +97,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.only(bottom: kPadding),
+          padding: EdgeInsets.only(bottom: 120),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -264,7 +265,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                       ],
                     ),
                     height20,
-                    Label("TAX").title,
+                    Label("TAX (%)").title,
                     height10,
                     MaterialButton(
                       onPressed: () {
@@ -313,8 +314,8 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                                 .map(
                                   (e) => DataRow(
                                     cells: [
-                                      DataCell(Label("#1").regular),
-                                      DataCell(Label("1.2").regular),
+                                      DataCell(Label("#${e["item"]}").regular),
+                                      DataCell(Label("${e["tax"]}").regular),
                                       DataCell(
                                         Row(
                                           spacing: 5,
@@ -326,7 +327,18 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                                                 .regular,
                                           ],
                                         ),
-                                        onTap: () {},
+                                        onTap: () {
+                                          setState(() {
+                                            tax.text = "${e["tax"]}";
+                                          });
+                                          showDialog(
+                                            context: context,
+                                            builder: (context) => addTaxDialog(
+                                              setState,
+                                              id: e["item"],
+                                            ),
+                                          );
+                                        },
                                       ),
                                     ],
                                   ),
@@ -359,6 +371,47 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
               ),
               height20,
               div,
+              Padding(
+                padding: EdgeInsets.all(kPadding),
+                child: Label("Tax Breakdown").regular,
+              ),
+              if (addedTax.isNotEmpty)
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: DataTable(
+                    showBottomBorder: true,
+                    columns: [
+                      "Tax Rate",
+                      "Taxable Amt.",
+                      "CGST Amt.",
+                      "SGST Amt.",
+                      "Total Tax"
+                    ]
+                        .map(
+                          (e) => DataColumn(label: Label(e).regular),
+                        )
+                        .toList(),
+                    rows: addedItems.map(
+                      (item) {
+                        final id = addedItems.indexOf(item);
+                        double tax = addedTax[id]["tax"];
+                        double taxableAmount = item.amount;
+                        double cgst = (taxableAmount * (tax / 2)) / 100;
+
+                        return DataRow(
+                          cells: [
+                            DataCell(Label("$tax%").regular),
+                            DataCell(
+                                Label(kCurrencyFormat(taxableAmount)).regular),
+                            DataCell(Label(kCurrencyFormat(cgst)).regular),
+                            DataCell(Label(kCurrencyFormat(cgst)).regular),
+                            DataCell(Label(kCurrencyFormat(cgst * 2)).regular),
+                          ],
+                        );
+                      },
+                    ).toList(),
+                  ),
+                ),
             ],
           ),
         ),
@@ -405,6 +458,9 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
               label: "Item Name",
               hintText: "Enter item name",
               validator: (val) => KValidation.required(val),
+              onChanged: (val) {
+                setState(() {});
+              },
             ),
             height10,
             KField(
@@ -412,6 +468,9 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
               label: "HSN/SAC Code",
               hintText: "Enter HSN/SAC Code",
               validator: (val) => KValidation.required(val),
+              onChanged: (val) {
+                setState(() {});
+              },
             ),
             height10,
             Row(
@@ -455,16 +514,47 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
               prefixText: "INR / ₹",
               keyboardType: TextInputType.number,
               validator: (val) => KValidation.required(val),
+              onChanged: (val) {
+                setState(() {
+                  amount.text = (parseToDouble(val) * parseToDouble(qty.text))
+                      .toStringAsFixed(2);
+                });
+              },
             ),
             height10,
-            KField(
-              controller: amount,
-              label: "Amount",
-              hintText: "Enter Amount",
-              prefixText: "INR / ₹",
-              keyboardType: TextInputType.number,
-              validator: (val) => KValidation.required(val),
+            Row(
+              spacing: 10,
+              children: [
+                Flexible(
+                  child: KField(
+                    controller: amount,
+                    label: "Amount",
+                    hintText: "Enter Amount",
+                    prefixText: "INR",
+                    keyboardType: TextInputType.number,
+                    validator: (val) => KValidation.required(val),
+                  ),
+                ),
+                Flexible(
+                  child: KField(
+                    controller: gst,
+                    label: "GST",
+                    hintText: "Enter GST",
+                    suffix: Label("%").title,
+                    keyboardType: TextInputType.number,
+                    validator: (val) => KValidation.required(val),
+                    onChanged: (val) {
+                      setState(() {});
+                    },
+                  ),
+                ),
+              ],
             ),
+            height15,
+            Label("GST Amount").regular,
+            Label(kCurrencyFormat((parseToDouble(gst.text) / 100) *
+                    parseToDouble(amount.text)))
+                .title,
             height20,
             KButton(
               onPressed: () {
@@ -474,7 +564,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                     "itemName": itemName.text,
                     "hsnCode": hsnCode.text,
                     "unit": unit,
-                    "qty": int.parse(qty.text),
+                    "qty": parseToDouble(qty.text),
                     "price": parseToDouble(price.text),
                     "amount": parseToDouble(amount.text),
                   });

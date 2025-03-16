@@ -6,7 +6,7 @@ class ItemModel {
   int id = 0;
   String itemName = "";
   String hsnCode = "";
-  int qty = 0;
+  double qty = 0;
   String unit = "";
   double price = 0;
   double amount = 0;
@@ -24,7 +24,7 @@ class ItemModel {
     int? id,
     String? itemName,
     String? hsnCode,
-    int? qty,
+    double? qty,
     String? unit,
     double? price,
     double? amount,
@@ -57,7 +57,7 @@ class ItemModel {
       id: map['id']?.toInt() ?? 0,
       itemName: map['itemName'] ?? '',
       hsnCode: map['hsnCode'] ?? '',
-      qty: int.parse("${map['qty']}"),
+      qty: parseToDouble(map['qty']),
       unit: map['unit'] ?? '',
       price: parseToDouble(map['price']),
       amount: parseToDouble(map['amount']),
