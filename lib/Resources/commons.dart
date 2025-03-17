@@ -83,7 +83,6 @@ KSnackbar(
         ],
       ),
       action: action,
-      behavior: SnackBarBehavior.floating,
       dismissDirection: DismissDirection.horizontal,
     ),
   );

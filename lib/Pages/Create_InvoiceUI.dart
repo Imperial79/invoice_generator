@@ -1,12 +1,10 @@
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:invoice_generator/Essentials/KScaffold.dart';
 import 'package:invoice_generator/Essentials/Label.dart';
 import 'package:invoice_generator/Essentials/kButton.dart';
 import 'package:invoice_generator/Essentials/kField.dart';
 import 'package:invoice_generator/Helper/date_helper.dart';
+import 'package:invoice_generator/Helper/pdf_helper.dart';
 import 'package:invoice_generator/Models/Item_Model.dart';
 import 'package:invoice_generator/Resources/colors.dart';
 import 'package:invoice_generator/Resources/commons.dart';
@@ -33,6 +31,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
     "Qty.",
     "Unit",
     "Price",
+    "GST (%)",
     "Amount (₹)"
   ];
   List<String> taxFields = [
@@ -44,8 +43,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   List<String> unitList = ["Gms", "Kg"];
 
   List<ItemModel> addedItems = [];
-  List addedTax = [];
-
+  final invoiceNo = TextEditingController();
   final itemName = TextEditingController();
   final hsnCode = TextEditingController();
   final qty = TextEditingController();
@@ -53,12 +51,17 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   final price = TextEditingController();
   final amount = TextEditingController();
 
+  double calculateGst() {
+    return (parseToDouble(gst.text) / 100) * parseToDouble(amount.text);
+  }
+
   clearFields() {
     itemName.clear();
     hsnCode.clear();
     qty.clear();
     price.clear();
     amount.clear();
+    gst.clear();
   }
 
   @override
@@ -69,6 +72,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
     price.dispose();
     amount.dispose();
     tax.dispose();
+    gst.dispose();
     super.dispose();
   }
 
@@ -104,9 +108,23 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
               Padding(
                 padding: const EdgeInsets.all(kPadding),
                 child: KField(
+                  controller: invoiceNo,
                   label: "Invoice No.",
                   hintText: "Unique No.",
                   keyboardType: TextInputType.number,
+                  suffix: IconButton(
+                    onPressed: () {
+                      setState(() {
+                        invoiceNo.text =
+                            "${DateTime.now().millisecondsSinceEpoch}";
+                      });
+                    },
+                    visualDensity: VisualDensity.compact,
+                    icon: Icon(
+                      Icons.sync,
+                      size: 22,
+                    ),
+                  ),
                   validator: (val) => KValidation.required(val),
                 ),
               ),
@@ -162,12 +180,20 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                             ),
                             cells: [
                               DataCell(Label("${item.id}").regular),
-                              DataCell(Label(item.itemName).regular),
+                              DataCell(
+                                ConstrainedBox(
+                                  constraints: BoxConstraints(maxWidth: 200),
+                                  child: Label(item.itemName).regular,
+                                ),
+                              ),
                               DataCell(Label(item.hsnCode).regular),
                               DataCell(Label("${item.qty}").regular),
                               DataCell(Label(item.unit).regular),
                               DataCell(
                                   Label(kCurrencyFormat(item.price)).regular),
+                              DataCell(
+                                Label("${item.gst}%").regular,
+                              ),
                               DataCell(
                                 Label(kCurrencyFormat(item.amount)).regular,
                               ),
@@ -189,6 +215,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                                     unit = item.unit;
                                     price.text = "${item.price}";
                                     amount.text = "${item.amount}";
+                                    gst.text = "${item.gst}";
                                   });
                                   showDialog(
                                     context: context,
@@ -225,199 +252,55 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                     ),
                   ),
                 ),
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: kPadding),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      spacing: 5,
-                      children: [
-                        Label("GST").title,
-                        Label("(Optional)", fontStyle: FontStyle.italic)
-                            .subtitle,
-                      ],
-                    ),
-                    Label(
-                      "The GST will be applied for each item added",
-                      fontStyle: FontStyle.italic,
-                    ).subtitle,
-                    height15,
-                    Row(
-                      spacing: 10,
-                      children: [
-                        Flexible(
-                          child: KField(
-                            prefixText: "CGST",
-                            hintText: "0.00",
-                            keyboardType: TextInputType.number,
-                            suffix: Label("%").regular,
-                          ),
-                        ),
-                        Flexible(
-                          child: KField(
-                            prefixText: "SGST",
-                            hintText: "0.00",
-                            keyboardType: TextInputType.number,
-                            suffix: Label("%").regular,
-                          ),
-                        ),
-                      ],
-                    ),
-                    height20,
-                    Label("TAX (%)").title,
-                    height10,
-                    MaterialButton(
-                      onPressed: () {
-                        if (addedItems.isNotEmpty) {
-                          showDialog(
-                            context: context,
-                            builder: (context) =>
-                                addTaxDialog(setState, id: addedTax.length + 1),
-                          );
-                        } else {
-                          KSnackbar(context,
-                              message: "Add items first!", error: true);
-                        }
-                      },
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: kRadius(10),
-                        side: BorderSide(color: Kolor.primary.lighten(.4)),
-                      ),
-                      padding: EdgeInsets.all(12),
-                      child: SizedBox(
-                        width: double.infinity,
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          spacing: 10,
-                          children: [
-                            Icon(Icons.add_circle_outline,
-                                size: 20, color: Kolor.primary),
-                            Label("Add Tax", color: Kolor.primary).regular,
-                          ],
-                        ),
-                      ),
-                    ),
-                    if (addedTax.isNotEmpty)
-                      SingleChildScrollView(
-                        child: DataTable(
-                            columns: taxFields
-                                .map(
-                                  (e) => DataColumn(
-                                    label: Label(e).regular,
-                                  ),
-                                )
-                                .toList(),
-                            rows: addedTax
-                                .map(
-                                  (e) => DataRow(
-                                    cells: [
-                                      DataCell(Label("#${e["item"]}").regular),
-                                      DataCell(Label("${e["tax"]}").regular),
-                                      DataCell(
-                                        Row(
-                                          spacing: 5,
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            Icon(Icons.edit,
-                                                size: 15, color: Kolor.primary),
-                                            Label("Edit", color: Kolor.primary)
-                                                .regular,
-                                          ],
-                                        ),
-                                        onTap: () {
-                                          setState(() {
-                                            tax.text = "${e["tax"]}";
-                                          });
-                                          showDialog(
-                                            context: context,
-                                            builder: (context) => addTaxDialog(
-                                              setState,
-                                              id: e["item"],
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ],
-                                  ),
-                                )
-                                .toList()),
-                      )
-                    else
-                      Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 50),
-                          child: Column(
-                            children: [
-                              Label(
-                                "%",
-                                fontSize: 50,
-                                weight: 900,
-                                color: Kolor.primary.lighten(),
-                              ).regular,
-                              Label(
-                                "No Added Tax",
-                                fontSize: 30,
-                                color: Kolor.primary.lighten(),
-                              ).regular,
-                            ],
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
               height20,
               div,
               Padding(
                 padding: EdgeInsets.all(kPadding),
                 child: Label("Tax Breakdown").regular,
               ),
-              if (addedTax.isNotEmpty)
-                SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    showBottomBorder: true,
-                    columns: [
-                      "Tax Rate",
-                      "Taxable Amt.",
-                      "CGST Amt.",
-                      "SGST Amt.",
-                      "Total Tax"
-                    ]
-                        .map(
-                          (e) => DataColumn(label: Label(e).regular),
-                        )
-                        .toList(),
-                    rows: addedItems.map(
-                      (item) {
-                        final id = addedItems.indexOf(item);
-                        double tax = addedTax[id]["tax"];
-                        double taxableAmount = item.amount;
-                        double cgst = (taxableAmount * (tax / 2)) / 100;
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  showBottomBorder: true,
+                  columns: [
+                    "Tax Rate",
+                    "Taxable Amt.",
+                    "CGST Amt.",
+                    "SGST Amt.",
+                    "Total Tax"
+                  ]
+                      .map(
+                        (e) => DataColumn(label: Label(e).regular),
+                      )
+                      .toList(),
+                  rows: addedItems.map(
+                    (item) {
+                      double tax = item.gst;
+                      double taxableAmount = item.amount;
+                      double cgst = (taxableAmount * (tax / 2)) / 100;
 
-                        return DataRow(
-                          cells: [
-                            DataCell(Label("$tax%").regular),
-                            DataCell(
-                                Label(kCurrencyFormat(taxableAmount)).regular),
-                            DataCell(Label(kCurrencyFormat(cgst)).regular),
-                            DataCell(Label(kCurrencyFormat(cgst)).regular),
-                            DataCell(Label(kCurrencyFormat(cgst * 2)).regular),
-                          ],
-                        );
-                      },
-                    ).toList(),
-                  ),
+                      return DataRow(
+                        cells: [
+                          DataCell(Label("$tax%").regular),
+                          DataCell(
+                              Label(kCurrencyFormat(taxableAmount)).regular),
+                          DataCell(Label(kCurrencyFormat(cgst)).regular),
+                          DataCell(Label(kCurrencyFormat(cgst)).regular),
+                          DataCell(Label(kCurrencyFormat(cgst * 2)).regular),
+                        ],
+                      );
+                    },
+                  ).toList(),
                 ),
+              ),
             ],
           ),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {},
+        onPressed: () async {
+          await PdfHelper.generateInvoice();
+        },
         icon: Icon(Icons.picture_as_pdf),
         elevation: 0,
         backgroundColor: Kolor.primary,
@@ -441,217 +324,169 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   }
 
   Widget addItemDialog(
-    StateSetter setState, {
+    StateSetter setMainState, {
     required int id,
   }) {
-    return _dialog(
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Label("Add Item #$id").title,
-            height20,
-            KField(
-              controller: itemName,
-              label: "Item Name",
-              hintText: "Enter item name",
-              validator: (val) => KValidation.required(val),
-              onChanged: (val) {
-                setState(() {});
-              },
-            ),
-            height10,
-            KField(
-              controller: hsnCode,
-              label: "HSN/SAC Code",
-              hintText: "Enter HSN/SAC Code",
-              validator: (val) => KValidation.required(val),
-              onChanged: (val) {
-                setState(() {});
-              },
-            ),
-            height10,
-            Row(
-              spacing: 10,
-              children: [
-                Expanded(
-                  child: KField(
-                    controller: qty,
-                    label: "Qty",
-                    hintText: "Enter Qty",
-                    keyboardType: TextInputType.number,
-                    suffix: DropdownButton(
-                      value: unit,
-                      underline: SizedBox(),
-                      items: unitList
-                          .map(
-                            (e) => DropdownMenuItem<String>(
-                              value: e,
-                              child: Label(e).regular,
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          if (value != null) {
-                            unit = value;
-                          }
-                        });
+    return StatefulBuilder(builder: (context, setState) {
+      return _dialog(
+        child: Form(
+          key: _formKey,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Label("Add Item #$id").title,
+              height20,
+              KField(
+                controller: itemName,
+                label: "Item Name",
+                hintText: "Enter item name",
+                validator: (val) => KValidation.required(val),
+                onChanged: (val) {
+                  setState(() {});
+                },
+              ),
+              height10,
+              KField(
+                controller: hsnCode,
+                label: "HSN/SAC Code",
+                hintText: "Enter HSN/SAC Code",
+                textCapitalization: TextCapitalization.characters,
+                validator: (val) => KValidation.required(val),
+                onChanged: (val) {
+                  setState(() {});
+                },
+              ),
+              height10,
+              Row(
+                spacing: 10,
+                children: [
+                  Expanded(
+                    child: KField(
+                      controller: qty,
+                      label: "Qty",
+                      hintText: "Enter Qty",
+                      keyboardType: TextInputType.number,
+                      suffix: DropdownButton(
+                        value: unit,
+                        underline: SizedBox(),
+                        items: unitList
+                            .map(
+                              (e) => DropdownMenuItem<String>(
+                                value: e,
+                                child: Label(e).regular,
+                              ),
+                            )
+                            .toList(),
+                        onChanged: (value) {
+                          setState(() {
+                            if (value != null) {
+                              unit = value;
+                            }
+                          });
+                        },
+                      ),
+                      validator: (val) => KValidation.required(val),
+                    ),
+                  ),
+                ],
+              ),
+              height10,
+              KField(
+                controller: price,
+                label: "Price",
+                hintText: "Enter Price",
+                prefixText: "INR",
+                keyboardType: TextInputType.number,
+                validator: (val) => KValidation.required(val),
+                onChanged: (val) {
+                  setState(() {
+                    amount.text = (parseToDouble(val) * parseToDouble(qty.text))
+                        .toStringAsFixed(2);
+                    calculateGst();
+                  });
+                },
+              ),
+              height10,
+              Row(
+                spacing: 10,
+                children: [
+                  Flexible(
+                    child: KField(
+                      controller: amount,
+                      label: "Amount",
+                      showRequired: false,
+                      readOnly: true,
+                      hintText: "Enter Amount",
+                      prefixText: "INR",
+                      keyboardType: TextInputType.number,
+                      validator: (val) => KValidation.required(val),
+                    ),
+                  ),
+                  Flexible(
+                    child: KField(
+                      controller: gst,
+                      label: "GST",
+                      hintText: "Enter GST",
+                      suffix: Label("%").title,
+                      keyboardType: TextInputType.number,
+                      validator: (val) => KValidation.required(val),
+                      onChanged: (val) {
+                        setState(() {});
                       },
                     ),
-                    validator: (val) => KValidation.required(val),
                   ),
-                ),
-              ],
-            ),
-            height10,
-            KField(
-              controller: price,
-              label: "Price",
-              hintText: "Enter Price",
-              prefixText: "INR / ₹",
-              keyboardType: TextInputType.number,
-              validator: (val) => KValidation.required(val),
-              onChanged: (val) {
-                setState(() {
-                  amount.text = (parseToDouble(val) * parseToDouble(qty.text))
-                      .toStringAsFixed(2);
-                });
-              },
-            ),
-            height10,
-            Row(
-              spacing: 10,
-              children: [
-                Flexible(
-                  child: KField(
-                    controller: amount,
-                    label: "Amount",
-                    hintText: "Enter Amount",
-                    prefixText: "INR",
-                    keyboardType: TextInputType.number,
-                    validator: (val) => KValidation.required(val),
-                  ),
-                ),
-                Flexible(
-                  child: KField(
-                    controller: gst,
-                    label: "GST",
-                    hintText: "Enter GST",
-                    suffix: Label("%").title,
-                    keyboardType: TextInputType.number,
-                    validator: (val) => KValidation.required(val),
-                    onChanged: (val) {
-                      setState(() {});
-                    },
-                  ),
-                ),
-              ],
-            ),
-            height15,
-            Label("GST Amount").regular,
-            Label(kCurrencyFormat((parseToDouble(gst.text) / 100) *
-                    parseToDouble(amount.text)))
-                .title,
-            height20,
-            KButton(
-              onPressed: () {
-                if (_formKey.currentState!.validate()) {
-                  ItemModel data = ItemModel.fromMap({
-                    "id": id,
-                    "itemName": itemName.text,
-                    "hsnCode": hsnCode.text,
-                    "unit": unit,
-                    "qty": parseToDouble(qty.text),
-                    "price": parseToDouble(price.text),
-                    "amount": parseToDouble(amount.text),
-                  });
+                ],
+              ),
+              height15,
+              Row(
+                children: [
+                  Expanded(child: Label("GST (${gst.text}%)").regular),
+                  Label(kCurrencyFormat((parseToDouble(gst.text) / 100) *
+                          parseToDouble(amount.text)))
+                      .regular,
+                  height20,
+                ],
+              ),
+              height15,
+              KButton(
+                onPressed: () {
+                  if (_formKey.currentState!.validate()) {
+                    ItemModel data = ItemModel(
+                      id: id,
+                      itemName: itemName.text.trim(),
+                      hsnCode: hsnCode.text.trim(),
+                      gst: parseToDouble(gst.text),
+                      unit: unit,
+                      qty: parseToDouble(qty.text),
+                      price: parseToDouble(price.text),
+                      amount: parseToDouble(amount.text),
+                    );
 
-                  setState(() {
-                    int index = addedItems.indexWhere((item) => item.id == id);
-                    if (index != -1) {
-                      addedItems[index] = data;
-                      KSnackbar(context, message: "Item updated.");
-                    } else {
-                      addedItems.add(data);
-                      KSnackbar(context, message: "Item added.");
-                    }
-                  });
-                  clearFields();
-                  Navigator.pop(context);
-                }
-              },
-              label: "Add Item",
-              icon: Icon(Icons.add),
-              visualDensity: VisualDensity.comfortable,
-              style: KButtonStyle.expanded,
-            ),
-          ],
+                    setMainState(() {
+                      int index =
+                          addedItems.indexWhere((item) => item.id == id);
+                      if (index != -1) {
+                        addedItems[index] = data;
+                        KSnackbar(context, message: "Item updated.");
+                      } else {
+                        addedItems.add(data);
+                        KSnackbar(context, message: "Item added.");
+                      }
+                    });
+                    clearFields();
+                    Navigator.pop(context);
+                  }
+                },
+                label: "Add Item",
+                icon: Icon(Icons.add),
+                visualDensity: VisualDensity.comfortable,
+                style: KButtonStyle.expanded,
+              ),
+            ],
+          ),
         ),
-      ),
-    );
-  }
-
-  Widget addTaxDialog(
-    StateSetter setState, {
-    required int id,
-  }) {
-    return _dialog(
-      child: Form(
-        key: _taxFormKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Label("Add Tax for Item #$id").title,
-            height20,
-            Label("Item").subtitle,
-            Label(addedItems[id - 1].itemName).title,
-            height20,
-            KField(
-              controller: tax,
-              label: "Tax (%)",
-              hintText: "Enter Tax",
-              keyboardType:
-                  TextInputType.numberWithOptions(decimal: true, signed: false),
-              suffix: Label("%").title,
-              validator: (val) => KValidation.required(val),
-            ),
-            height20,
-            KButton(
-              onPressed: () {
-                if (_taxFormKey.currentState!.validate()) {
-                  final taxData = {
-                    "item": id,
-                    "tax": parseToDouble(tax.text),
-                  };
-
-                  setState(() {
-                    int index =
-                        addedTax.indexWhere((item) => item["item"] == id);
-                    if (index != -1) {
-                      addedTax[index] = taxData;
-                      KSnackbar(context, message: "Tax updated for Item #$id.");
-                    } else {
-                      addedTax.add(taxData);
-                      KSnackbar(context, message: "Tax added for Item #$id.");
-                    }
-                  });
-
-                  tax.clear();
-                  Navigator.pop(context);
-                }
-              },
-              label: "Add Item",
-              icon: Icon(Icons.add),
-              visualDensity: VisualDensity.comfortable,
-              style: KButtonStyle.expanded,
-            ),
-          ],
-        ),
-      ),
-    );
+      );
+    });
   }
 }

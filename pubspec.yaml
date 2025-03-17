@@ -38,6 +38,9 @@ dependencies:
   go_router: ^14.8.1
   flutter_svg: ^2.0.17
   lucide_icons_flutter: ^1.2.9
+  pdf: ^3.11.3
+  path_provider: ^2.1.5
+  open_file: ^3.5.10
 
 dev_dependencies:
   flutter_test:
@@ -61,8 +64,10 @@ flutter:
   uses-material-design: true
 
   # To add assets to your application, add an assets section, like this:
-  # assets:
-  #   - images/a_dot_burr.jpeg
+  assets:
+    - assets/fonts/Inter-VariableFont_opsz,wght.ttf
+    - assets/images/
+    - assets/images/invoice-banner.png
   #   - images/a_dot_ham.jpeg
 
   # An image asset can refer to one or more resolution-specific "variants", see

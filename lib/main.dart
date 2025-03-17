@@ -4,6 +4,7 @@ import 'package:invoice_generator/Resources/commons.dart';
 import 'package:invoice_generator/Resources/theme.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
   systemColors();
   runApp(const MyApp());
 }

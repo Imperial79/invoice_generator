@@ -10,6 +10,7 @@ class ItemModel {
   String unit = "";
   double price = 0;
   double amount = 0;
+  double gst = 0;
   ItemModel({
     required this.id,
     required this.itemName,
@@ -18,6 +19,7 @@ class ItemModel {
     required this.unit,
     required this.price,
     required this.amount,
+    required this.gst,
   });
 
   ItemModel copyWith({
@@ -28,6 +30,7 @@ class ItemModel {
     String? unit,
     double? price,
     double? amount,
+    double? gst,
   }) {
     return ItemModel(
       id: id ?? this.id,
@@ -37,6 +40,7 @@ class ItemModel {
       unit: unit ?? this.unit,
       price: price ?? this.price,
       amount: amount ?? this.amount,
+      gst: gst ?? this.gst,
     );
   }
 
@@ -49,18 +53,20 @@ class ItemModel {
       'unit': unit,
       'price': price,
       'amount': amount,
+      'gst': gst,
     };
   }
 
   factory ItemModel.fromMap(Map<String, dynamic> map) {
     return ItemModel(
-      id: map['id']?.toInt() ?? 0,
+      id: int.parse("${map['id']}"),
       itemName: map['itemName'] ?? '',
       hsnCode: map['hsnCode'] ?? '',
       qty: parseToDouble(map['qty']),
       unit: map['unit'] ?? '',
       price: parseToDouble(map['price']),
       amount: parseToDouble(map['amount']),
+      gst: parseToDouble(map['gst']),
     );
   }
 
@@ -71,7 +77,7 @@ class ItemModel {
 
   @override
   String toString() {
-    return 'ItemModel(id: $id, itemName: $itemName, hsnCode: $hsnCode, qty: $qty, unit: $unit, price: $price, amount: $amount)';
+    return 'ItemModel(id: $id, itemName: $itemName, hsnCode: $hsnCode, qty: $qty, unit: $unit, price: $price, amount: $amount, gst: $gst)';
   }
 
   @override
@@ -85,7 +91,8 @@ class ItemModel {
         other.qty == qty &&
         other.unit == unit &&
         other.price == price &&
-        other.amount == amount;
+        other.amount == amount &&
+        other.gst == gst;
   }
 
   @override
@@ -96,6 +103,7 @@ class ItemModel {
         qty.hashCode ^
         unit.hashCode ^
         price.hashCode ^
-        amount.hashCode;
+        amount.hashCode ^
+        gst.hashCode;
   }
 }
