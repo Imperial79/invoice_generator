@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:invoice_generator/Essentials/KScaffold.dart';
 import 'package:invoice_generator/Essentials/Label.dart';
 import 'package:invoice_generator/Essentials/kButton.dart';
+import 'package:invoice_generator/Essentials/kCard.dart';
 import 'package:invoice_generator/Essentials/kField.dart';
 import 'package:invoice_generator/Helper/date_helper.dart';
 import 'package:invoice_generator/Helper/pdf_helper.dart';
+import 'package:invoice_generator/Models/Invoice_Model.dart';
 import 'package:invoice_generator/Models/Item_Model.dart';
+import 'package:invoice_generator/Resources/app-data.dart';
 import 'package:invoice_generator/Resources/colors.dart';
 import 'package:invoice_generator/Resources/commons.dart';
 import 'package:invoice_generator/Resources/constants.dart';
@@ -20,7 +23,7 @@ class CreateInvoiceUI extends StatefulWidget {
 class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   DateTime invoiceDate = DateTime.now();
   final _formKey = GlobalKey<FormState>();
-  final _taxFormKey = GlobalKey<FormState>();
+  final _customerFormKey = GlobalKey<FormState>();
   final tax = TextEditingController();
   final gst = TextEditingController();
 
@@ -50,6 +53,49 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   String unit = "Gms";
   final price = TextEditingController();
   final amount = TextEditingController();
+  final billingAddress = TextEditingController(text: defaultBillingAddress);
+
+  bool forCustomer = false;
+  final customerName = TextEditingController();
+  final customerPhone = TextEditingController();
+  final customerPan = TextEditingController();
+  final customerAadhaar = TextEditingController();
+  final isLoading = ValueNotifier(false);
+
+  createInvoice() async {
+    try {
+      isLoading.value = true;
+      if (!_customerFormKey.currentState!.validate()) {
+        KSnackbar(context,
+            message: "Enter ${forCustomer ? "Customer" : "Shop Owner"} Details",
+            error: true);
+        return;
+      }
+      double total = 0;
+      for (ItemModel item in addedItems) {
+        final gstAmt = (item.amount * item.gst) / 100;
+        total += item.amount + gstAmt;
+      }
+
+      InvoiceModel invoiceData = InvoiceModel(
+        invoiceId: invoiceNo.text,
+        items: addedItems,
+        forCustomer: forCustomer,
+        customerName: customerName.text,
+        customerPhone: customerPhone.text,
+        customerAadhaar: customerAadhaar.text,
+        customerPan: customerPan.text,
+        billingAddress: billingAddress.text,
+        grandTotal: total,
+        invoiceDate: invoiceDate,
+      );
+      await PdfHelper.generateInvoice(invoiceData);
+    } catch (e) {
+      KSnackbar(context, message: e, error: true);
+    } finally {
+      isLoading.value = false;
+    }
+  }
 
   double calculateGst() {
     return (parseToDouble(gst.text) / 100) * parseToDouble(amount.text);
@@ -73,12 +119,14 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
     amount.dispose();
     tax.dispose();
     gst.dispose();
+    billingAddress.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return KScaffold(
+      isLoading: isLoading,
       appBar: KAppBar(
         context,
         title: kDateFormat("$invoiceDate"),
@@ -165,7 +213,19 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                   padding: EdgeInsets.all(kPadding),
                   scrollDirection: Axis.horizontal,
                   child: DataTable(
-                    showBottomBorder: true,
+                    dividerThickness: 0,
+                    headingRowColor: WidgetStatePropertyAll(Kolor.primary),
+                    headingRowHeight: 35,
+                    clipBehavior: Clip.hardEdge,
+                    border: TableBorder.all(
+                      color: Kolor.primary.lighten(),
+                      borderRadius: kRadius(10),
+                      width: 1,
+                    ),
+                    headingTextStyle: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w600,
+                    ),
                     columns: [...tableFields, "Action"]
                         .map(
                           (e) => DataColumn(label: Label(e).regular),
@@ -174,10 +234,6 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                     rows: addedItems
                         .map(
                           (item) => DataRow(
-                            color: WidgetStatePropertyAll(
-                              kColor(context).primaryContainer.lighten(
-                                  addedItems.indexOf(item) % 2 == 0 ? .7 : .1),
-                            ),
                             cells: [
                               DataCell(Label("${item.id}").regular),
                               DataCell(
@@ -260,8 +316,21 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
               ),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
+                padding: EdgeInsets.symmetric(horizontal: kPadding),
                 child: DataTable(
-                  showBottomBorder: true,
+                  headingRowColor: WidgetStatePropertyAll(Kolor.primary),
+                  headingRowHeight: 35,
+                  clipBehavior: Clip.hardEdge,
+                  dividerThickness: 0,
+                  border: TableBorder.all(
+                    color: Kolor.primary.lighten(),
+                    borderRadius: kRadius(10),
+                    width: 1,
+                  ),
+                  headingTextStyle: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w600,
+                  ),
                   columns: [
                     "Tax Rate",
                     "Taxable Amt.",
@@ -293,13 +362,95 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                   ).toList(),
                 ),
               ),
+              height20,
+              Padding(
+                padding: EdgeInsets.all(kPadding),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    KCard(
+                      child: Row(
+                        spacing: 10,
+                        children: [
+                          Expanded(child: Label("For Customer").title),
+                          Switch(
+                            value: forCustomer,
+                            onChanged: (value) {
+                              setState(() {
+                                forCustomer = value;
+                              });
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                    KCard(
+                      color: Kolor.scaffold,
+                      borderWidth: 1,
+                      margin: EdgeInsets.only(top: 15),
+                      child: Form(
+                        key: _customerFormKey,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Label("Enter ${forCustomer ? "Customer" : "Shop Owner"} Details")
+                                .regular,
+                            div,
+                            height10,
+                            KField(
+                              controller: customerName,
+                              label: "Name",
+                              hintText: "Eg. Name Surname",
+                              validator: (val) => KValidation.required(val),
+                            ),
+                            height10,
+                            KField(
+                              controller: customerPhone,
+                              label: "Phone",
+                              hintText: "Eg. 1234567890",
+                              prefixText: "+91",
+                              keyboardType: TextInputType.number,
+                              validator: (val) => KValidation.required(val),
+                            ),
+                            height10,
+                            KField(
+                              controller: customerPan,
+                              label: "PAN (Optional)",
+                              hintText: "Eg. CHDPV7772W",
+                              textCapitalization: TextCapitalization.characters,
+                            ),
+                            height10,
+                            KField(
+                              controller: customerAadhaar,
+                              label: "Aadhaar (Optional)",
+                              hintText: "Eg. 12345678912",
+                              textCapitalization: TextCapitalization.characters,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    height20,
+                    Label("Other Details").title,
+                    height10,
+                    KField(
+                      controller: billingAddress,
+                      maxLines: 4,
+                      minLines: 4,
+                      label: "Billing Address",
+                      hintText: "Enter a billing address",
+                      validator: (val) => KValidation.required(val),
+                    ),
+                  ],
+                ),
+              )
             ],
           ),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          await PdfHelper.generateInvoice();
+        onPressed: () {
+          createInvoice();
         },
         icon: Icon(Icons.picture_as_pdf),
         elevation: 0,
