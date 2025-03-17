@@ -47,3 +47,82 @@ String kDateFormat(String date, {bool showTime = false, String? format}) {
   }
   return DateFormat(format ?? formatter).format(DateTime.parse(date));
 }
+
+String amountInWords(int amount) {
+  if (amount == 0) return "Zero";
+
+  final List<String> units = [
+    "",
+    "One",
+    "Two",
+    "Three",
+    "Four",
+    "Five",
+    "Six",
+    "Seven",
+    "Eight",
+    "Nine"
+  ];
+  final List<String> teens = [
+    "Eleven",
+    "Twelve",
+    "Thirteen",
+    "Fourteen",
+    "Fifteen",
+    "Sixteen",
+    "Seventeen",
+    "Eighteen",
+    "Nineteen"
+  ];
+  final List<String> tens = [
+    "",
+    "Ten",
+    "Twenty",
+    "Thirty",
+    "Forty",
+    "Fifty",
+    "Sixty",
+    "Seventy",
+    "Eighty",
+    "Ninety"
+  ];
+  final List<String> thousands = ["", "Thousand", "Million", "Billion"];
+
+  String convertChunk(int number) {
+    String result = "";
+
+    if (number >= 100) {
+      result += "${units[number ~/ 100]} Hundred ";
+      number %= 100;
+    }
+
+    if (number >= 11 && number <= 19) {
+      result += "${teens[number - 11]} ";
+    } else {
+      if (number >= 10) {
+        result += "${tens[number ~/ 10]} ";
+        number %= 10;
+      }
+      if (number > 0) {
+        result += "${units[number]} ";
+      }
+    }
+
+    return result.trim();
+  }
+
+  String result = "";
+  int chunkCount = 0;
+
+  while (amount > 0) {
+    int chunk = amount % 1000;
+    if (chunk > 0) {
+      String chunkInWords = convertChunk(chunk);
+      result = "$chunkInWords ${thousands[chunkCount]} $result".trim();
+    }
+    amount ~/= 1000;
+    chunkCount++;
+  }
+
+  return result.trim();
+}

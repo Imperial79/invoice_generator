@@ -5,4 +5,4 @@ const String kPackagePath = "$kIconPath/package_type";
 const String defaultBillingAddress =
     "Arrah More, Behind Bus/Auto Stand, Durgapur - 713212";
 
-const String kGSTCode = "<GST Number Here>";
+const String kGSTCode = "19APDPV5128C1ZU";

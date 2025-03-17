@@ -170,6 +170,7 @@ Add : CGST @ ${(e.gst / 2).toStringAsFixed(2)}%
 Add : SGST @ ${(e.gst / 2).toStringAsFixed(2)}%
 ''',
                           ).join("")}
+Less: Round Off (-)
 ''',
                       '''
 ${data.items.map(
@@ -178,6 +179,7 @@ ${((e.amount * (e.gst / 2)) / 100).toStringAsFixed(2)}
 ${((e.amount * (e.gst / 2)) / 100).toStringAsFixed(2)}
 ''',
                           ).join("")}
+${(data.grandTotal.round() - data.grandTotal).toStringAsFixed(2)}
 '''
                     ],
                   ],
@@ -198,7 +200,7 @@ ${((e.amount * (e.gst / 2)) / 100).toStringAsFixed(2)}
 Grand Total (Rs.)
 ''',
                       '''
-${kCurrencyFormat(data.grandTotal)}
+${kCurrencyFormat(data.grandTotal.round())}
 '''
                     ],
                   ],
@@ -235,8 +237,7 @@ ${kCurrencyFormat(data.grandTotal)}
                         ],
                       ),
                       SizedBox(height: 15),
-                      boldLabel(
-                          "Rupees Thirty Five Thousand One Hundred Sizty Only",
+                      boldLabel(amountInWords(data.grandTotal.round()),
                           fontSize: 12),
                     ],
                   ),
@@ -246,9 +247,9 @@ ${kCurrencyFormat(data.grandTotal)}
                   context: context,
                   headerAlignment: Alignment.center,
                   headerStyle:
-                      TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                      TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                   cellStyle:
-                      TextStyle(fontSize: 9, fontWeight: FontWeight.normal),
+                      TextStyle(fontSize: 8, fontWeight: FontWeight.normal),
                   cellAlignment: Alignment.center,
                   data: [
                     ["Declaration"],
@@ -266,18 +267,20 @@ SOUTH INDIAN BANK - ABC ROAD, - A/C - 8718927918219871, IFSC - AKSLJASKLAAS
                   context: context,
                   headerAlignment: Alignment.topLeft,
                   headerStyle:
-                      TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                      TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                   cellStyle:
-                      TextStyle(fontSize: 9, fontWeight: FontWeight.normal),
+                      TextStyle(fontSize: 8, fontWeight: FontWeight.normal),
                   cellAlignment: Alignment.topLeft,
                   data: [
                     ["Terms & Conditions"],
                     [
                       '''
 E. & O.E.
-1. Goods once sold will not be taken back.
-2. Goods once sold will not be taken back.
-3. Goods once sold will not be taken back.
+1. Payments via cheque are subject to verification.
+2. No returns or exchanges for sold goods.
+3. 18% interest on overdue payments.
+4. Disputes are under 'West Bengal' jurisdiction.
+5. Report invoice errors within 7 days.
 ''',
                       '''
 Reciever's Signature

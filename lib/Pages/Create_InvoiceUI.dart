@@ -64,6 +64,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
 
   createInvoice() async {
     try {
+      FocusScope.of(context).unfocus();
       isLoading.value = true;
       if (!_customerFormKey.currentState!.validate()) {
         KSnackbar(context,
