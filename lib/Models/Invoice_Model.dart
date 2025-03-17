@@ -14,6 +14,7 @@ class InvoiceModel {
   String customerAadhaar = "";
   String customerPan = "";
   String billingAddress = "";
+  DateTime? invoiceDate;
   InvoiceModel({
     required this.invoiceId,
     required this.items,
@@ -24,6 +25,7 @@ class InvoiceModel {
     required this.customerAadhaar,
     required this.customerPan,
     required this.billingAddress,
+    this.invoiceDate,
   });
 
   InvoiceModel copyWith({
@@ -36,6 +38,7 @@ class InvoiceModel {
     String? customerAadhaar,
     String? customerPan,
     String? billingAddress,
+    DateTime? invoiceDate,
   }) {
     return InvoiceModel(
       invoiceId: invoiceId ?? this.invoiceId,
@@ -47,6 +50,7 @@ class InvoiceModel {
       customerAadhaar: customerAadhaar ?? this.customerAadhaar,
       customerPan: customerPan ?? this.customerPan,
       billingAddress: billingAddress ?? this.billingAddress,
+      invoiceDate: invoiceDate ?? this.invoiceDate,
     );
   }
 
@@ -61,6 +65,7 @@ class InvoiceModel {
       'customerAadhaar': customerAadhaar,
       'customerPan': customerPan,
       'billingAddress': billingAddress,
+      'invoiceDate': invoiceDate?.millisecondsSinceEpoch,
     };
   }
 
@@ -76,6 +81,9 @@ class InvoiceModel {
       customerAadhaar: map['customerAadhaar'] ?? '',
       customerPan: map['customerPan'] ?? '',
       billingAddress: map['billingAddress'] ?? '',
+      invoiceDate: map['invoiceDate'] != null
+          ? DateTime.fromMillisecondsSinceEpoch(map['invoiceDate'])
+          : null,
     );
   }
 
@@ -86,7 +94,7 @@ class InvoiceModel {
 
   @override
   String toString() {
-    return 'InvoiceModel(invoiceId: $invoiceId, items: $items, taxList: $taxList, forCustomer: $forCustomer, customerName: $customerName, customerPhone: $customerPhone, customerAadhaar: $customerAadhaar, customerPan: $customerPan, billingAddress: $billingAddress)';
+    return 'InvoiceModel(invoiceId: $invoiceId, items: $items, taxList: $taxList, forCustomer: $forCustomer, customerName: $customerName, customerPhone: $customerPhone, customerAadhaar: $customerAadhaar, customerPan: $customerPan, billingAddress: $billingAddress, invoiceDate: $invoiceDate)';
   }
 
   @override
@@ -102,7 +110,8 @@ class InvoiceModel {
         other.customerPhone == customerPhone &&
         other.customerAadhaar == customerAadhaar &&
         other.customerPan == customerPan &&
-        other.billingAddress == billingAddress;
+        other.billingAddress == billingAddress &&
+        other.invoiceDate == invoiceDate;
   }
 
   @override
@@ -115,6 +124,7 @@ class InvoiceModel {
         customerPhone.hashCode ^
         customerAadhaar.hashCode ^
         customerPan.hashCode ^
-        billingAddress.hashCode;
+        billingAddress.hashCode ^
+        invoiceDate.hashCode;
   }
 }
