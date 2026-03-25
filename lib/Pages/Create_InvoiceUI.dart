@@ -1,10 +1,14 @@
+import 'dart:developer';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:invoice_generator/Essentials/KScaffold.dart';
 import 'package:invoice_generator/Essentials/Label.dart';
 import 'package:invoice_generator/Essentials/kButton.dart';
 import 'package:invoice_generator/Essentials/kCard.dart';
 import 'package:invoice_generator/Essentials/kField.dart';
 import 'package:invoice_generator/Helper/date_helper.dart';
+import 'package:invoice_generator/Helper/database_helper.dart';
 import 'package:invoice_generator/Helper/pdf_helper.dart';
 import 'package:invoice_generator/Models/Invoice_Model.dart';
 import 'package:invoice_generator/Models/Item_Model.dart';
@@ -12,9 +16,12 @@ import 'package:invoice_generator/Resources/app-data.dart';
 import 'package:invoice_generator/Resources/colors.dart';
 import 'package:invoice_generator/Resources/commons.dart';
 import 'package:invoice_generator/Resources/constants.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class CreateInvoiceUI extends StatefulWidget {
-  const CreateInvoiceUI({super.key});
+  final InvoiceModel? invoice;
+  const CreateInvoiceUI({super.key, this.invoice});
 
   @override
   State<CreateInvoiceUI> createState() => _CreateInvoiceUIState();
@@ -28,22 +35,16 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   final gst = TextEditingController();
 
   List<String> tableFields = [
-    "Sl. No.",
-    "Item Description",
-    "HSN/ASC Code",
+    "Sl.",
+    "Description",
+    "HSN/ASC",
     "Qty.",
     "Unit",
     "Price",
-    "GST (%)",
-    "Amount (₹)"
-  ];
-  List<String> taxFields = [
-    "Item",
-    "Tax (%)",
-    "Action",
+    "Amount",
   ];
 
-  List<String> unitList = ["Gms", "Kg"];
+  List<String> unitList = ["Gms", "Kg", "Pcs", "Nos"];
 
   List<ItemModel> addedItems = [];
   final invoiceNo = TextEditingController();
@@ -62,16 +63,68 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   final customerAadhaar = TextEditingController();
   final isLoading = ValueNotifier(false);
 
+  @override
+  void initState() {
+    super.initState();
+    _loadProfile();
+    invoiceDate = widget.invoice?.invoiceDate ?? DateTime.now();
+
+    if (widget.invoice != null) {
+      final inv = widget.invoice!;
+      invoiceNo.text = inv.invoiceId;
+      customerName.text = inv.customerName;
+      customerPhone.text = inv.customerPhone;
+      customerPan.text = inv.customerPan;
+      customerAadhaar.text = inv.customerAadhaar;
+      billingAddress.text = inv.billingAddress;
+      addedItems = List.from(inv.items);
+      forCustomer = inv.forCustomer;
+    } else {
+      invoiceNo.text =
+          "INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}";
+    }
+  }
+
+  Future<void> _loadProfile() async {
+    final pref = await SharedPreferences.getInstance();
+    final bName = pref.getString("biz_name");
+    final bAddress = pref.getString("biz_address");
+    if (bName != null && widget.invoice == null) {
+      // only if not editing
+      // maybe add a field for biz name in form if needed, but currently it's for generating PDF
+    }
+    if (bAddress != null && widget.invoice == null) {
+      setState(() {
+        billingAddress.text = bAddress;
+      });
+    }
+  }
+
   createInvoice() async {
     try {
-      FocusScope.of(context).unfocus();
-      isLoading.value = true;
+      if (invoiceNo.text.trim().isEmpty) {
+        invoiceNo.text =
+            "INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}";
+      }
+
       if (!_customerFormKey.currentState!.validate()) {
-        KSnackbar(context,
-            message: "Enter ${forCustomer ? "Customer" : "Shop Owner"} Details",
-            error: true);
+        KSnackbar(
+          context,
+          message: "Please fill in all required details",
+          error: true,
+        );
         return;
       }
+      if (addedItems.isEmpty) {
+        KSnackbar(
+          context,
+          message: "Please add at least one item",
+          error: true,
+        );
+        return;
+      }
+
+      isLoading.value = true;
       double total = 0;
       for (ItemModel item in addedItems) {
         final gstAmt = (item.amount * item.gst) / 100;
@@ -91,8 +144,17 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
         invoiceDate: invoiceDate,
       );
       await PdfHelper.generateInvoice(invoiceData);
+      await DatabaseHelper.instance.saveInvoice(invoiceData);
+      if (mounted) {
+        Navigator.pop(context, true);
+        KSnackbar(
+          context,
+          message: "Invoice generated and saved successfully!",
+        );
+      }
     } catch (e) {
-      KSnackbar(context, message: e, error: true);
+      log(e.toString());
+      KSnackbar(context, message: e.toString(), error: true);
     } finally {
       isLoading.value = false;
     }
@@ -113,6 +175,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
 
   @override
   void dispose() {
+    invoiceNo.dispose();
     itemName.dispose();
     hsnCode.dispose();
     qty.dispose();
@@ -121,6 +184,10 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
     tax.dispose();
     gst.dispose();
     billingAddress.dispose();
+    customerName.dispose();
+    customerPhone.dispose();
+    customerPan.dispose();
+    customerAadhaar.dispose();
     super.dispose();
   }
 
@@ -130,7 +197,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
       isLoading: isLoading,
       appBar: KAppBar(
         context,
-        title: kDateFormat("$invoiceDate"),
+        title: "Create Invoice",
         actions: [
           IconButton(
             onPressed: () async {
@@ -139,506 +206,504 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                 currentDate: invoiceDate,
               );
               if (data != null) {
-                setState(() {
-                  invoiceDate = data;
-                });
+                setState(() => invoiceDate = data);
               }
             },
-            icon: Icon(Icons.date_range),
-          )
+            icon: const Icon(LucideIcons.calendar),
+          ),
         ],
       ),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: EdgeInsets.only(bottom: 120),
+          padding: const EdgeInsets.all(kPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            spacing: 20,
             children: [
-              Padding(
-                padding: const EdgeInsets.all(kPadding),
-                child: KField(
-                  controller: invoiceNo,
-                  label: "Invoice No.",
-                  hintText: "Unique No.",
-                  keyboardType: TextInputType.number,
-                  suffix: IconButton(
-                    onPressed: () {
-                      setState(() {
-                        invoiceNo.text =
-                            "${DateTime.now().millisecondsSinceEpoch}";
-                      });
-                    },
-                    visualDensity: VisualDensity.compact,
-                    icon: Icon(
-                      Icons.sync,
-                      size: 22,
-                    ),
-                  ),
-                  validator: (val) => KValidation.required(val),
-                ),
+              _buildSectionHeader("Invoice Details", LucideIcons.fileText),
+              _buildInvoiceInfo(),
+              _buildSectionHeader("Items List", LucideIcons.package),
+              _buildItemsSection(),
+              _buildSectionHeader("Party Details", LucideIcons.user),
+              _buildPartyDetails(),
+              _buildSectionHeader("Other Details", LucideIcons.ellipsis),
+              KField(
+                controller: billingAddress,
+                maxLines: 4,
+                minLines: 3,
+                label: "Billing Address",
+                hintText: "Enter complete billing address",
+                validator: (val) => KValidation.required(val),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: kPadding),
-                child: MaterialButton(
-                  onPressed: () {
-                    showDialog(
-                      context: context,
-                      builder: (context) => addItemDialog(
-                        setState,
-                        id: addedItems.length + 1,
-                      ),
-                    );
-                  },
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: kRadius(10),
-                    side: BorderSide(color: Kolor.primary.lighten(.4)),
-                  ),
-                  padding: EdgeInsets.all(12),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      mainAxisSize: MainAxisSize.min,
-                      spacing: 10,
-                      children: [
-                        Icon(Icons.add_circle, size: 20, color: Kolor.primary),
-                        Label("Add Items", color: Kolor.primary).regular,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              if (addedItems.isNotEmpty)
-                SingleChildScrollView(
-                  padding: EdgeInsets.all(kPadding),
-                  scrollDirection: Axis.horizontal,
-                  child: DataTable(
-                    dividerThickness: 0,
-                    headingRowColor: WidgetStatePropertyAll(Kolor.primary),
-                    headingRowHeight: 35,
-                    clipBehavior: Clip.hardEdge,
-                    border: TableBorder.all(
-                      color: Kolor.primary.lighten(),
-                      borderRadius: kRadius(10),
-                      width: 1,
-                    ),
-                    headingTextStyle: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                    ),
-                    columns: [...tableFields, "Action"]
-                        .map(
-                          (e) => DataColumn(label: Label(e).regular),
-                        )
-                        .toList(),
-                    rows: addedItems
-                        .map(
-                          (item) => DataRow(
-                            cells: [
-                              DataCell(Label("${item.id}").regular),
-                              DataCell(
-                                ConstrainedBox(
-                                  constraints: BoxConstraints(maxWidth: 200),
-                                  child: Label(item.itemName).regular,
-                                ),
-                              ),
-                              DataCell(Label(item.hsnCode).regular),
-                              DataCell(Label("${item.qty}").regular),
-                              DataCell(Label(item.unit).regular),
-                              DataCell(
-                                  Label(kCurrencyFormat(item.price)).regular),
-                              DataCell(
-                                Label("${item.gst}%").regular,
-                              ),
-                              DataCell(
-                                Label(kCurrencyFormat(item.amount)).regular,
-                              ),
-                              DataCell(
-                                Row(
-                                  spacing: 5,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.edit,
-                                        size: 15, color: Kolor.primary),
-                                    Label("Edit", color: Kolor.primary).regular,
-                                  ],
-                                ),
-                                onTap: () {
-                                  setState(() {
-                                    itemName.text = item.itemName;
-                                    hsnCode.text = item.hsnCode;
-                                    qty.text = "${item.qty}";
-                                    unit = item.unit;
-                                    price.text = "${item.price}";
-                                    amount.text = "${item.amount}";
-                                    gst.text = "${item.gst}";
-                                  });
-                                  showDialog(
-                                    context: context,
-                                    builder: (context) => addItemDialog(
-                                      setState,
-                                      id: item.id,
-                                    ),
-                                  );
-                                },
-                              ),
-                            ],
-                          ),
-                        )
-                        .toList(),
-                  ),
-                )
-              else
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 50),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.inbox,
-                          size: 50,
-                          color: Kolor.primary.lighten(),
-                        ),
-                        Label(
-                          "No Item(s)",
-                          fontSize: 30,
-                          color: Kolor.primary.lighten(),
-                        ).regular,
-                      ],
-                    ),
-                  ),
-                ),
-              height20,
-              div,
-              Padding(
-                padding: EdgeInsets.all(kPadding),
-                child: Label("Tax Breakdown").regular,
-              ),
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                padding: EdgeInsets.symmetric(horizontal: kPadding),
-                child: DataTable(
-                  headingRowColor: WidgetStatePropertyAll(Kolor.primary),
-                  headingRowHeight: 35,
-                  clipBehavior: Clip.hardEdge,
-                  dividerThickness: 0,
-                  border: TableBorder.all(
-                    color: Kolor.primary.lighten(),
-                    borderRadius: kRadius(10),
-                    width: 1,
-                  ),
-                  headingTextStyle: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  columns: [
-                    "Tax Rate",
-                    "Taxable Amt.",
-                    "CGST Amt.",
-                    "SGST Amt.",
-                    "Total Tax"
-                  ]
-                      .map(
-                        (e) => DataColumn(label: Label(e).regular),
-                      )
-                      .toList(),
-                  rows: addedItems.map(
-                    (item) {
-                      double tax = item.gst;
-                      double taxableAmount = item.amount;
-                      double cgst = (taxableAmount * (tax / 2)) / 100;
-
-                      return DataRow(
-                        cells: [
-                          DataCell(Label("$tax%").regular),
-                          DataCell(
-                              Label(kCurrencyFormat(taxableAmount)).regular),
-                          DataCell(Label(kCurrencyFormat(cgst)).regular),
-                          DataCell(Label(kCurrencyFormat(cgst)).regular),
-                          DataCell(Label(kCurrencyFormat(cgst * 2)).regular),
-                        ],
-                      );
-                    },
-                  ).toList(),
-                ),
-              ),
-              height20,
-              Padding(
-                padding: EdgeInsets.all(kPadding),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    KCard(
-                      child: Row(
-                        spacing: 10,
-                        children: [
-                          Expanded(child: Label("For Customer").title),
-                          Switch(
-                            value: forCustomer,
-                            onChanged: (value) {
-                              setState(() {
-                                forCustomer = value;
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    KCard(
-                      color: Kolor.scaffold,
-                      borderWidth: 1,
-                      margin: EdgeInsets.only(top: 15),
-                      child: Form(
-                        key: _customerFormKey,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Label("Enter ${forCustomer ? "Customer" : "Shop Owner"} Details")
-                                .regular,
-                            div,
-                            height10,
-                            KField(
-                              controller: customerName,
-                              label: "Name",
-                              hintText: "Eg. Name Surname",
-                              validator: (val) => KValidation.required(val),
-                            ),
-                            height10,
-                            KField(
-                              controller: customerPhone,
-                              label: "Phone",
-                              hintText: "Eg. 1234567890",
-                              prefixText: "+91",
-                              keyboardType: TextInputType.number,
-                              validator: (val) => KValidation.required(val),
-                            ),
-                            height10,
-                            KField(
-                              controller: customerPan,
-                              label: "PAN (Optional)",
-                              hintText: "Eg. CHDPV7772W",
-                              textCapitalization: TextCapitalization.characters,
-                            ),
-                            height10,
-                            KField(
-                              controller: customerAadhaar,
-                              label: "Aadhaar (Optional)",
-                              hintText: "Eg. 12345678912",
-                              textCapitalization: TextCapitalization.characters,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                    height20,
-                    Label("Other Details").title,
-                    height10,
-                    KField(
-                      controller: billingAddress,
-                      maxLines: 4,
-                      minLines: 4,
-                      label: "Billing Address",
-                      hintText: "Enter a billing address",
-                      validator: (val) => KValidation.required(val),
-                    ),
-                  ],
-                ),
-              )
+              const SizedBox(height: 80),
             ],
           ),
         ),
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () {
-          createInvoice();
-        },
-        icon: Icon(Icons.picture_as_pdf),
-        elevation: 0,
+        onPressed: createInvoice,
+        icon: const Icon(LucideIcons.fileOutput),
+        elevation: 4,
         backgroundColor: Kolor.primary,
         foregroundColor: Colors.white,
-        label: Label("Create PDF").regular,
+        label: Label("Generate PDF", weight: 700).regular,
+      ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, IconData icon) {
+    return Row(
+      spacing: 10,
+      children: [
+        Icon(icon, size: 20, color: Kolor.secondary),
+        Label(title, fontSize: 18, weight: 700).title,
+      ],
+    );
+  }
+
+  Widget _buildInvoiceInfo() {
+    return KCard(
+      padding: const EdgeInsets.all(15),
+      borderWidth: 1,
+      borderColor: Kolor.border,
+      child: Column(
+        spacing: 15,
+        children: [
+          KField(
+            controller: invoiceNo,
+            label: "Invoice No.",
+            hintText: "Enter Unique ID",
+            prefix: const Icon(LucideIcons.hash, size: 16),
+            suffix: IconButton(
+              onPressed: () => setState(() {
+                invoiceNo.text =
+                    "INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}";
+              }),
+              icon: const Icon(LucideIcons.refreshCw, size: 16),
+            ),
+            validator: (val) => KValidation.required(val),
+          ),
+          InkWell(
+            onTap: () async {
+              final data = await DateHelper.pickDate(
+                context,
+                currentDate: invoiceDate,
+              );
+              if (data != null) setState(() => invoiceDate = data);
+            },
+            child: KField(
+              readOnly: true,
+              showRequired: false,
+              label: "Date",
+              hintText: kDateFormat(invoiceDate.toString()),
+              prefix: const Icon(LucideIcons.calendar, size: 16),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildItemsSection() {
+    return Column(
+      spacing: 15,
+      children: [
+        if (addedItems.isEmpty)
+          KCard(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 40),
+            color: Kolor.card.withValues(alpha: .5),
+            borderWidth: 1,
+            borderColor: Kolor.border,
+            child: Column(
+              spacing: 10,
+              children: [
+                const Icon(LucideIcons.inbox, size: 40, color: Kolor.fadeText),
+                Label("No items added yet", color: Kolor.fadeText).regular,
+              ],
+            ),
+          )
+        else
+          ...addedItems.map((item) => _buildItemCard(item)),
+        KButton(
+          onPressed: () {
+            clearFields();
+            showDialog(
+              context: context,
+              builder: (context) =>
+                  addItemDialog(setState, id: addedItems.length + 1),
+            );
+          },
+          style: KButtonStyle.expanded,
+          label: "Add New Item",
+          icon: const Icon(LucideIcons.plus),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildItemCard(ItemModel item) {
+    return KCard(
+      padding: const EdgeInsets.all(15),
+      borderWidth: 1,
+      borderColor: Kolor.primary.withValues(alpha: .2),
+      color: Colors.white,
+      child: Column(
+        spacing: 10,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Label(item.itemName, fontSize: 16, weight: 700).title,
+              Row(
+                spacing: 10,
+                children: [
+                  IconButton(
+                    onPressed: () {
+                      itemName.text = item.itemName;
+                      hsnCode.text = item.hsnCode;
+                      qty.text = item.qty.toString();
+                      unit = item.unit;
+                      price.text = item.price.toString();
+                      amount.text = item.amount.toString();
+                      gst.text = item.gst.toString();
+                      showDialog(
+                        context: context,
+                        builder: (context) =>
+                            addItemDialog(setState, id: item.id),
+                      );
+                    },
+                    icon: const Icon(
+                      LucideIcons.pencil,
+                      size: 18,
+                      color: Kolor.primary,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => setState(() => addedItems.remove(item)),
+                    icon: const Icon(
+                      LucideIcons.trash2,
+                      size: 18,
+                      color: StatusText.danger,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          div,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _itemStat("Qty", "${item.qty} ${item.unit}"),
+              _itemStat("Rate", kCurrencyFormat(item.price)),
+              _itemStat("GST", "${item.gst}%"),
+              _itemStat("Total", kCurrencyFormat(item.amount), isBold: true),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _itemStat(String label, String value, {bool isBold = false}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Label(label, fontSize: 10, color: Kolor.fadeText).regular,
+        Label(value, fontSize: 13, weight: isBold ? 700 : 500).regular,
+      ],
+    );
+  }
+
+  Widget _buildPartyDetails() {
+    return KCard(
+      padding: const EdgeInsets.all(20),
+      borderWidth: 1,
+      borderColor: Kolor.border,
+      child: Form(
+        key: _customerFormKey,
+        child: Column(
+          spacing: 15,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Label(
+                  forCustomer ? "Customer Details" : "Business Details",
+                  weight: 700,
+                ).title,
+                Switch.adaptive(
+                  value: forCustomer,
+                  onChanged: (v) => setState(() => forCustomer = v),
+                ),
+              ],
+            ),
+            div,
+            KField(
+              controller: customerName,
+              label: "Customer Name",
+              hintText: "Enter Name",
+              prefix: const Icon(LucideIcons.user, size: 16),
+              suffix: IconButton(
+                onPressed: () async {
+                  try {
+                    if (await FlutterContacts.requestPermission()) {
+                      final contact = await FlutterContacts.openExternalPick();
+                      if (contact != null) {
+                        setState(() {
+                          customerName.text = contact.displayName;
+                          if (contact.phones.isNotEmpty) {
+                            customerPhone.text = contact.phones.first.number
+                                .replaceAll(RegExp(r'[^0-9]'), '');
+                            if (customerPhone.text.length > 10 &&
+                                customerPhone.text.startsWith('91')) {
+                              customerPhone.text = customerPhone.text.substring(
+                                2,
+                              );
+                            }
+                          }
+                        });
+                      }
+                    } else {
+                      KSnackbar(
+                        context,
+                        message: "Contact permission denied!",
+                        error: true,
+                      );
+                    }
+                  } catch (e) {
+                    log("Contact Pick Error: $e");
+                    KSnackbar(
+                      context,
+                      message: "Couldn't pick contact",
+                      error: true,
+                    );
+                  }
+                },
+                icon: const Icon(
+                  LucideIcons.contact,
+                  size: 18,
+                  color: Kolor.primary,
+                ),
+              ),
+              validator: (val) => KValidation.required(val),
+            ),
+            KField(
+              controller: customerPhone,
+              label: "Phone Number",
+              hintText: "10 Digit Mobile",
+              prefix: const Icon(LucideIcons.phone, size: 16),
+              keyboardType: TextInputType.phone,
+              maxLength: 10,
+              validator: (val) => KValidation.phone(val),
+            ),
+            Row(
+              spacing: 15,
+              children: [
+                Expanded(
+                  child: KField(
+                    controller: customerPan,
+                    label: "PAN",
+                    hintText: "Optional",
+                    showRequired: false,
+                    textCapitalization: TextCapitalization.characters,
+                  ),
+                ),
+                Expanded(
+                  child: KField(
+                    controller: customerAadhaar,
+                    label: "Aadhaar",
+                    hintText: "Optional",
+                    showRequired: false,
+                    keyboardType: TextInputType.number,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _dialog({required Widget child}) {
     return Dialog(
-      shape: RoundedRectangleBorder(borderRadius: kRadius(15)),
-      backgroundColor: Kolor.scaffold,
-      insetPadding: EdgeInsets.all(kPadding),
+      shape: RoundedRectangleBorder(borderRadius: kRadius(20)),
+      backgroundColor: Colors.white,
+      insetPadding: const EdgeInsets.all(kPadding),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(kPadding),
+        padding: const EdgeInsets.all(20),
         child: SingleChildScrollView(child: child),
       ),
     );
   }
 
-  Widget addItemDialog(
-    StateSetter setMainState, {
-    required int id,
-  }) {
-    return StatefulBuilder(builder: (context, setState) {
-      return _dialog(
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Label("Add Item #$id").title,
-              height20,
-              KField(
-                controller: itemName,
-                label: "Item Name",
-                hintText: "Enter item name",
-                validator: (val) => KValidation.required(val),
-                onChanged: (val) {
-                  setState(() {});
-                },
-              ),
-              height10,
-              KField(
-                controller: hsnCode,
-                label: "HSN/SAC Code",
-                hintText: "Enter HSN/SAC Code",
-                textCapitalization: TextCapitalization.characters,
-                validator: (val) => KValidation.required(val),
-                onChanged: (val) {
-                  setState(() {});
-                },
-              ),
-              height10,
-              Row(
-                spacing: 10,
-                children: [
-                  Expanded(
-                    child: KField(
-                      controller: qty,
-                      label: "Qty",
-                      hintText: "Enter Qty",
-                      keyboardType: TextInputType.number,
-                      suffix: DropdownButton(
-                        value: unit,
-                        underline: SizedBox(),
-                        items: unitList
-                            .map(
-                              (e) => DropdownMenuItem<String>(
-                                value: e,
-                                child: Label(e).regular,
-                              ),
-                            )
-                            .toList(),
-                        onChanged: (value) {
-                          setState(() {
-                            if (value != null) {
-                              unit = value;
-                            }
-                          });
-                        },
+  Widget addItemDialog(StateSetter setMainState, {required int id}) {
+    return StatefulBuilder(
+      builder: (context, setState) {
+        return _dialog(
+          child: Form(
+            key: _formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 15,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Label("Item Details #$id", fontSize: 20, weight: 700).title,
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(LucideIcons.x, size: 20),
+                    ),
+                  ],
+                ),
+                div,
+                KField(
+                  controller: itemName,
+                  label: "Item Name",
+                  hintText: "e.g. Graphic Design Services",
+                  validator: (val) => KValidation.required(val),
+                ),
+                KField(
+                  controller: hsnCode,
+                  label: "HSN/SAC Code",
+                  hintText: "e.g. 9983",
+                  textCapitalization: TextCapitalization.characters,
+                  validator: (val) => KValidation.required(val),
+                ),
+                Row(
+                  spacing: 12,
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: KField(
+                        controller: qty,
+                        label: "Qty",
+                        keyboardType: TextInputType.number,
+                        validator: (val) => KValidation.required(val),
+                        onChanged: (v) => setState(() {
+                          amount.text =
+                              (parseToDouble(v) * parseToDouble(price.text))
+                                  .toStringAsFixed(2);
+                        }),
                       ),
-                      validator: (val) => KValidation.required(val),
                     ),
-                  ),
-                ],
-              ),
-              height10,
-              KField(
-                controller: price,
-                label: "Price",
-                hintText: "Enter Price",
-                prefixText: "INR",
-                keyboardType: TextInputType.number,
-                validator: (val) => KValidation.required(val),
-                onChanged: (val) {
-                  setState(() {
-                    amount.text = (parseToDouble(val) * parseToDouble(qty.text))
-                        .toStringAsFixed(2);
-                    calculateGst();
-                  });
-                },
-              ),
-              height10,
-              Row(
-                spacing: 10,
-                children: [
-                  Flexible(
-                    child: KField(
-                      controller: amount,
-                      label: "Amount",
-                      showRequired: false,
-                      readOnly: true,
-                      hintText: "Enter Amount",
-                      prefixText: "INR",
-                      keyboardType: TextInputType.number,
-                      validator: (val) => KValidation.required(val),
+                    Expanded(
+                      flex: 1,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        spacing: 5,
+                        children: [
+                          Label("Unit", fontSize: 13, weight: 600).regular,
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Kolor.border),
+                              borderRadius: kRadius(10),
+                            ),
+                            child: DropdownButtonHideUnderline(
+                              child: DropdownButton<String>(
+                                value: unit,
+                                isExpanded: true,
+                                items: unitList
+                                    .map(
+                                      (e) => DropdownMenuItem(
+                                        value: e,
+                                        child: Label(e).regular,
+                                      ),
+                                    )
+                                    .toList(),
+                                onChanged: (v) {
+                                  if (v != null) setState(() => unit = v);
+                                },
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                  Flexible(
-                    child: KField(
-                      controller: gst,
-                      label: "GST",
-                      hintText: "Enter GST",
-                      suffix: Label("%").title,
-                      keyboardType: TextInputType.number,
-                      validator: (val) => KValidation.required(val),
-                      onChanged: (val) {
-                        setState(() {});
-                      },
+                  ],
+                ),
+                Row(
+                  spacing: 12,
+                  children: [
+                    Expanded(
+                      child: KField(
+                        controller: price,
+                        label: "Rate/Price",
+                        prefixText: "₹",
+                        keyboardType: TextInputType.number,
+                        validator: (val) => KValidation.required(val),
+                        onChanged: (v) => setState(() {
+                          amount.text =
+                              (parseToDouble(v) * parseToDouble(qty.text))
+                                  .toStringAsFixed(2);
+                        }),
+                      ),
                     ),
-                  ),
-                ],
-              ),
-              height15,
-              Row(
-                children: [
-                  Expanded(child: Label("GST (${gst.text}%)").regular),
-                  Label(kCurrencyFormat((parseToDouble(gst.text) / 100) *
-                          parseToDouble(amount.text)))
-                      .regular,
-                  height20,
-                ],
-              ),
-              height15,
-              KButton(
-                onPressed: () {
-                  if (_formKey.currentState!.validate()) {
-                    ItemModel data = ItemModel(
-                      id: id,
-                      itemName: itemName.text.trim(),
-                      hsnCode: hsnCode.text.trim(),
-                      gst: parseToDouble(gst.text),
-                      unit: unit,
-                      qty: parseToDouble(qty.text),
-                      price: parseToDouble(price.text),
-                      amount: parseToDouble(amount.text),
-                    );
+                    Expanded(
+                      child: KField(
+                        controller: gst,
+                        label: "GST (%)",
+                        suffix: Padding(
+                          padding: EdgeInsets.only(right: 10),
+                          child: Label("%", fontSize: 16).regular,
+                        ),
+                        keyboardType: TextInputType.number,
+                        validator: (val) => KValidation.required(val),
+                      ),
+                    ),
+                  ],
+                ),
+                KField(
+                  controller: amount,
+                  label: "Total Amount",
+                  readOnly: true,
+                  showRequired: false,
+                  prefixText: "₹",
+                  fieldColor: Kolor.card,
+                ),
+                const SizedBox(height: 10),
+                KButton(
+                  onPressed: () {
+                    if (_formKey.currentState!.validate()) {
+                      ItemModel data = ItemModel(
+                        id: id,
+                        itemName: itemName.text.trim(),
+                        hsnCode: hsnCode.text.trim(),
+                        gst: parseToDouble(gst.text),
+                        unit: unit,
+                        qty: parseToDouble(qty.text),
+                        price: parseToDouble(price.text),
+                        amount: parseToDouble(amount.text),
+                      );
 
-                    setMainState(() {
-                      int index =
-                          addedItems.indexWhere((item) => item.id == id);
-                      if (index != -1) {
-                        addedItems[index] = data;
-                        KSnackbar(context, message: "Item updated.");
-                      } else {
-                        addedItems.add(data);
-                        KSnackbar(context, message: "Item added.");
-                      }
-                    });
-                    clearFields();
-                    Navigator.pop(context);
-                  }
-                },
-                label: "Add Item",
-                icon: Icon(Icons.add),
-                visualDensity: VisualDensity.comfortable,
-                style: KButtonStyle.expanded,
-              ),
-            ],
+                      setMainState(() {
+                        int index = addedItems.indexWhere(
+                          (item) => item.id == id,
+                        );
+                        if (index != -1) {
+                          addedItems[index] = data;
+                        } else {
+                          addedItems.add(data);
+                        }
+                      });
+                      Navigator.pop(context);
+                    }
+                  },
+                  label: id <= addedItems.length ? "Update Item" : "Add Item",
+                  icon: const Icon(LucideIcons.check),
+                  style: KButtonStyle.expanded,
+                ),
+              ],
+            ),
           ),
-        ),
-      );
-    });
+        );
+      },
+    );
   }
 }
