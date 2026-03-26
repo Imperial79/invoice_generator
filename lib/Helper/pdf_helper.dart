@@ -22,12 +22,25 @@ class PdfHelper {
     final pref = await SharedPreferences.getInstance();
     final showWatermark = pref.getBool("pdf_watermark") ?? true;
 
+    final profile = {
+      'biz_name': pref.getString("biz_name") ?? "Imperial Studio",
+      'biz_phone': pref.getString("biz_phone") ?? "",
+      'biz_email': pref.getString("biz_email") ?? "",
+      'biz_gst': pref.getString("biz_gst") ?? "19APDPV5128C1ZU",
+      'biz_address': pref.getString("biz_address") ?? "Arrah More, Durgapur - 713212",
+      'biz_bank': pref.getString("biz_bank") ??
+          "BANK DETAILS - SBI BANK, DURGAPUR SEN MARKET - A/C - 8718927918219871, IFSC - AKSLJASKLAAS\nSOUTH INDIAN BANK - ABC ROAD, - A/C - 8718927918219871, IFSC - AKSLJASKLAAS",
+      'biz_terms': pref.getString("biz_terms") ??
+          "E. & O.E.\n1. Payments via cheque are subject to verification.\n2. No returns or exchanges for sold goods.\n3. 18% interest on overdue payments.\n4. Disputes are under 'West Bengal' jurisdiction.\n5. Report invoice errors within 7 days.",
+      'biz_state': pref.getString("biz_state") ?? "West Bengal (19)",
+    };
+
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
         margin: const pw.EdgeInsets.all(0),
         build: (pw.Context context) =>
-            pdfLayout(context, banner, watermark, invoiceData, showWatermark),
+            pdfLayout(context, banner, watermark, invoiceData, profile, showWatermark),
       ),
     );
 

@@ -9,6 +9,7 @@ import 'package:invoice_generator/Resources/commons.dart';
 import 'package:invoice_generator/Resources/constants.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:invoice_generator/Resources/theme.dart';
 
 class SetupUI extends StatefulWidget {
   const SetupUI({super.key});
@@ -47,12 +48,41 @@ class _SetupUIState extends State<SetupUI> {
             onTap: () => context.push("/company-profile"),
           ),
           _buildOption(
+            LucideIcons.palette,
+            "App Theme",
+            "Switch Light/Dark Mode",
+            trailing: ValueListenableBuilder<ThemeMode>(
+              valueListenable: themeModeNotifier,
+              builder: (context, mode, _) {
+                return DropdownButtonHideUnderline(
+                  child: DropdownButton<ThemeMode>(
+                    value: mode,
+                    onChanged: (newMode) async {
+                      if (newMode != null) {
+                        themeModeNotifier.value = newMode;
+                        final pref = await SharedPreferences.getInstance();
+                        await pref.setInt("theme_mode", newMode.index);
+                      }
+                    },
+                    items: ThemeMode.values.map((e) {
+                      return DropdownMenuItem(
+                        value: e,
+                        child: Label(e.name.toUpperCase(), fontSize: 13).regular,
+                      );
+                    }).toList(),
+                  ),
+                );
+              },
+            ),
+            onTap: () {},
+          ),
+          _buildOption(
             LucideIcons.fileText,
             "Show/Hide Watermark",
             "Toggle Watermark",
             trailing: Switch(
               value: isWatermarkEnabled,
-              activeThumbColor: Kolor.primary,
+              activeTrackColor: kColor(context).primary,
               onChanged: (val) async {
                 final pref = await SharedPreferences.getInstance();
                 await pref.setBool("pdf_watermark", val);
@@ -81,10 +111,10 @@ class _SetupUIState extends State<SetupUI> {
               context: context,
               applicationName: "Invoice Generator",
               applicationVersion: "1.0.0",
-              applicationIcon: const Icon(
+              applicationIcon: Icon(
                 LucideIcons.fileText,
                 size: 40,
-                color: Kolor.primary,
+                color: kColor(context).primary,
               ),
               children: [
                 Label(
@@ -119,7 +149,7 @@ class _SetupUIState extends State<SetupUI> {
                 KSnackbar(context, message: "Database cleared successfully!");
               }
             },
-            child: Label("Yes, Clear", color: StatusText.danger).regular,
+            child: Label("Yes, Clear", color: kColor(context).error).regular,
           ),
         ],
       ),
@@ -137,28 +167,32 @@ class _SetupUIState extends State<SetupUI> {
       onTap: onTap,
       margin: const EdgeInsets.only(bottom: 15),
       padding: const EdgeInsets.all(18),
-      color: Kolor.scaffold,
+      color: kColor(context).surface,
       borderWidth: 1,
-      borderColor: Kolor.border,
+      borderColor: kColor(context).outlineVariant,
       radius: 15,
       child: Row(
         children: [
-          Icon(icon, color: Kolor.secondary),
+          Icon(icon, color: kColor(context).onSurface),
           const SizedBox(width: 15),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Label(title, fontSize: 16, weight: 600).regular,
-                Label(sub, fontSize: 12, color: Kolor.fadeText).regular,
+                Label(
+                  sub,
+                  fontSize: 12,
+                  color: kColor(context).onSurfaceVariant,
+                ).regular,
               ],
             ),
           ),
           trailing ??
-              const Icon(
+              Icon(
                 LucideIcons.chevronRight,
                 size: 18,
-                color: Kolor.fadeText,
+                color: kColor(context).onSurfaceVariant,
               ),
         ],
       ),

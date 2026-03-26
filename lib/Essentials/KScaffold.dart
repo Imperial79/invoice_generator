@@ -18,6 +18,8 @@ class KScaffold extends StatelessWidget {
   Widget? bottomNavigationBar;
   ValueListenable<dynamic>? isLoading;
   List<Widget>? persistentFooterButtons;
+  final Color? color;
+  final Color? borderColor;
   KScaffold({
     super.key,
     this.appBar,
@@ -28,11 +30,13 @@ class KScaffold extends StatelessWidget {
     this.floatingActionButton,
     this.bottomNavigationBar,
     this.persistentFooterButtons,
+    this.color,
+    this.borderColor,
   });
 
   @override
   Widget build(BuildContext context) {
-    systemColors();
+    systemColors(context);
     return Scaffold(
       body: ValueListenableBuilder(
         valueListenable: isLoading ?? ValueNotifier(false),
@@ -53,7 +57,7 @@ class KScaffold extends StatelessWidget {
                 floatingActionButton: floatingActionButton,
                 bottomNavigationBar: bottomNavigationBar,
               ),
-              _fullLoading(isLoading: loading),
+              _fullLoading(context, isLoading: loading),
             ],
           );
         },
@@ -61,7 +65,10 @@ class KScaffold extends StatelessWidget {
     );
   }
 
-  AnimatedSwitcher _fullLoading({required bool isLoading}) {
+  AnimatedSwitcher _fullLoading(
+    BuildContext context, {
+    required bool isLoading,
+  }) {
     return AnimatedSwitcher(
       duration: const Duration(milliseconds: 200),
       reverseDuration: const Duration(milliseconds: 200),
@@ -69,14 +76,15 @@ class KScaffold extends StatelessWidget {
           ? Container(
               height: double.maxFinite,
               width: double.maxFinite,
-              color: kOpacity(Kolor.scaffold, .8),
+              color: kColor(context).surface.withAlpha(200),
               child: Center(
                 child: KCard(
                   width: 300,
-                  color: Colors.transparent,
+                  color: color ?? kColor(context).surfaceContainerLow,
                   padding: const EdgeInsets.all(30),
+                  borderColor: borderColor ?? kColor(context).outlineVariant,
+                  borderWidth: borderColor != null ? 1 : 0,
                   child: Column(
-                    spacing: 30,
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       SizedBox(
@@ -84,15 +92,18 @@ class KScaffold extends StatelessWidget {
                         width: 25,
                         child: CircularProgressIndicator(
                           strokeWidth: 3,
-                          backgroundColor: kOpacity(Kolor.scaffold, .1),
-                          color: Colors.black,
+                          backgroundColor: kColor(
+                            context,
+                          ).surfaceContainerHighest,
+                          color: kColor(context).primary,
                         ),
                       ),
+                      const SizedBox(height: 30),
                       Label(
                         "Please Wait",
                         fontSize: 17,
                         weight: 550,
-                        color: Colors.black,
+                        color: kColor(context).onSurface,
                       ).title,
                     ],
                   ),
@@ -116,25 +127,18 @@ AppBar KAppBar(
     automaticallyImplyLeading: false,
     titleSpacing: showBack ? 0 : kPadding,
     leadingWidth: 50,
-    surfaceTintColor: Kolor.scaffold,
+    surfaceTintColor: kColor(context).surface,
+    backgroundColor: kColor(context).surface,
     leading: showBack
         ? Align(
             alignment: Alignment.centerRight,
             child: IconButton(
               onPressed: () => context.pop(),
-              icon: const Icon(
-                Icons.arrow_back_ios_new,
-                size: 20,
-              ),
+              icon: const Icon(Icons.arrow_back_ios_new, size: 20),
             ),
           )
         : null,
-    title: child ??
-        Label(
-          title,
-          fontSize: 18,
-          weight: 600,
-        ).title,
+    title: child ?? Label(title, fontSize: 18, weight: 600).title,
     actions: actions,
   );
 }

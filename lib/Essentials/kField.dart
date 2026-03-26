@@ -33,37 +33,38 @@ class KField extends StatelessWidget {
   final String? Function(String? val)? validator;
   final void Function(String val)? onFieldSubmitted;
   final Iterable<String>? autofillHints;
-  const KField(
-      {super.key,
-      this.showRequired = true,
-      this.autoFocus = false,
-      this.onTap,
-      this.readOnly,
-      this.controller,
-      this.hintText,
-      this.keyboardType,
-      this.prefixText,
-      this.prefix,
-      this.suffix,
-      this.cursorColor,
-      this.fieldColor,
-      this.borderColor,
-      this.textColor,
-      this.hintTextColor,
-      this.obscureText,
-      this.maxLength,
-      this.minLines = 1,
-      this.maxLines = 1,
-      this.focusNode,
-      this.label,
-      this.fontSize,
-      this.labelIcon,
-      this.textCapitalization = TextCapitalization.words,
-      this.inputFormatters,
-      this.onChanged,
-      this.validator,
-      this.onFieldSubmitted,
-      this.autofillHints});
+  const KField({
+    super.key,
+    this.showRequired = true,
+    this.autoFocus = false,
+    this.onTap,
+    this.readOnly,
+    this.controller,
+    this.hintText,
+    this.keyboardType,
+    this.prefixText,
+    this.prefix,
+    this.suffix,
+    this.cursorColor,
+    this.fieldColor,
+    this.borderColor,
+    this.textColor,
+    this.hintTextColor,
+    this.obscureText,
+    this.maxLength,
+    this.minLines = 1,
+    this.maxLines = 1,
+    this.focusNode,
+    this.label,
+    this.fontSize,
+    this.labelIcon,
+    this.textCapitalization = TextCapitalization.words,
+    this.inputFormatters,
+    this.onChanged,
+    this.validator,
+    this.onFieldSubmitted,
+    this.autofillHints,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -83,7 +84,7 @@ class KField extends StatelessWidget {
                     padding: EdgeInsets.only(left: 3.0),
                     child: Label(
                       "(Required)",
-                      color: StatusText.danger,
+                      color: kColor(context).error,
                       fontSize: 10,
                       height: 1,
                     ).regular,
@@ -109,28 +110,32 @@ class KField extends StatelessWidget {
           inputFormatters: inputFormatters,
           decoration: InputDecoration(
             filled: true,
-            fillColor: fieldColor ?? Colors.white,
+            fillColor: fieldColor ?? kColor(context).surfaceContainerLowest,
             counterText: '',
-            prefixIconConstraints:
-                const BoxConstraints(minHeight: 0, minWidth: 0),
-            suffixIconConstraints:
-                const BoxConstraints(minHeight: 0, minWidth: 0),
+            prefixIconConstraints: const BoxConstraints(
+              minHeight: 0,
+              minWidth: 0,
+            ),
+            suffixIconConstraints: const BoxConstraints(
+              minHeight: 0,
+              minWidth: 0,
+            ),
             prefixIcon: prefix != null
                 ? Padding(
                     padding: const EdgeInsets.only(left: 12, right: 10),
                     child: prefix!,
                   )
                 : prefixText != null
-                    ? Padding(
-                        padding: const EdgeInsets.only(left: 12, right: 10),
-                        child: Label(
-                          prefixText!,
-                          fontSize: fontSize,
-                          height: kTextHeight,
-                          weight: 700,
-                        ).regular,
-                      )
-                    : const SizedBox(width: 12),
+                ? Padding(
+                    padding: const EdgeInsets.only(left: 12, right: 10),
+                    child: Label(
+                      prefixText!,
+                      fontSize: fontSize,
+                      height: kTextHeight,
+                      weight: 700,
+                    ).regular,
+                  )
+                : const SizedBox(width: 12),
             suffixIcon: suffix != null
                 ? Padding(
                     padding: const EdgeInsets.only(left: 5, right: 12),
@@ -138,19 +143,23 @@ class KField extends StatelessWidget {
                   )
                 : const SizedBox(width: 12),
             isDense: true,
-            border: borderStyle(null),
-            errorBorder: borderStyle(StatusText.danger),
-            focusedBorder: borderStyle(Kolor.primary, width: 1.5),
-            enabledBorder: borderStyle(null),
+            border: borderStyle(context, null),
+            errorBorder: borderStyle(context, kColor(context).error),
+            focusedBorder: borderStyle(
+              context,
+              kColor(context).primary,
+              width: 1.5,
+            ),
+            enabledBorder: borderStyle(context, kColor(context).outlineVariant),
             errorStyle: TextStyle(
-              color: StatusText.danger,
-              fontVariations: [
-                FontVariation.weight(500),
-              ],
+              color: kColor(context).error,
+              fontVariations: [FontVariation.weight(500)],
             ),
             hintText: hintText,
-            hintStyle: kHintTextstyle.copyWith(
-                fontSize: fontSize, color: hintTextColor),
+            hintStyle: kHintTextstyle(context).copyWith(
+              fontSize: fontSize,
+              color: hintTextColor,
+            ),
           ),
           onChanged: onChanged,
           validator: validator,
@@ -164,37 +173,34 @@ class KField extends StatelessWidget {
   static const double kTextHeight = 1.5;
   static Color khintColor = Colors.grey.shade400;
 
-  Widget get kLabel => Label(
-        label!,
-        weight: 600,
-        fontSize: 13,
-      ).regular;
+  Widget get kLabel => Label(label!, weight: 600, fontSize: 13).regular;
 
   TextStyle get kFieldTextstyle => TextStyle(
-      fontWeight: FontWeight.w600,
-      fontSize: kFontSize,
-      letterSpacing: .5,
-      height: kTextHeight,
-      fontVariations: [FontVariation.weight(600)]);
+    fontWeight: FontWeight.w600,
+    fontSize: kFontSize,
+    letterSpacing: .5,
+    height: kTextHeight,
+    fontVariations: [FontVariation.weight(600)],
+  );
 
-  TextStyle get kHintTextstyle => TextStyle(
-        fontVariations: [FontVariation.weight(400)],
-        fontSize: kFontSize,
-        height: kTextHeight,
-        color: khintColor,
-      );
+  TextStyle kHintTextstyle(BuildContext context) => TextStyle(
+    fontVariations: [FontVariation.weight(400)],
+    fontSize: kFontSize,
+    height: kTextHeight,
+    color: kColor(context).onSurfaceVariant,
+  );
 
   InputBorder borderStyle(
+    BuildContext context,
     Color? customBorder, {
     double width = 1.0,
-  }) =>
-      OutlineInputBorder(
-        borderRadius: BorderRadius.circular(10),
-        borderSide: BorderSide(
-          color: borderColor ?? customBorder ?? Kolor.border,
-          width: width,
-        ),
-      );
+  }) => OutlineInputBorder(
+    borderRadius: BorderRadius.circular(10),
+    borderSide: BorderSide(
+      color: borderColor ?? customBorder ?? kColor(context).outlineVariant,
+      width: width,
+    ),
+  );
 }
 
 class KValidation {

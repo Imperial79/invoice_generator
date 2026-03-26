@@ -3,52 +3,61 @@ import 'package:invoice_generator/Resources/colors.dart';
 
 const String kFont = "Inter";
 
-ThemeData kTheme(BuildContext context) => ThemeData(
+ThemeData kTheme(BuildContext context, {ColorScheme? lightDynamic, Brightness brightness = Brightness.light}) {
+  ColorScheme scheme = lightDynamic ?? ColorScheme.fromSeed(
+    seedColor: Kolor.primary,
+    dynamicSchemeVariant: DynamicSchemeVariant.tonalSpot,
+    brightness: brightness,
+  );
+
+  return ThemeData(
       useMaterial3: true,
-      scaffoldBackgroundColor: Kolor.scaffold,
-      splashFactory: InkSplash.splashFactory,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: Kolor.primary,
-        dynamicSchemeVariant: DynamicSchemeVariant.tonalSpot,
-        brightness: Brightness.light,
-      ),
+      brightness: brightness,
+      colorScheme: scheme,
       fontFamily: kFont,
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: Kolor.primary,
+          foregroundColor: scheme.primary,
         ),
       ),
-      appBarTheme: const AppBarTheme(
-        actionsIconTheme: IconThemeData(
+      appBarTheme: AppBarTheme(
+        actionsIconTheme: const IconThemeData(
           color: Kolor.fadeText,
         ),
-        surfaceTintColor: Kolor.primary,
-        backgroundColor: Kolor.scaffold,
+        surfaceTintColor: scheme.primary,
+        backgroundColor: scheme.surface,
         elevation: 0,
       ),
       chipTheme: ChipThemeData(
-        selectedColor: kColor(context).secondary,
-        labelStyle: const TextStyle(
-          color: Colors.black,
+        selectedColor: scheme.secondary,
+        labelStyle: TextStyle(
+          color: brightness == Brightness.dark ? Colors.white : Colors.black,
         ),
       ),
       badgeTheme: BadgeThemeData(
-        backgroundColor: kColor(context).primary,
+        backgroundColor: scheme.primary,
         largeSize: 20,
-        textStyle: TextStyle(
+        textStyle: const TextStyle(
           fontSize: 15,
           fontVariations: [FontVariation.weight(600)],
         ),
       ),
       textSelectionTheme: TextSelectionThemeData(
-        selectionHandleColor: Kolor.primary,
-        cursorColor: kColor(context).primary,
-        selectionColor: kColor(context).secondaryContainer,
+        selectionHandleColor: scheme.primary,
+        cursorColor: scheme.primary,
+        selectionColor: scheme.secondaryContainer,
       ),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: Kolor.secondary,
-        linearTrackColor: Kolor.card,
-        circularTrackColor: Kolor.card,
-        refreshBackgroundColor: Kolor.card,
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: scheme.secondary,
+        linearTrackColor: scheme.surfaceContainerHighest,
+        circularTrackColor: scheme.surfaceContainerHighest,
+        refreshBackgroundColor: scheme.surfaceContainerHighest,
       ),
     );
+}
+
+ThemeData kDarkTheme(BuildContext context, {ColorScheme? darkDynamic}) {
+  return kTheme(context, lightDynamic: darkDynamic, brightness: Brightness.dark);
+}
+
+final themeModeNotifier = ValueNotifier<ThemeMode>(ThemeMode.system);

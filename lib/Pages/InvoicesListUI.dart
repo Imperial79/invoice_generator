@@ -49,13 +49,13 @@ class _InvoicesListUIState extends State<InvoicesListUI> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
+                  Icon(
                     LucideIcons.inbox,
                     size: 40,
-                    color: Kolor.fadeText,
+                    color: kColor(context).onSurfaceVariant,
                   ),
                   height10,
-                  Label("No invoices found", color: Kolor.fadeText).regular,
+                  Label("No invoices found", color: kColor(context).onSurfaceVariant).regular,
                 ],
               ),
             )
@@ -67,9 +67,9 @@ class _InvoicesListUIState extends State<InvoicesListUI> {
                 final invoice = invoices[index];
                 return KCard(
                   padding: const EdgeInsets.all(15),
-                  color: Kolor.scaffold,
+                  color: kColor(context).surface,
                   borderWidth: 1,
-                  borderColor: Kolor.border,
+                  borderColor: kColor(context).outlineVariant,
                   radius: 15,
                   child: Row(
                     children: [
@@ -78,12 +78,12 @@ class _InvoicesListUIState extends State<InvoicesListUI> {
                         height: 50,
                         width: 50,
                         padding: EdgeInsets.zero,
-                        color: Kolor.primary.withValues(alpha: .05),
+                        color: kColor(context).primaryContainer,
                         child: Center(
                           child: Label(
                             "PDF",
                             fontSize: 10,
-                            color: Kolor.primary,
+                            color: kColor(context).onPrimaryContainer,
                           ).title,
                         ),
                       ),
@@ -100,7 +100,7 @@ class _InvoicesListUIState extends State<InvoicesListUI> {
                             Label(
                               "${invoice.customerName} - ${DateFormat('dd MMM yyyy').format(invoice.invoiceDate ?? DateTime.now())}",
                               fontSize: 12,
-                              color: Kolor.fadeText,
+                              color: kColor(context).onSurfaceVariant,
                             ).regular,
                           ],
                         ),
@@ -119,7 +119,7 @@ class _InvoicesListUIState extends State<InvoicesListUI> {
                             children: [
                               _actionIcon(
                                 LucideIcons.eye,
-                                Kolor.primary,
+                                kColor(context).primary,
                                 () async {
                                   setState(() => loadingInvoiceIds.add(invoice.invoiceId));
                                   try {
@@ -135,7 +135,7 @@ class _InvoicesListUIState extends State<InvoicesListUI> {
                               width10,
                               _actionIcon(
                                 LucideIcons.pencil,
-                                Kolor.secondary,
+                                kColor(context).secondary,
                                 () async {
                                   final res = await context.push(
                                     "/create-invoice",
@@ -147,7 +147,7 @@ class _InvoicesListUIState extends State<InvoicesListUI> {
                               width10,
                               _actionIcon(
                                 LucideIcons.share2,
-                                StatusText.success,
+                                kColor(context).tertiary,
                                 () async {
                                   setState(() => loadingInvoiceIds.add(invoice.invoiceId));
                                   try {

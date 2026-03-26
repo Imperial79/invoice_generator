@@ -68,19 +68,19 @@ class _HomeUIState extends State<HomeUI> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () async {
-          final result = await context.push("/create-invoice");
-          if (result == true) {
-            _loadData();
-          }
-        },
-        icon: const Icon(LucideIcons.plus),
-        elevation: 0,
-        backgroundColor: Kolor.primary,
-        foregroundColor: Colors.white,
-        label: Label("New Invoice").regular,
-      ),
+      // floatingActionButton: FloatingActionButton.extended(
+      //   onPressed: () async {
+      //     final result = await context.push("/create-invoice");
+      //     if (result == true) {
+      //       _loadData();
+      //     }
+      //   },
+      //   icon: const Icon(LucideIcons.plus),
+      //   elevation: 0,
+      //   backgroundColor: Kolor.primary,
+      //   foregroundColor: Colors.white,
+      //   label: Label("New Invoice").regular,
+      // ),
     );
   }
 
@@ -91,15 +91,22 @@ class _HomeUIState extends State<HomeUI> {
         Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Label("Welcome back,", fontSize: 14, color: Kolor.fadeText).regular,
+            Label(
+              "Welcome back,",
+              fontSize: 14,
+              color: kColor(context).onSurfaceVariant,
+            ).regular,
             Label("Sujit Verma", fontSize: 24, weight: 700).title,
           ],
         ),
         KCard(
           radius: 50,
           padding: const EdgeInsets.all(10),
-          color: Kolor.primary.withValues(alpha: .1),
-          child: const Icon(LucideIcons.user, color: Kolor.primary),
+          color: kColor(context).primaryContainer,
+          child: Icon(
+            LucideIcons.user,
+            color: kColor(context).onPrimaryContainer,
+          ),
         ),
       ],
     );
@@ -118,16 +125,9 @@ class _HomeUIState extends State<HomeUI> {
               final res = await context.push("/create-invoice");
               if (res == true) _loadData();
             },
-            bgColor: Kolor.primary,
-            fgColor: Kolor.card,
+            bgColor: kColor(context).primary,
+            fgColor: kColor(context).onPrimary,
           ),
-          _actionButton(LucideIcons.download, "Report", () {
-            KSnackbar(
-              context,
-              message:
-                  "Report generated for $totalInvoicedNum in current session.",
-            );
-          }),
           _actionButton(
             LucideIcons.users,
             "Clients",
@@ -156,11 +156,15 @@ class _HomeUIState extends State<HomeUI> {
         KCard(
           radius: 12,
           padding: const EdgeInsets.all(12),
-          color: bgColor ?? Kolor.card,
+          color: bgColor ?? kColor(context).surfaceContainerLow,
           borderWidth: 1,
-          borderColor: Kolor.border,
+          borderColor: kColor(context).outlineVariant,
           onTap: onTap,
-          child: Icon(icon, size: 20, color: fgColor ?? Kolor.secondary),
+          child: Icon(
+            icon,
+            size: 20,
+            color: fgColor ?? kColor(context).onSurface,
+          ),
         ),
         Label(label, fontSize: 12).regular,
       ],
@@ -174,7 +178,11 @@ class _HomeUIState extends State<HomeUI> {
         Label("Recent Invoices", fontSize: 18, weight: 600).title,
         TextButton(
           onPressed: () => context.push("/invoices"),
-          child: Label("See All", color: Kolor.primary, fontSize: 14).regular,
+          child: Label(
+            "See All",
+            color: kColor(context).primary,
+            fontSize: 14,
+          ).regular,
         ),
       ],
     );
@@ -185,14 +193,21 @@ class _HomeUIState extends State<HomeUI> {
       return KCard(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 40),
-        color: Kolor.card.withValues(alpha: .5),
+        color: kColor(context).surfaceContainerLow,
         borderWidth: 1,
-        borderColor: Kolor.border,
+        borderColor: kColor(context).outlineVariant,
         child: Column(
           spacing: 10,
           children: [
-            const Icon(LucideIcons.inbox, size: 40, color: Kolor.fadeText),
-            Label("No invoices found", color: Kolor.fadeText).regular,
+            Icon(
+              LucideIcons.inbox,
+              size: 40,
+              color: kColor(context).onSurfaceVariant,
+            ),
+            Label(
+              "No invoices found",
+              color: kColor(context).onSurfaceVariant,
+            ).regular,
           ],
         ),
       );
@@ -206,9 +221,7 @@ class _HomeUIState extends State<HomeUI> {
         final invoice = recentInvoices[index];
         return KCard(
           padding: const EdgeInsets.all(15),
-          color: Kolor.scaffold,
           borderWidth: 1,
-          borderColor: Kolor.border,
           radius: 15,
           child: Row(
             spacing: 15,
@@ -218,9 +231,13 @@ class _HomeUIState extends State<HomeUI> {
                 height: 50,
                 width: 50,
                 padding: EdgeInsets.zero,
-                color: Kolor.primary.withValues(alpha: .05),
+                color: kColor(context).primaryContainer,
                 child: Center(
-                  child: Label("PDF", fontSize: 10, color: Kolor.primary).title,
+                  child: Label(
+                    "PDF",
+                    fontSize: 10,
+                    color: kColor(context).onPrimaryContainer,
+                  ).title,
                 ),
               ),
               Expanded(
@@ -232,7 +249,7 @@ class _HomeUIState extends State<HomeUI> {
                     Label(
                       "${invoice.customerName} - ${DateFormat('dd MMM yyyy').format(invoice.invoiceDate ?? DateTime.now())}",
                       fontSize: 12,
-                      color: Kolor.fadeText,
+                      color: kColor(context).onSurfaceVariant,
                     ).regular,
                   ],
                 ),
@@ -253,7 +270,7 @@ class _HomeUIState extends State<HomeUI> {
                       children: [
                         _actionIcon(
                           LucideIcons.eye,
-                          Kolor.primary,
+                          kColor(context).primary,
                           () async {
                             setState(
                               () => loadingInvoiceIds.add(invoice.invoiceId),
@@ -276,7 +293,7 @@ class _HomeUIState extends State<HomeUI> {
                         ),
                         _actionIcon(
                           LucideIcons.pencil,
-                          Kolor.secondary,
+                          kColor(context).secondary,
                           () async {
                             final res = await context.push(
                               "/create-invoice",
@@ -287,7 +304,7 @@ class _HomeUIState extends State<HomeUI> {
                         ),
                         _actionIcon(
                           LucideIcons.share2,
-                          StatusText.success,
+                          kColor(context).tertiary,
                           () async {
                             setState(
                               () => loadingInvoiceIds.add(invoice.invoiceId),

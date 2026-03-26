@@ -25,7 +25,7 @@ class KButton extends StatelessWidget {
     required this.onPressed,
     this.label = "",
     this.backgroundColor,
-    this.foregroundColor = Colors.white,
+    this.foregroundColor,
     this.fontSize = 15,
     this.weight = 600,
     this.icon,
@@ -45,7 +45,7 @@ class KButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: !isLoading ? onPressed : null,
         style: customStyle ?? _buttonStyle(context),
-        child: _buildChild(),
+        child: _buildChild(context),
       ),
     );
   }
@@ -57,10 +57,10 @@ class KButton extends StatelessWidget {
       case KButtonStyle.outlined:
         return ElevatedButton.styleFrom(
           side: BorderSide(
-              color: foregroundColor ?? kColor(context).primaryContainer),
-          backgroundColor: backgroundColor ?? kColor(context).surface,
-          foregroundColor: foregroundColor ?? kColor(context).primaryContainer,
-          iconColor: foregroundColor,
+              color: foregroundColor ?? kColor(context).primary),
+          backgroundColor: backgroundColor ?? Colors.transparent,
+          foregroundColor: foregroundColor ?? kColor(context).primary,
+          iconColor: foregroundColor ?? kColor(context).primary,
           padding: padding ?? const EdgeInsets.all(defaultPadding),
           shape: RoundedRectangleBorder(
             borderRadius: kRadius(radius ?? 15),
@@ -69,7 +69,7 @@ class KButton extends StatelessWidget {
           elevation: 0,
           shadowColor: Colors.transparent,
           alignment: Alignment.center,
-          disabledBackgroundColor: Kolor.card,
+          disabledBackgroundColor: kColor(context).surfaceContainerHighest,
           textStyle: TextStyle(
             fontSize: fontSize,
             fontVariations: [FontVariation.weight(weight)],
@@ -81,16 +81,16 @@ class KButton extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: kRadius(radius ?? 15),
           ),
-          backgroundColor: backgroundColor ?? kColor(context).primary,
-          foregroundColor: foregroundColor ?? kColor(context).onPrimary,
-          iconColor: foregroundColor,
+          backgroundColor: _getBg(context),
+          foregroundColor: _getFg(context),
+          iconColor: _getFg(context),
           padding: padding ?? const EdgeInsets.symmetric(horizontal: 15),
         );
       case KButtonStyle.thickPill:
         return ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor ?? kColor(context).primary,
-          foregroundColor: foregroundColor ?? kColor(context).onPrimary,
-          iconColor: foregroundColor,
+          backgroundColor: _getBg(context),
+          foregroundColor: _getFg(context),
+          iconColor: _getFg(context),
           padding: padding ??
               const EdgeInsets.symmetric(horizontal: 20, vertical: 17),
           shape: RoundedRectangleBorder(
@@ -100,7 +100,7 @@ class KButton extends StatelessWidget {
           elevation: 0,
           shadowColor: Colors.transparent,
           alignment: Alignment.center,
-          disabledBackgroundColor: Kolor.card,
+          disabledBackgroundColor: kColor(context).surfaceContainerHighest,
           textStyle: TextStyle(
             fontSize: fontSize,
             fontVariations: [FontVariation.weight(weight)],
@@ -109,9 +109,9 @@ class KButton extends StatelessWidget {
         );
       case KButtonStyle.regular:
         return ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor ?? kColor(context).primary,
-          foregroundColor: foregroundColor ?? kColor(context).onPrimary,
-          iconColor: foregroundColor,
+          backgroundColor: _getBg(context),
+          foregroundColor: _getFg(context),
+          iconColor: _getFg(context),
           padding: padding ?? const EdgeInsets.all(defaultPadding),
           shape: RoundedRectangleBorder(
             borderRadius: kRadius(radius ?? 7),
@@ -119,7 +119,7 @@ class KButton extends StatelessWidget {
           visualDensity: visualDensity,
           elevation: 0,
           shadowColor: Colors.transparent,
-          disabledBackgroundColor: Kolor.card,
+          disabledBackgroundColor: kColor(context).surfaceContainerHighest,
           alignment: Alignment.center,
           textStyle: TextStyle(
             fontSize: fontSize,
@@ -129,9 +129,9 @@ class KButton extends StatelessWidget {
         );
       case KButtonStyle.expanded:
         return ElevatedButton.styleFrom(
-          backgroundColor: backgroundColor ?? kColor(context).primary,
-          foregroundColor: foregroundColor ?? kColor(context).onPrimary,
-          iconColor: foregroundColor,
+          backgroundColor: _getBg(context),
+          foregroundColor: _getFg(context),
+          iconColor: _getFg(context),
           padding: padding ?? const EdgeInsets.all(defaultPadding),
           shape: RoundedRectangleBorder(
             borderRadius: kRadius(radius ?? 15),
@@ -140,7 +140,7 @@ class KButton extends StatelessWidget {
           elevation: 0,
           shadowColor: Colors.transparent,
           alignment: Alignment.center,
-          disabledBackgroundColor: Kolor.card,
+          disabledBackgroundColor: kColor(context).surfaceContainerHighest,
           textStyle: TextStyle(
             fontSize: fontSize,
             fontVariations: [FontVariation.weight(weight)],
@@ -151,9 +151,12 @@ class KButton extends StatelessWidget {
     }
   }
 
-  Widget _buildChild() {
+  Color _getBg(BuildContext context) => backgroundColor ?? kColor(context).primary;
+  Color _getFg(BuildContext context) => foregroundColor ?? kColor(context).onPrimary;
+
+  Widget _buildChild(BuildContext context) {
     if (isLoading) {
-      return _loadingIndicator();
+      return _loadingIndicator(context);
     }
 
     switch (style) {
@@ -204,15 +207,15 @@ class KButton extends StatelessWidget {
     }
   }
 
-  Widget _loadingIndicator() => Row(
+  Widget _loadingIndicator(BuildContext context) => Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const SizedBox(
+          SizedBox(
             width: 15,
             height: 15,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: Kolor.primary,
+              color: _getFg(context),
               backgroundColor: Colors.transparent,
             ),
           ),

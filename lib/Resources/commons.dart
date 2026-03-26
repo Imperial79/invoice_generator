@@ -18,20 +18,23 @@ const SizedBox height30 = SizedBox(height: 30);
 SizedBox kHeight(double height) => SizedBox(height: height);
 SizedBox kWidth(double width) => SizedBox(width: width);
 
-Widget get div => const Divider(
-      color: Kolor.border,
+Widget kDiv(BuildContext context) => Divider(
+      color: kColor(context).outlineVariant,
       thickness: .5,
     );
 
-systemColors() {
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge,
-      overlays: [SystemUiOverlay.top]);
+systemColors(BuildContext context) {
+  Brightness brightness = Theme.of(context).brightness;
+  bool isDark = brightness == Brightness.dark;
+
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   SystemChrome.setSystemUIOverlayStyle(
-    SystemUiOverlayStyle.dark.copyWith(
-      statusBarIconBrightness: Brightness.dark,
+    SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
+      statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       systemNavigationBarColor: Colors.transparent,
-      systemNavigationBarIconBrightness: Brightness.dark,
+      systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      systemNavigationBarDividerColor: Colors.transparent,
     ),
   );
 }
@@ -66,19 +69,19 @@ KSnackbar(
     SnackBar(
       elevation: 0,
       shape: RoundedRectangleBorder(borderRadius: kRadius(10)),
-      backgroundColor: error ? kColor(context).error : StatusText.success,
+      backgroundColor: error ? kColor(context).error : kColor(context).primary,
       content: Row(
-        spacing: 10,
+        spacing: 11,
         children: [
           Icon(
-            error ? Icons.dangerous : Icons.check_box_outlined,
-            color: error ? kColor(context).onError : kColor(context).onTertiary,
+            error ? Icons.dangerous : Icons.check_circle_outline,
+            color: error ? kColor(context).onError : kColor(context).onPrimary,
           ),
           Flexible(
             child: Label(
               "$message",
               color:
-                  error ? kColor(context).onError : kColor(context).onTertiary,
+                  error ? kColor(context).onError : kColor(context).onPrimary,
             ).regular,
           ),
         ],
@@ -93,11 +96,11 @@ KErrorAlert(context, {required dynamic message}) {
   showDialog(
     context: context,
     builder: (context) => AlertDialog(
-      backgroundColor: Kolor.card,
-      title: Label("An Error Occurred!", color: StatusText.danger).title,
-      icon: const Icon(
+      backgroundColor: kColor(context).surface,
+      title: Label("An Error Occurred!", color: kColor(context).error).title,
+      icon: Icon(
         Icons.dangerous,
-        color: StatusText.danger,
+        color: kColor(context).error,
         size: 50,
       ),
       content: Label("$message", textAlign: TextAlign.center).regular,
@@ -105,7 +108,7 @@ KErrorAlert(context, {required dynamic message}) {
         TextButton(
           onPressed: () => context.pop(),
           child: Label(
-            "Back to cart",
+            "Back",
           ).regular,
         ),
       ],
@@ -113,17 +116,17 @@ KErrorAlert(context, {required dynamic message}) {
   );
 }
 
-Widget googleLoginButton({required void Function()? onPressed}) {
+Widget googleLoginButton(BuildContext context, {required void Function()? onPressed}) {
   return ElevatedButton(
     onPressed: onPressed,
     style: ElevatedButton.styleFrom(
-      backgroundColor: Kolor.scaffold,
-      foregroundColor: Colors.black,
+      backgroundColor: kColor(context).surface,
+      foregroundColor: kColor(context).onSurface,
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: kRadius(15),
         side: BorderSide(
-          color: Kolor.border,
+          color: kColor(context).outlineVariant,
         ),
       ),
       padding: EdgeInsets.all(15),

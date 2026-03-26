@@ -1,26 +1,22 @@
 import 'package:invoice_generator/Models/Invoice_Model.dart';
-import 'package:invoice_generator/Resources/app-data.dart';
 import 'package:invoice_generator/Resources/constants.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart';
 
-final PdfColor primaryColor = PdfColor.fromHex("#0068A5");
-final PdfColor secondaryColor = PdfColor.fromHex("#2b2c43");
-final PdfColor lightGrey = PdfColor.fromHex("#f6f6f6");
-final PdfColor borderGrey = PdfColor.fromHex("#dadada");
+final PdfColor black = PdfColor.fromHex("#000000");
 
 Widget pdfLayout(
   Context context,
   MemoryImage banner,
   MemoryImage watermark,
   InvoiceModel data,
+  Map<String, dynamic> profile,
   bool showWatermark,
 ) {
   return Stack(
     children: [
       if (showWatermark)
-        FullPage(
-          ignoreMargins: true,
+        Positioned.fill(
           child: Opacity(
             opacity: 0.1,
             child: Center(child: Image(watermark, width: 400)),
@@ -28,24 +24,288 @@ Widget pdfLayout(
         ),
       Column(
         children: [
+          Center(child: Image(banner)),
           Container(
+            margin: EdgeInsets.all(20),
             width: double.infinity,
-            child: Image(banner, fit: BoxFit.contain),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+            decoration: BoxDecoration(border: Border.all(color: black)),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildInvoiceHeader(data),
-                SizedBox(height: 20),
-                _buildAddressSection(data),
-                SizedBox(height: 30),
-                _buildItemsTable(data),
-                SizedBox(height: 20),
-                _buildTotalSection(data),
-                SizedBox(height: 30),
-                _buildTermsAndSignature(),
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Row(
+                    children: [
+                      Expanded(child: boldLabel("GST: ${profile['biz_gst']}")),
+                      Expanded(
+                        child: boldLabel(
+                          "GST Invoice",
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                      Expanded(
+                        child: label(
+                          "Original Buyer's Copy",
+                          italic: true,
+                          textAlign: TextAlign.end,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                TableHelper.fromTextArray(
+                  context: context,
+                  headerStyle: TextStyle(
+                    fontWeight: FontWeight.normal,
+                    fontSize: 10,
+                  ),
+                  cellAlignment: Alignment.topLeft,
+                  data: [
+                    [
+                      'Invoice No. : ${data.invoiceId}\nDate of Invoice : ${kDateFormat(data.invoiceDate.toString())}',
+                      'Place of Supply : ${profile['biz_state']}\nReverse Charge : N',
+                    ],
+                  ],
+                  cellAlignments: {0: Alignment.topLeft, 1: Alignment.topLeft},
+                ),
+
+                // Shipped and Billed To
+                TableHelper.fromTextArray(
+                  context: context,
+                  headerStyle: TextStyle(
+                    fontWeight: FontWeight.normal,
+                    fontSize: 10,
+                  ),
+                  cellAlignment: Alignment.topLeft,
+                  data: [
+                    !data.forCustomer
+                        ? [
+                            '''
+Billed to:
+${data.customerName}
+${data.billingAddress}
+Party PAN : ${data.customerPan}
+Party Aadhaar No. : ${data.customerAadhaar}
+Party Mobile No. : ${data.customerPhone}
+GSTIN / UIN : -
+''',
+                            '''
+Shipped to:
+${data.customerName}
+${data.billingAddress}
+Party PAN : ${data.customerPan}
+Party Aadhaar No. : ${data.customerAadhaar}
+Party Mobile No. : ${data.customerPhone}
+GSTIN / UIN : -
+''',
+                          ]
+                        : [
+                            '''
+Billed to:
+${data.customerName}
+${data.billingAddress}
+Party PAN : ${data.customerPan}
+Party Aadhaar No. : ${data.customerAadhaar}
+Party Mobile No. : ${data.customerPhone}
+GSTIN / UIN : -
+''',
+                          ],
+                  ],
+                  cellAlignments: {0: Alignment.topLeft, 1: Alignment.topLeft},
+                ),
+
+                TableHelper.fromTextArray(
+                  context: context,
+                  data: [
+                    [
+                      "Sl. No.",
+                      "Description of Goods",
+                      "HSN/SAC Code",
+                      "Qty.",
+                      "Unit",
+                      "Price",
+                      "Amount (Rs.)",
+                    ],
+                    ...data.items.map(
+                      (e) => [
+                        e.id,
+                        e.itemName,
+                        e.hsnCode,
+                        e.qty,
+                        e.unit,
+                        e.price,
+                        e.amount,
+                      ],
+                    ),
+                  ],
+                ),
+
+                TableHelper.fromTextArray(
+                  context: context,
+                  headerStyle: TextStyle(
+                    fontWeight: FontWeight.normal,
+                    fontSize: 10,
+                  ),
+                  columnWidths: {
+                    0: FixedColumnWidth(70),
+                    1: FixedColumnWidth(30),
+                  },
+                  cellAlignments: {
+                    0: Alignment.topRight,
+                    1: Alignment.topRight,
+                  },
+                  data: [
+                    [
+                      '''
+${data.items.map((e) => '''
+Add : CGST @ ${(e.gst / 2).toStringAsFixed(2)}%
+Add : SGST @ ${(e.gst / 2).toStringAsFixed(2)}%
+''').join("")}
+Less: Round Off (-)
+''',
+                      '''
+${data.items.map((e) => '''
+${((e.amount * (e.gst / 2)) / 100).toStringAsFixed(2)}
+${((e.amount * (e.gst / 2)) / 100).toStringAsFixed(2)}
+''').join("")}
+${(data.grandTotal.round() - data.grandTotal).toStringAsFixed(2)}
+''',
+                    ],
+                  ],
+                ),
+                TableHelper.fromTextArray(
+                  context: context,
+                  columnWidths: {
+                    0: FixedColumnWidth(70),
+                    1: FixedColumnWidth(30),
+                  },
+                  cellAlignments: {
+                    0: Alignment.topRight,
+                    1: Alignment.topRight,
+                  },
+                  data: [
+                    [
+                      '''
+Grand Total (Rs.)
+''',
+                      '''
+${kCurrencyFormat(data.grandTotal.round())}
+''',
+                    ],
+                  ],
+                ),
+
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: 20, horizontal: 10),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      TableHelper.fromTextArray(
+                        tableWidth: TableWidth.min,
+                        context: context,
+                        data: [
+                          [
+                            'Tax Rate',
+                            'Taxable Amt.',
+                            'CGST Amt.',
+                            'SGST Amt.',
+                            'Total Tax',
+                          ],
+                          ...data.items.map((e) {
+                            double tax = e.gst;
+                            double taxableAmount = e.amount;
+                            double cgstAmt = (taxableAmount * (tax / 2)) / 100;
+                            return [
+                              '$tax%',
+                              kCurrencyFormat(taxableAmount),
+                              kCurrencyFormat(cgstAmt),
+                              kCurrencyFormat(cgstAmt),
+                              kCurrencyFormat(cgstAmt * 2),
+                            ];
+                          }),
+                        ],
+                      ),
+                      SizedBox(height: 15),
+                      boldLabel(
+                        amountInWords(data.grandTotal.round()),
+                        fontSize: 12,
+                      ),
+                    ],
+                  ),
+                ),
+
+                TableHelper.fromTextArray(
+                  context: context,
+                  headerAlignment: Alignment.center,
+                  headerStyle: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  cellStyle: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.normal,
+                  ),
+                  cellAlignment: Alignment.center,
+                  data: [
+                    ["Declaration"],
+                    [
+                      '''
+${profile['biz_bank']}
+(1) RATES INCLUDING MAKING CHARGE (2) GOODS DELIVERED AT OUR SHOP
+''',
+                    ],
+                  ],
+                ),
+
+                TableHelper.fromTextArray(
+                  context: context,
+                  headerAlignment: Alignment.topLeft,
+                  headerStyle: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  cellStyle: TextStyle(
+                    fontSize: 8,
+                    fontWeight: FontWeight.normal,
+                  ),
+                  cellAlignment: Alignment.topLeft,
+                  data: [
+                    ["Terms & Conditions"],
+                    [
+                      '''
+${profile['biz_terms']}
+''',
+                      '''
+Reciever's Signature
+
+
+---------------------------------------
+''',
+                    ],
+                  ],
+                ),
+                TableHelper.fromTextArray(
+                  context: context,
+                  cellStyle: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  headerAlignment: Alignment.topRight,
+                  cellAlignment: Alignment.topRight,
+                  border: TableBorder(bottom: BorderSide.none),
+                  data: [
+                    [
+                      '''
+Authorized Signatory
+
+
+
+
+''',
+                    ],
+                  ],
+                ),
               ],
             ),
           ),
@@ -55,276 +315,31 @@ Widget pdfLayout(
   );
 }
 
-Widget _buildInvoiceHeader(InvoiceModel data) {
-  return Row(
-    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            "GST INVOICE",
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              color: primaryColor,
-            ),
-          ),
-          Text("GSTIN: $kGSTCode", style: const TextStyle(fontSize: 10)),
-        ],
-      ),
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          _headerInfo("Invoice No:", data.invoiceId),
-          _headerInfo("Date:", kDateFormat(data.invoiceDate.toString())),
-          _headerInfo("State:", "West Bengal (19)"),
-        ],
-      ),
-    ],
-  );
-}
+Widget boldLabel(
+  String text, {
+  TextAlign textAlign = TextAlign.start,
+  bool italic = false,
+  double fontSize = 10,
+}) => Text(
+  text,
+  style: TextStyle(
+    fontWeight: FontWeight.bold,
+    fontSize: fontSize,
+    fontStyle: italic ? FontStyle.italic : null,
+  ),
+  textAlign: textAlign,
+);
 
-Widget _headerInfo(String label, String value) {
-  return Row(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      Text(
-        "$label ",
-        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
-      ),
-      Text(value, style: const TextStyle(fontSize: 10)),
-    ],
-  );
-}
-
-Widget _buildAddressSection(InvoiceModel data) {
-  return Row(
-    children: [
-      Expanded(child: _addressBox("BILLED TO", data)),
-      SizedBox(width: 20),
-      if (!data.forCustomer) Expanded(child: _addressBox("SHIPPED TO", data)),
-    ],
-  );
-}
-
-Widget _addressBox(String title, InvoiceModel data) {
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Container(
-        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-        color: primaryColor,
-        child: Text(
-          title,
-          style: TextStyle(
-            color: PdfColors.white,
-            fontSize: 8,
-            fontWeight: FontWeight.bold,
-          ),
-        ),
-      ),
-      SizedBox(height: 5),
-      Text(
-        data.customerName,
-        style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-      ),
-      Text(data.billingAddress, style: const TextStyle(fontSize: 9)),
-      SizedBox(height: 5),
-      if (data.customerPhone.isNotEmpty)
-        Text(
-          "Phone: +91 ${data.customerPhone}",
-          style: const TextStyle(fontSize: 9),
-        ),
-      if (data.customerPan.isNotEmpty)
-        Text("PAN: ${data.customerPan}", style: const TextStyle(fontSize: 9)),
-    ],
-  );
-}
-
-Widget _buildItemsTable(InvoiceModel data) {
-  return TableHelper.fromTextArray(
-    headerAlignment: Alignment.centerLeft,
-    cellAlignment: Alignment.centerLeft,
-    headerDecoration: BoxDecoration(
-      color: primaryColor,
-      borderRadius: const BorderRadius.vertical(top: Radius.circular(5)),
-    ),
-    headerHeight: 30,
-    cellHeight: 25,
-    headerStyle: TextStyle(
-      color: PdfColors.white,
-      fontWeight: FontWeight.bold,
-      fontSize: 10,
-    ),
-    cellStyle: const TextStyle(fontSize: 9),
-    rowDecoration: const BoxDecoration(
-      border: Border(bottom: BorderSide(color: PdfColors.grey200, width: .5)),
-    ),
-    headers: [
-      'Sl.',
-      'Description',
-      'HSN/SAC',
-      'Qty',
-      'Unit',
-      'Price',
-      'Amount',
-    ],
-    data: data.items.map((item) {
-      return [
-        item.id.toString(),
-        item.itemName,
-        item.hsnCode,
-        item.qty.toString(),
-        item.unit,
-        kCurrencyFormat(item.price),
-        kCurrencyFormat(item.amount),
-      ];
-    }).toList(),
-  );
-}
-
-Widget _buildTotalSection(InvoiceModel data) {
-  return Row(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Expanded(
-        flex: 2,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Amount in words:",
-              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              amountInWords(data.grandTotal.round()),
-              style: TextStyle(fontSize: 10, fontStyle: FontStyle.italic),
-            ),
-          ],
-        ),
-      ),
-      Expanded(
-        flex: 1,
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: lightGrey,
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Column(
-            children: [
-              _totalRow(
-                "Sub Total:",
-                kCurrencyFormat(data.grandTotal - _calculateTotalGst(data)),
-              ),
-              SizedBox(height: 5),
-              _totalRow(
-                "Total GST:",
-                kCurrencyFormat(_calculateTotalGst(data)),
-              ),
-              SizedBox(height: 5),
-              Divider(thickness: .5, color: borderGrey),
-              SizedBox(height: 5),
-              _totalRow(
-                "Total (INR):",
-                kCurrencyFormat(data.grandTotal.round()),
-                isBold: true,
-              ),
-            ],
-          ),
-        ),
-      ),
-    ],
-  );
-}
-
-double _calculateTotalGst(InvoiceModel data) {
-  double gst = 0;
-  for (var item in data.items) {
-    gst += (item.amount * item.gst) / 100;
-  }
-  return gst;
-}
-
-Widget _totalRow(String label, String value, {bool isBold = false}) {
-  return Row(
-    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-    children: [
-      Text(
-        label,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-        ),
-      ),
-      Text(
-        value,
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-        ),
-      ),
-    ],
-  );
-}
-
-Widget _buildTermsAndSignature() {
-  return Row(
-    crossAxisAlignment: CrossAxisAlignment.end,
-    children: [
-      Expanded(
-        flex: 2,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              "Bank Details:",
-              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              "Bank Name: SBI Bank, Durgapur Sen Market",
-              style: const TextStyle(fontSize: 8),
-            ),
-            Text(
-              "A/C No: 8718927918219871 | IFSC: SBIN0001234",
-              style: const TextStyle(fontSize: 8),
-            ),
-            SizedBox(height: 10),
-            Text(
-              "Terms & Conditions:",
-              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              "1. Goods once sold will not be taken back.",
-              style: const TextStyle(fontSize: 8),
-            ),
-            Text(
-              "2. Interest @18% will be charged on late payments.",
-              style: const TextStyle(fontSize: 8),
-            ),
-          ],
-        ),
-      ),
-      Expanded(
-        flex: 1,
-        child: Column(
-          children: [
-            Text(
-              "Authorized Signatory",
-              style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 40),
-            Container(
-              width: 100,
-              decoration: const BoxDecoration(
-                border: Border(bottom: BorderSide()),
-              ),
-            ),
-          ],
-        ),
-      ),
-    ],
-  );
-}
+Widget label(
+  String text, {
+  TextAlign textAlign = TextAlign.start,
+  bool italic = false,
+}) => Text(
+  text,
+  style: TextStyle(
+    fontWeight: FontWeight.normal,
+    fontSize: 10,
+    fontStyle: italic ? FontStyle.italic : null,
+  ),
+  textAlign: textAlign,
+);

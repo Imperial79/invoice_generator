@@ -52,13 +52,13 @@ class _ClientsUIState extends State<ClientsUI> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Icon(
+                  Icon(
                     LucideIcons.users,
                     size: 40,
-                    color: Kolor.fadeText,
+                    color: kColor(context).onSurfaceVariant,
                   ),
                   height10,
-                  Label("No clients found", color: Kolor.fadeText).regular,
+                  Label("No clients found", color: kColor(context).onSurfaceVariant).regular,
                 ],
               ),
             )
@@ -70,9 +70,9 @@ class _ClientsUIState extends State<ClientsUI> {
                 final client = clients[index];
                 return KCard(
                   padding: const EdgeInsets.all(15),
-                  color: Kolor.scaffold,
+                  color: kColor(context).surface,
                   borderWidth: 1,
-                  borderColor: Kolor.border,
+                  borderColor: kColor(context).outlineVariant,
                   radius: 15,
                   child: Row(
                     children: [
@@ -81,12 +81,12 @@ class _ClientsUIState extends State<ClientsUI> {
                         height: 50,
                         width: 50,
                         padding: EdgeInsets.zero,
-                        color: Kolor.primary.withValues(alpha: .1),
+                        color: kColor(context).primaryContainer,
                         child: Center(
                           child: Icon(
                             LucideIcons.user,
                             size: 20,
-                            color: Kolor.primary,
+                            color: kColor(context).onPrimaryContainer,
                           ),
                         ),
                       ),
@@ -103,15 +103,15 @@ class _ClientsUIState extends State<ClientsUI> {
                             Label(
                               client["phone"] ?? "No phone",
                               fontSize: 12,
-                              color: Kolor.fadeText,
+                              color: kColor(context).onSurfaceVariant,
                             ).regular,
                           ],
                         ),
                       ),
-                      const Icon(
+                      Icon(
                         LucideIcons.chevronRight,
                         size: 16,
-                        color: Kolor.fadeText,
+                        color: kColor(context).onSurfaceVariant,
                       ),
                     ],
                   ),

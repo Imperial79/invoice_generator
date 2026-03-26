@@ -20,6 +20,9 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
   final email = TextEditingController();
   final gstin = TextEditingController();
   final address = TextEditingController();
+  final bankDetails = TextEditingController();
+  final terms = TextEditingController();
+  final state = TextEditingController();
   final isLoading = ValueNotifier(false);
 
   @override
@@ -37,6 +40,11 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
     gstin.text = pref.getString("biz_gst") ?? "19APDPV5128C1ZU";
     address.text =
         pref.getString("biz_address") ?? "Arrah More, Durgapur - 713212";
+    bankDetails.text = pref.getString("biz_bank") ??
+        "BANK DETAILS - SBI BANK, DURGAPUR SEN MARKET - A/C - 8718927918219871, IFSC - AKSLJASKLAAS\nSOUTH INDIAN BANK - ABC ROAD, - A/C - 8718927918219871, IFSC - AKSLJASKLAAS";
+    terms.text = pref.getString("biz_terms") ??
+        "E. & O.E.\n1. Payments via cheque are subject to verification.\n2. No returns or exchanges for sold goods.\n3. 18% interest on overdue payments.\n4. Disputes are under 'West Bengal' jurisdiction.\n5. Report invoice errors within 7 days.";
+    state.text = pref.getString("biz_state") ?? "West Bengal (19)";
     isLoading.value = false;
   }
 
@@ -48,6 +56,9 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
     await pref.setString("biz_email", email.text);
     await pref.setString("biz_gst", gstin.text);
     await pref.setString("biz_address", address.text);
+    await pref.setString("biz_bank", bankDetails.text);
+    await pref.setString("biz_terms", terms.text);
+    await pref.setString("biz_state", state.text);
     isLoading.value = false;
     if (mounted) {
       KSnackbar(context, message: "Profile updated successfully!");
@@ -70,10 +81,24 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
               prefix: const Icon(LucideIcons.building, size: 16),
             ),
             height15,
-            KField(
-              controller: gstin,
-              label: "GSTIN",
-              prefix: const Icon(LucideIcons.hash, size: 16),
+            Row(
+              spacing: 15,
+              children: [
+                Expanded(
+                  child: KField(
+                    controller: gstin,
+                    label: "GSTIN",
+                    prefix: const Icon(LucideIcons.hash, size: 16),
+                  ),
+                ),
+                Expanded(
+                  child: KField(
+                    controller: state,
+                    label: "State",
+                    prefix: const Icon(LucideIcons.map, size: 16),
+                  ),
+                ),
+              ],
             ),
             height15,
             KField(
@@ -91,8 +116,22 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
             KField(
               controller: address,
               label: "Address",
-              maxLines: 3,
+              maxLines: 2,
               prefix: const Icon(LucideIcons.mapPin, size: 16),
+            ),
+            height15,
+            KField(
+              controller: bankDetails,
+              label: "Bank Details",
+              maxLines: 4,
+              prefix: const Icon(LucideIcons.landmark, size: 16),
+            ),
+            height15,
+            KField(
+              controller: terms,
+              label: "Terms & Conditions",
+              maxLines: 5,
+              prefix: const Icon(LucideIcons.fileText, size: 16),
             ),
             height30,
             KButton(onPressed: _saveData, label: "Save Profile"),

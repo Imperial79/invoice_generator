@@ -53,7 +53,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   final qty = TextEditingController();
   String unit = "Gms";
   final price = TextEditingController();
-  final amount = TextEditingController();
+  double amount = 0;
   final billingAddress = TextEditingController(text: defaultBillingAddress);
 
   bool forCustomer = false;
@@ -161,7 +161,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   }
 
   double calculateGst() {
-    return (parseToDouble(gst.text) / 100) * parseToDouble(amount.text);
+    return (parseToDouble(gst.text) / 100) * amount;
   }
 
   clearFields() {
@@ -169,7 +169,6 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
     hsnCode.clear();
     qty.clear();
     price.clear();
-    amount.clear();
     gst.clear();
   }
 
@@ -180,7 +179,6 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
     hsnCode.dispose();
     qty.dispose();
     price.dispose();
-    amount.dispose();
     tax.dispose();
     gst.dispose();
     billingAddress.dispose();
@@ -224,6 +222,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
               _buildInvoiceInfo(),
               _buildSectionHeader("Items List", LucideIcons.package),
               _buildItemsSection(),
+              _buildSummarySection(),
               _buildSectionHeader("Party Details", LucideIcons.user),
               _buildPartyDetails(),
               _buildSectionHeader("Other Details", LucideIcons.ellipsis),
@@ -244,8 +243,8 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
         onPressed: createInvoice,
         icon: const Icon(LucideIcons.fileOutput),
         elevation: 4,
-        backgroundColor: Kolor.primary,
-        foregroundColor: Colors.white,
+        backgroundColor: kColor(context).primary,
+        foregroundColor: kColor(context).onPrimary,
         label: Label("Generate PDF", weight: 700).regular,
       ),
     );
@@ -255,7 +254,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
     return Row(
       spacing: 10,
       children: [
-        Icon(icon, size: 20, color: Kolor.secondary),
+        Icon(icon, size: 20, color: kColor(context).secondary),
         Label(title, fontSize: 18, weight: 700).title,
       ],
     );
@@ -265,7 +264,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
     return KCard(
       padding: const EdgeInsets.all(15),
       borderWidth: 1,
-      borderColor: Kolor.border,
+      borderColor: kColor(context).outlineVariant,
       child: Column(
         spacing: 15,
         children: [
@@ -312,14 +311,21 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
           KCard(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 40),
-            color: Kolor.card.withValues(alpha: .5),
+            color: kColor(context).surfaceContainerLow.withValues(alpha: .5),
             borderWidth: 1,
-            borderColor: Kolor.border,
+            borderColor: kColor(context).outlineVariant,
             child: Column(
               spacing: 10,
               children: [
-                const Icon(LucideIcons.inbox, size: 40, color: Kolor.fadeText),
-                Label("No items added yet", color: Kolor.fadeText).regular,
+                Icon(
+                  LucideIcons.inbox,
+                  size: 40,
+                  color: kColor(context).onSurfaceVariant,
+                ),
+                Label(
+                  "No items added yet",
+                  color: kColor(context).onSurfaceVariant,
+                ).regular,
               ],
             ),
           )
@@ -346,8 +352,8 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
     return KCard(
       padding: const EdgeInsets.all(15),
       borderWidth: 1,
-      borderColor: Kolor.primary.withValues(alpha: .2),
-      color: Colors.white,
+      borderColor: kColor(context).primary.withValues(alpha: .2),
+      color: kColor(context).surface,
       child: Column(
         spacing: 10,
         children: [
@@ -365,7 +371,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                       qty.text = item.qty.toString();
                       unit = item.unit;
                       price.text = item.price.toString();
-                      amount.text = item.amount.toString();
+                      amount = item.amount;
                       gst.text = item.gst.toString();
                       showDialog(
                         context: context,
@@ -373,25 +379,25 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                             addItemDialog(setState, id: item.id),
                       );
                     },
-                    icon: const Icon(
+                    icon: Icon(
                       LucideIcons.pencil,
                       size: 18,
-                      color: Kolor.primary,
+                      color: kColor(context).primary,
                     ),
                   ),
                   IconButton(
                     onPressed: () => setState(() => addedItems.remove(item)),
-                    icon: const Icon(
+                    icon: Icon(
                       LucideIcons.trash2,
                       size: 18,
-                      color: StatusText.danger,
+                      color: kColor(context).error,
                     ),
                   ),
                 ],
               ),
             ],
           ),
-          div,
+          kDiv(context),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -410,9 +416,65 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Label(label, fontSize: 10, color: Kolor.fadeText).regular,
+        Label(
+          label,
+          fontSize: 10,
+          color: kColor(context).onSurfaceVariant,
+        ).regular,
         Label(value, fontSize: 13, weight: isBold ? 700 : 500).regular,
       ],
+    );
+  }
+
+  Widget _buildSummarySection() {
+    if (addedItems.isEmpty) return const SizedBox.shrink();
+
+    double totalTaxableAmount = addedItems.fold(
+      0.0,
+      (sum, item) => sum + item.amount,
+    );
+    double totalGstAmount = addedItems.fold(
+      0.0,
+      (sum, item) => sum + (item.amount * item.gst / 100),
+    );
+    double totalAmount = totalTaxableAmount + totalGstAmount;
+
+    return KCard(
+      padding: const EdgeInsets.all(20),
+      borderWidth: 1,
+      borderColor: kColor(context).outlineVariant,
+      child: Column(
+        spacing: 12,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Label("Sub Total (Before Tax)").regular,
+              Label(kCurrencyFormat(totalTaxableAmount), weight: 600).regular,
+            ],
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Label("Total GST").regular,
+              Label(kCurrencyFormat(totalGstAmount), weight: 600).regular,
+            ],
+          ),
+          kDiv(context),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Label("Grand Total", fontSize: 18, weight: 700).title,
+              Label(
+                kCurrencyFormat(totalAmount.round()),
+                fontSize: 18,
+                weight: 700,
+                color: kColor(context).primary,
+              ).title,
+            ],
+          ),
+        ],
+      ),
     );
   }
 
@@ -420,7 +482,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
     return KCard(
       padding: const EdgeInsets.all(20),
       borderWidth: 1,
-      borderColor: Kolor.border,
+      borderColor: kColor(context).outlineVariant,
       child: Form(
         key: _customerFormKey,
         child: Column(
@@ -439,7 +501,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                 ),
               ],
             ),
-            div,
+            kDiv(context),
             KField(
               controller: customerName,
               label: "Customer Name",
@@ -481,10 +543,10 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                     );
                   }
                 },
-                icon: const Icon(
+                icon: Icon(
                   LucideIcons.contact,
                   size: 18,
-                  color: Kolor.primary,
+                  color: kColor(context).primary,
                 ),
               ),
               validator: (val) => KValidation.required(val),
@@ -530,7 +592,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   Widget _dialog({required Widget child}) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: kRadius(20)),
-      backgroundColor: Colors.white,
+      backgroundColor: kColor(context).surface,
       insetPadding: const EdgeInsets.all(kPadding),
       child: Container(
         width: double.infinity,
@@ -561,7 +623,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                     ),
                   ],
                 ),
-                div,
+                kDiv(context),
                 KField(
                   controller: itemName,
                   label: "Item Name",
@@ -586,9 +648,8 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                         keyboardType: TextInputType.number,
                         validator: (val) => KValidation.required(val),
                         onChanged: (v) => setState(() {
-                          amount.text =
-                              (parseToDouble(v) * parseToDouble(price.text))
-                                  .toStringAsFixed(2);
+                          amount =
+                              (parseToDouble(v) * parseToDouble(price.text));
                         }),
                       ),
                     ),
@@ -602,7 +663,9 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10),
                             decoration: BoxDecoration(
-                              border: Border.all(color: Kolor.border),
+                              border: Border.all(
+                                color: kColor(context).outlineVariant,
+                              ),
                               borderRadius: kRadius(10),
                             ),
                             child: DropdownButtonHideUnderline(
@@ -639,9 +702,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                         keyboardType: TextInputType.number,
                         validator: (val) => KValidation.required(val),
                         onChanged: (v) => setState(() {
-                          amount.text =
-                              (parseToDouble(v) * parseToDouble(qty.text))
-                                  .toStringAsFixed(2);
+                          amount = (parseToDouble(v) * parseToDouble(qty.text));
                         }),
                       ),
                     ),
@@ -659,15 +720,17 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                     ),
                   ],
                 ),
-                KField(
-                  controller: amount,
-                  label: "Total Amount",
-                  readOnly: true,
-                  showRequired: false,
-                  prefixText: "₹",
-                  fieldColor: Kolor.card,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Label("Total Amount", fontSize: 20, weight: 900).regular,
+                    Label(
+                      kCurrencyFormat(amount, symbol: "₹"),
+                      fontSize: 17,
+                      weight: 700,
+                    ).regular,
+                  ],
                 ),
-                const SizedBox(height: 10),
                 KButton(
                   onPressed: () {
                     if (_formKey.currentState!.validate()) {
@@ -679,7 +742,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                         unit: unit,
                         qty: parseToDouble(qty.text),
                         price: parseToDouble(price.text),
-                        amount: parseToDouble(amount.text),
+                        amount: parseToDouble(amount),
                       );
 
                       setMainState(() {
