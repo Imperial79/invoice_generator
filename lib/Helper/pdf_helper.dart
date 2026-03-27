@@ -14,7 +14,9 @@ class PdfHelper {
   static Future<File> _buildPdfFile(InvoiceModel invoiceData) async {
     final pdf = pw.Document(compress: false);
     final bannerImg = await rootBundle.load('assets/images/invoice-banner.png');
-    final watermarkImg = await rootBundle.load('assets/images/invoice-watermark.png');
+    final watermarkImg = await rootBundle.load(
+      'assets/images/invoice-watermark.png',
+    );
 
     final banner = pw.MemoryImage(bannerImg.buffer.asUint8List());
     final watermark = pw.MemoryImage(watermarkImg.buffer.asUint8List());
@@ -27,20 +29,37 @@ class PdfHelper {
       'biz_phone': pref.getString("biz_phone") ?? "",
       'biz_email': pref.getString("biz_email") ?? "",
       'biz_gst': pref.getString("biz_gst") ?? "19APDPV5128C1ZU",
-      'biz_address': pref.getString("biz_address") ?? "Arrah More, Durgapur - 713212",
-      'biz_bank': pref.getString("biz_bank") ??
+      'biz_address':
+          pref.getString("biz_address") ?? "Arrah More, Durgapur - 713212",
+      'biz_bank':
+          pref.getString("biz_bank") ??
           "BANK DETAILS - SBI BANK, DURGAPUR SEN MARKET - A/C - 8718927918219871, IFSC - AKSLJASKLAAS\nSOUTH INDIAN BANK - ABC ROAD, - A/C - 8718927918219871, IFSC - AKSLJASKLAAS",
-      'biz_terms': pref.getString("biz_terms") ??
+      'biz_terms':
+          pref.getString("biz_terms") ??
           "E. & O.E.\n1. Payments via cheque are subject to verification.\n2. No returns or exchanges for sold goods.\n3. 18% interest on overdue payments.\n4. Disputes are under 'West Bengal' jurisdiction.\n5. Report invoice errors within 7 days.",
       'biz_state': pref.getString("biz_state") ?? "West Bengal (19)",
     };
 
+    final pageTheme = pw.PageTheme(
+      pageFormat: PdfPageFormat.a4,
+      margin: const pw.EdgeInsets.all(20),
+      buildBackground: (context) {
+        if (!showWatermark) return pw.SizedBox();
+        return pw.FullPage(
+          ignoreMargins: true,
+          child: pw.Opacity(
+            opacity: 1,
+            child: pw.Center(child: pw.Image(watermark, width: 400)),
+          ),
+        );
+      },
+    );
+
     pdf.addPage(
-      pw.Page(
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(0),
+      pw.MultiPage(
+        pageTheme: pageTheme,
         build: (pw.Context context) =>
-            pdfLayout(context, banner, watermark, invoiceData, profile, showWatermark),
+            pdfLayout(context, banner, invoiceData, profile),
       ),
     );
 
@@ -59,6 +78,8 @@ class PdfHelper {
 
   static Future<void> shareInvoice(InvoiceModel invoiceData) async {
     final file = await _buildPdfFile(invoiceData);
-    await Share.shareXFiles([XFile(file.path)], text: 'Invoice: ${invoiceData.invoiceId}');
+    await Share.shareXFiles([
+      XFile(file.path),
+    ], text: 'Invoice: ${invoiceData.invoiceId}');
   }
 }

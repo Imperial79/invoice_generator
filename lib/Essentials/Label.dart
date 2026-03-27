@@ -33,7 +33,6 @@ class Label extends StatelessWidget {
   const Label._internal(
     this.text,
     this._type, {
-    super.key,
     this.color,
     this.fontSize,
     this.weight,
@@ -44,55 +43,70 @@ class Label extends StatelessWidget {
     this.decoration,
   });
 
-  Label get title => Label._internal(text, _LabelType.title,
-      color: color,
-      fontSize: fontSize,
-      weight: weight,
-      maxLines: maxLines,
-      fontStyle: fontStyle,
-      height: height,
-      textAlign: textAlign,
-      decoration: decoration);
+  Label get title => Label._internal(
+    text,
+    _LabelType.title,
+    color: color,
+    fontSize: fontSize,
+    weight: weight,
+    maxLines: maxLines,
+    fontStyle: fontStyle,
+    height: height,
+    textAlign: textAlign,
+    decoration: decoration,
+  );
 
-  Label get subtitle => Label._internal(text, _LabelType.subtitle,
-      color: color,
-      fontSize: fontSize,
-      weight: weight,
-      maxLines: maxLines,
-      fontStyle: fontStyle,
-      height: height,
-      textAlign: textAlign,
-      decoration: decoration);
+  Label get subtitle => Label._internal(
+    text,
+    _LabelType.subtitle,
+    color: color,
+    fontSize: fontSize,
+    weight: weight,
+    maxLines: maxLines,
+    fontStyle: fontStyle,
+    height: height,
+    textAlign: textAlign,
+    decoration: decoration,
+  );
 
-  Label get spread => Label._internal(text, _LabelType.spread,
-      color: color,
-      fontSize: fontSize,
-      weight: weight,
-      maxLines: maxLines,
-      fontStyle: fontStyle,
-      height: height,
-      textAlign: textAlign,
-      decoration: decoration);
+  Label get spread => Label._internal(
+    text,
+    _LabelType.spread,
+    color: color,
+    fontSize: fontSize,
+    weight: weight,
+    maxLines: maxLines,
+    fontStyle: fontStyle,
+    height: height,
+    textAlign: textAlign,
+    decoration: decoration,
+  );
 
-  Label get regular => Label._internal(text, _LabelType.regular,
-      color: color,
-      fontSize: fontSize,
-      weight: weight,
-      maxLines: maxLines,
-      fontStyle: fontStyle,
-      height: height,
-      textAlign: textAlign,
-      decoration: decoration);
+  Label get regular => Label._internal(
+    text,
+    _LabelType.regular,
+    color: color,
+    fontSize: fontSize,
+    weight: weight,
+    maxLines: maxLines,
+    fontStyle: fontStyle,
+    height: height,
+    textAlign: textAlign,
+    decoration: decoration,
+  );
 
-  Label get withDivider => Label._internal(text, _LabelType.withDivider,
-      color: color,
-      fontSize: fontSize,
-      weight: weight,
-      maxLines: maxLines,
-      fontStyle: fontStyle,
-      height: height,
-      textAlign: textAlign,
-      decoration: decoration);
+  Label get withDivider => Label._internal(
+    text,
+    _LabelType.withDivider,
+    color: color,
+    fontSize: fontSize,
+    weight: weight,
+    maxLines: maxLines,
+    fontStyle: fontStyle,
+    height: height,
+    textAlign: textAlign,
+    decoration: decoration,
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -116,13 +130,14 @@ class Label extends StatelessWidget {
         return Text(
           text,
           style: TextStyle(
-              fontSize: fontSize ?? 14,
-              color: color ?? kColor(context).onSurfaceVariant,
-              fontVariations: [FontVariation.weight(weight ?? 500)],
-              fontStyle: fontStyle,
-              height: height,
-              decoration: decoration,
-              fontFamily: kFont),
+            fontSize: fontSize ?? 14,
+            color: color ?? kColor(context).onSurfaceVariant,
+            fontVariations: [FontVariation.weight(weight ?? 500)],
+            fontStyle: fontStyle,
+            height: height,
+            decoration: decoration,
+            fontFamily: kFont,
+          ),
           textAlign: textAlign,
           maxLines: maxLines,
           overflow: maxLines != null ? TextOverflow.ellipsis : null,
@@ -182,7 +197,7 @@ class Label extends StatelessWidget {
                 color: kColor(context).outlineVariant,
                 thickness: .5,
               ),
-            )
+            ),
           ],
         );
     }

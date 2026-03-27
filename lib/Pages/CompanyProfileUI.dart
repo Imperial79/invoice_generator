@@ -40,9 +40,11 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
     gstin.text = pref.getString("biz_gst") ?? "19APDPV5128C1ZU";
     address.text =
         pref.getString("biz_address") ?? "Arrah More, Durgapur - 713212";
-    bankDetails.text = pref.getString("biz_bank") ??
+    bankDetails.text =
+        pref.getString("biz_bank") ??
         "BANK DETAILS - SBI BANK, DURGAPUR SEN MARKET - A/C - 8718927918219871, IFSC - AKSLJASKLAAS\nSOUTH INDIAN BANK - ABC ROAD, - A/C - 8718927918219871, IFSC - AKSLJASKLAAS";
-    terms.text = pref.getString("biz_terms") ??
+    terms.text =
+        pref.getString("biz_terms") ??
         "E. & O.E.\n1. Payments via cheque are subject to verification.\n2. No returns or exchanges for sold goods.\n3. 18% interest on overdue payments.\n4. Disputes are under 'West Bengal' jurisdiction.\n5. Report invoice errors within 7 days.";
     state.text = pref.getString("biz_state") ?? "West Bengal (19)";
     isLoading.value = false;
@@ -123,14 +125,14 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
             KField(
               controller: bankDetails,
               label: "Bank Details",
-              maxLines: 4,
+              maxLines: 10,
               prefix: const Icon(LucideIcons.landmark, size: 16),
             ),
             height15,
             KField(
               controller: terms,
               label: "Terms & Conditions",
-              maxLines: 5,
+              maxLines: 10,
               prefix: const Icon(LucideIcons.fileText, size: 16),
             ),
             height30,

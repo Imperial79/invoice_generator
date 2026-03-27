@@ -100,6 +100,7 @@ class _HomeUIState extends State<HomeUI> {
           ],
         ),
         KCard(
+          onTap: () => context.push("/setup"),
           radius: 50,
           padding: const EdgeInsets.all(10),
           color: kColor(context).primaryContainer,
@@ -277,6 +278,12 @@ class _HomeUIState extends State<HomeUI> {
                             );
                             try {
                               await PdfHelper.generateInvoice(invoice);
+                            } catch (e) {
+                              KSnackbar(
+                                context,
+                                message: "Unable to generate PDF!",
+                                error: true,
+                              );
                             } finally {
                               if (mounted) {
                                 setState(
