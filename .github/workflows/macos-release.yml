@@ -3,7 +3,7 @@ name: Build & Release macOS
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   build-and-release:
@@ -16,7 +16,7 @@ jobs:
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: 'stable'
+          channel: "stable"
           cache: true
 
       - name: Get Dependencies
@@ -30,6 +30,7 @@ jobs:
 
       - name: Create DMG
         run: |
+          rm -f *.dmg
           create-dmg \
             --volname "Prime Invoice Installer" \
             --window-pos 200 120 \
