@@ -1,5 +1,5 @@
-import 'package:invoice_generator/Models/Invoice_Model.dart';
-import 'package:invoice_generator/Resources/constants.dart';
+import 'package:prime_invoice/Models/Invoice_Model.dart';
+import 'package:prime_invoice/Resources/constants.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart';
 

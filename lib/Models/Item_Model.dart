@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:invoice_generator/Resources/constants.dart';
+import 'package:prime_invoice/Resources/constants.dart';
 
 class ItemModel {
   int id = 0;

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
-import 'package:invoice_generator/Resources/constants.dart';
+import 'package:prime_invoice/Resources/constants.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:invoice_generator/Essentials/Label.dart';
+import 'package:prime_invoice/Essentials/Label.dart';
 import 'colors.dart';
 
 const SizedBox width5 = SizedBox(width: 5);
@@ -18,10 +18,8 @@ const SizedBox height30 = SizedBox(height: 30);
 SizedBox kHeight(double height) => SizedBox(height: height);
 SizedBox kWidth(double width) => SizedBox(width: width);
 
-Widget kDiv(BuildContext context) => Divider(
-      color: kColor(context).outlineVariant,
-      thickness: .5,
-    );
+Widget kDiv(BuildContext context) =>
+    Divider(color: kColor(context).outlineVariant, thickness: .5);
 
 systemColors(BuildContext context) {
   Brightness brightness = Theme.of(context).brightness;
@@ -33,7 +31,9 @@ systemColors(BuildContext context) {
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
       systemNavigationBarColor: Colors.transparent,
-      systemNavigationBarIconBrightness: isDark ? Brightness.light : Brightness.dark,
+      systemNavigationBarIconBrightness: isDark
+          ? Brightness.light
+          : Brightness.dark,
       systemNavigationBarDividerColor: Colors.transparent,
     ),
   );
@@ -43,17 +43,25 @@ BorderRadius kRadius(double radius) => BorderRadius.circular(radius);
 
 Future<T?> navPush<T extends Object?>(BuildContext context, Widget screen) {
   return Navigator.push(
-      context, MaterialPageRoute(builder: (context) => screen));
+    context,
+    MaterialPageRoute(builder: (context) => screen),
+  );
 }
 
 Future<T?> navPushReplacement<T extends Object?, TO extends Object?>(
-    BuildContext context, Widget screen) {
+  BuildContext context,
+  Widget screen,
+) {
   return Navigator.pushReplacement(
-      context, MaterialPageRoute(builder: (context) => screen));
+    context,
+    MaterialPageRoute(builder: (context) => screen),
+  );
 }
 
 Future<T?> navPopUntilPush<T extends Object?>(
-    BuildContext context, Widget screen) {
+  BuildContext context,
+  Widget screen,
+) {
   Navigator.popUntil(context, (route) => false);
   return navPush(context, screen);
 }
@@ -80,8 +88,9 @@ KSnackbar(
           Flexible(
             child: Label(
               "$message",
-              color:
-                  error ? kColor(context).onError : kColor(context).onPrimary,
+              color: error
+                  ? kColor(context).onError
+                  : kColor(context).onPrimary,
             ).regular,
           ),
         ],
@@ -98,25 +107,22 @@ KErrorAlert(context, {required dynamic message}) {
     builder: (context) => AlertDialog(
       backgroundColor: kColor(context).surface,
       title: Label("An Error Occurred!", color: kColor(context).error).title,
-      icon: Icon(
-        Icons.dangerous,
-        color: kColor(context).error,
-        size: 50,
-      ),
+      icon: Icon(Icons.dangerous, color: kColor(context).error, size: 50),
       content: Label("$message", textAlign: TextAlign.center).regular,
       actions: [
         TextButton(
           onPressed: () => context.pop(),
-          child: Label(
-            "Back",
-          ).regular,
+          child: Label("Back").regular,
         ),
       ],
     ),
   );
 }
 
-Widget googleLoginButton(BuildContext context, {required void Function()? onPressed}) {
+Widget googleLoginButton(
+  BuildContext context, {
+  required void Function()? onPressed,
+}) {
   return ElevatedButton(
     onPressed: onPressed,
     style: ElevatedButton.styleFrom(
@@ -125,9 +131,7 @@ Widget googleLoginButton(BuildContext context, {required void Function()? onPres
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: kRadius(15),
-        side: BorderSide(
-          color: kColor(context).outlineVariant,
-        ),
+        side: BorderSide(color: kColor(context).outlineVariant),
       ),
       padding: EdgeInsets.all(15),
     ),
@@ -135,10 +139,7 @@ Widget googleLoginButton(BuildContext context, {required void Function()? onPres
       mainAxisAlignment: MainAxisAlignment.center,
       spacing: 10,
       children: [
-        SvgPicture.asset(
-          "$kIconPath/glogo.svg",
-          height: 25,
-        ),
+        SvgPicture.asset("$kIconPath/glogo.svg", height: 25),
         Label("Google", fontSize: 17, weight: 600).regular,
       ],
     ),
@@ -146,6 +147,5 @@ Widget googleLoginButton(BuildContext context, {required void Function()? onPres
 }
 
 Widget get kSmallLoading => Center(
-      child:
-          SizedBox(height: 30, width: 30, child: CircularProgressIndicator()),
-    );
+  child: SizedBox(height: 30, width: 30, child: CircularProgressIndicator()),
+);

@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
-import 'package:invoice_generator/Models/Item_Model.dart';
-import 'package:invoice_generator/Resources/constants.dart';
+import 'package:prime_invoice/Models/Item_Model.dart';
+import 'package:prime_invoice/Resources/constants.dart';
 
 class InvoiceModel {
   String invoiceId = "";
@@ -74,8 +74,9 @@ class InvoiceModel {
   factory InvoiceModel.fromMap(Map<String, dynamic> map) {
     return InvoiceModel(
       invoiceId: map['invoiceId'] ?? '',
-      items:
-          List<ItemModel>.from(map['items']?.map((x) => ItemModel.fromMap(x))),
+      items: List<ItemModel>.from(
+        map['items']?.map((x) => ItemModel.fromMap(x)),
+      ),
       forCustomer: map['forCustomer'] ?? false,
       customerName: map['customerName'] ?? '',
       customerPhone: map['customerPhone'] ?? '',

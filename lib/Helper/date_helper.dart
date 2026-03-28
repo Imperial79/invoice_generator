@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:invoice_generator/Resources/commons.dart';
+import 'package:prime_invoice/Resources/commons.dart';
 
 class DateHelper {
   static Future<DateTime?> pickDate(
@@ -13,13 +13,12 @@ class DateHelper {
       initialDate: DateTime.now(),
       currentDate: currentDate,
       builder: (context, child) => DatePickerTheme(
-          data: DatePickerThemeData(
-            shape: RoundedRectangleBorder(
-              borderRadius: kRadius(15),
-            ),
-            elevation: 0,
-          ),
-          child: child!),
+        data: DatePickerThemeData(
+          shape: RoundedRectangleBorder(borderRadius: kRadius(15)),
+          elevation: 0,
+        ),
+        child: child!,
+      ),
     );
   }
 }

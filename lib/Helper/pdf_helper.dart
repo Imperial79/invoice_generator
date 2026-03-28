@@ -1,7 +1,7 @@
 import 'dart:developer';
 import 'dart:io';
-import 'package:invoice_generator/Helper/pdf_design.dart';
-import 'package:invoice_generator/Models/Invoice_Model.dart';
+import 'package:prime_invoice/Helper/pdf_design.dart';
+import 'package:prime_invoice/Models/Invoice_Model.dart';
 import 'package:open_file/open_file.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/pdf.dart';

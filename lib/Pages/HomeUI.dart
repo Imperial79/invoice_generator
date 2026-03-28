@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:invoice_generator/Essentials/Label.dart';
-import 'package:invoice_generator/Resources/commons.dart';
-import 'package:invoice_generator/Resources/constants.dart';
-import 'package:invoice_generator/Essentials/KScaffold.dart';
+import 'package:prime_invoice/Essentials/Label.dart';
+import 'package:prime_invoice/Resources/commons.dart';
+import 'package:prime_invoice/Resources/constants.dart';
+import 'package:prime_invoice/Essentials/KScaffold.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 
-import 'package:invoice_generator/Essentials/kCard.dart';
-import 'package:invoice_generator/Helper/database_helper.dart';
-import 'package:invoice_generator/Models/Invoice_Model.dart';
-import 'package:invoice_generator/Helper/pdf_helper.dart';
-import 'package:invoice_generator/Resources/colors.dart';
+import 'package:prime_invoice/Essentials/kCard.dart';
+import 'package:prime_invoice/Helper/database_service.dart';
+import 'package:prime_invoice/Models/Invoice_Model.dart';
+import 'package:prime_invoice/Helper/pdf_helper.dart';
+import 'package:prime_invoice/Resources/colors.dart';
 import 'package:intl/intl.dart';
+import 'package:prime_invoice/Helper/responsive.dart';
 
 class HomeUI extends StatefulWidget {
   const HomeUI({super.key});
@@ -24,7 +25,6 @@ class _HomeUIState extends State<HomeUI> {
   final Set<String> loadingInvoiceIds = {};
   List<InvoiceModel> recentInvoices = [];
   double totalInvoicedNum = 0;
-  double pendingAmountNum = 0;
   final isLoading = ValueNotifier(false);
 
   @override
@@ -34,19 +34,24 @@ class _HomeUIState extends State<HomeUI> {
   }
 
   Future<void> _loadData() async {
-    isLoading.value = true;
-    final invoices = await DatabaseHelper.instance.getAllInvoices();
-    double total = 0;
-    for (var inv in invoices) {
-      total += inv.grandTotal;
+    try {
+      isLoading.value = true;
+      final invoices = await DatabaseService.instance.getAllInvoices();
+      double total = 0;
+      for (var inv in invoices) {
+        total += inv.grandTotal;
+      }
+      if (mounted) {
+        setState(() {
+          recentInvoices = invoices.take(5).toList();
+          totalInvoicedNum = total;
+        });
+      }
+    } catch (e) {
+      debugPrint("Error loading data: $e");
+    } finally {
+      isLoading.value = false;
     }
-    setState(() {
-      recentInvoices = invoices.take(5).toList();
-      totalInvoicedNum = total;
-      // For demo, let's say 30% is pending if no status field exists yet
-      pendingAmountNum = total * 0.3;
-    });
-    isLoading.value = false;
   }
 
   @override
@@ -55,32 +60,84 @@ class _HomeUIState extends State<HomeUI> {
       isLoading: isLoading,
       body: SafeArea(
         child: SingleChildScrollView(
+          primary: true,
           padding: const EdgeInsets.all(kPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             spacing: 20,
             children: [
+              ValueListenableBuilder<bool>(
+                valueListenable: DatabaseService.hasWriteIssue,
+                builder: (context, hasIssue, _) {
+                  if (!hasIssue || Responsive.isMobile(context)) {
+                    return const SizedBox.shrink();
+                  }
+                  return Container(
+                    margin: const EdgeInsets.only(bottom: 10),
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.red.withValues(alpha: .1),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: Colors.red.withValues(alpha: .3),
+                      ),
+                    ),
+                    child: Row(
+                      spacing: 12,
+                      children: [
+                        const Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.red,
+                          size: 20,
+                        ),
+                        Expanded(
+                          child: Label(
+                            "Drive '${DatabaseService.driveName}' is Read-Only (NTFS). Data is being saved to Local Storage instead.",
+                            color: Colors.red,
+                            fontSize: 12,
+                            weight: 600,
+                          ).regular,
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
               _buildHeader(),
-              _buildActions(),
-              _buildRecentInvoicesHeader(),
-              _buildRecentInvoicesList(),
+              if (Responsive.isMobile(context)) ...[
+                _buildSummary(),
+                _buildActions(),
+                _buildRecentInvoicesHeader(),
+                _buildRecentInvoicesList(),
+              ] else
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: 30,
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        spacing: 20,
+                        children: [_buildSummary(), _buildActions()],
+                      ),
+                    ),
+                    Expanded(
+                      flex: 3,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          _buildRecentInvoicesHeader(),
+                          _buildRecentInvoicesList(),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
             ],
           ),
         ),
       ),
-      // floatingActionButton: FloatingActionButton.extended(
-      //   onPressed: () async {
-      //     final result = await context.push("/create-invoice");
-      //     if (result == true) {
-      //       _loadData();
-      //     }
-      //   },
-      //   icon: const Icon(LucideIcons.plus),
-      //   elevation: 0,
-      //   backgroundColor: Kolor.primary,
-      //   foregroundColor: Colors.white,
-      //   label: Label("New Invoice").regular,
-      // ),
     );
   }
 
@@ -96,7 +153,50 @@ class _HomeUIState extends State<HomeUI> {
               fontSize: 14,
               color: kColor(context).onSurfaceVariant,
             ).regular,
-            Label("Sujit Verma", fontSize: 24, weight: 700).title,
+            Label(
+              "Sujit Verma",
+              fontSize: Responsive.isMobile(context) ? 24 : 32,
+              weight: 700,
+            ).title,
+            const SizedBox(height: 5),
+            ValueListenableBuilder<String>(
+              valueListenable: DatabaseService.storageType,
+              builder: (context, type, _) {
+                final isPortable = type == "Portable Drive";
+                return Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: (isPortable ? Colors.green : Colors.orange)
+                        .withValues(alpha: .15),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                      color: (isPortable ? Colors.green : Colors.orange)
+                          .withValues(alpha: .3),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    spacing: 6,
+                    children: [
+                      Icon(
+                        isPortable ? LucideIcons.usb : LucideIcons.hardDrive,
+                        size: 12,
+                        color: isPortable ? Colors.green : Colors.orange,
+                      ),
+                      Label(
+                        type,
+                        fontSize: 10,
+                        weight: 600,
+                        color: isPortable ? Colors.green : Colors.orange,
+                      ).regular,
+                    ],
+                  ),
+                );
+              },
+            ),
           ],
         ),
         KCard(
@@ -107,9 +207,34 @@ class _HomeUIState extends State<HomeUI> {
           child: Icon(
             LucideIcons.user,
             color: kColor(context).onPrimaryContainer,
+            size: Responsive.isMobile(context) ? 24 : 30,
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildSummary() {
+    return KCard(
+      width: double.infinity,
+      padding: const EdgeInsets.all(15),
+      color: kColor(context).primaryContainer.withValues(alpha: 0.3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: 5,
+        children: [
+          Label(
+            "Total Invoiced",
+            fontSize: 12,
+            color: kColor(context).primary,
+          ).regular,
+          Label(
+            kCurrencyFormat(totalInvoicedNum),
+            fontSize: 18,
+            weight: 700,
+          ).title,
+        ],
+      ),
     );
   }
 

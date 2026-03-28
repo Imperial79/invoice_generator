@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:invoice_generator/Essentials/KScaffold.dart';
-import 'package:invoice_generator/Essentials/Label.dart';
-import 'package:invoice_generator/Essentials/kCard.dart';
-import 'package:invoice_generator/Helper/database_helper.dart';
-import 'package:invoice_generator/Resources/colors.dart';
-import 'package:invoice_generator/Resources/commons.dart';
-import 'package:invoice_generator/Resources/constants.dart';
+import 'package:prime_invoice/Essentials/KScaffold.dart';
+import 'package:prime_invoice/Essentials/Label.dart';
+import 'package:prime_invoice/Essentials/kCard.dart';
+import 'package:prime_invoice/Helper/database_service.dart';
+import 'package:prime_invoice/Resources/colors.dart';
+import 'package:prime_invoice/Resources/commons.dart';
+import 'package:prime_invoice/Resources/constants.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:invoice_generator/Resources/theme.dart';
+import 'package:prime_invoice/Resources/theme.dart';
 
 class SetupUI extends StatefulWidget {
   const SetupUI({super.key});
@@ -38,92 +38,125 @@ class _SetupUIState extends State<SetupUI> {
   Widget build(BuildContext context) {
     return KScaffold(
       appBar: KAppBar(context, title: "Settings"),
-      body: ListView(
-        padding: const EdgeInsets.all(kPadding),
-        children: [
-          _buildOption(
-            LucideIcons.user,
-            "Company Profile",
-            "Basic details & GSTIN",
-            onTap: () => context.push("/company-profile"),
-          ),
-          _buildOption(
-            LucideIcons.palette,
-            "App Theme",
-            "Switch Light/Dark Mode",
-            trailing: ValueListenableBuilder<ThemeMode>(
-              valueListenable: themeModeNotifier,
-              builder: (context, mode, _) {
-                return DropdownButtonHideUnderline(
-                  child: DropdownButton<ThemeMode>(
-                    value: mode,
-                    onChanged: (newMode) async {
-                      if (newMode != null) {
-                        themeModeNotifier.value = newMode;
-                        final pref = await SharedPreferences.getInstance();
-                        await pref.setInt("theme_mode", newMode.index);
-                      }
-                    },
-                    items: ThemeMode.values.map((e) {
-                      return DropdownMenuItem(
-                        value: e,
-                        child: Label(e.name.toUpperCase(), fontSize: 13).regular,
-                      );
-                    }).toList(),
-                  ),
-                );
-              },
-            ),
-            onTap: () {},
-          ),
-          _buildOption(
-            LucideIcons.fileText,
-            "Show/Hide Watermark",
-            "Toggle Watermark",
-            trailing: Switch(
-              value: isWatermarkEnabled,
-              activeTrackColor: kColor(context).primary,
-              onChanged: (val) async {
-                final pref = await SharedPreferences.getInstance();
-                await pref.setBool("pdf_watermark", val);
-                setState(() => isWatermarkEnabled = val);
-                if (context.mounted) {
-                  KSnackbar(
-                    context,
-                    message: "Watermark ${val ? 'Enabled' : 'Disabled'}",
-                  );
-                }
-              },
-            ),
-            onTap: () {},
-          ),
-          _buildOption(
-            LucideIcons.database,
-            "Backup & Restore",
-            "Clear all data",
-            onTap: () => _showClearDialog(context),
-          ),
-          _buildOption(
-            LucideIcons.info,
-            "About",
-            "Version 1.0.0",
-            onTap: () => showAboutDialog(
-              context: context,
-              applicationName: "Invoice Generator",
-              applicationVersion: "1.0.0",
-              applicationIcon: Icon(
-                LucideIcons.fileText,
-                size: 40,
-                color: kColor(context).primary,
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: ListView(
+            primary: true,
+            padding: const EdgeInsets.all(kPadding),
+            children: [
+              _buildOption(
+                LucideIcons.user,
+                "Company Profile",
+                "Basic details & GSTIN",
+                onTap: () => context.push("/company-profile"),
               ),
-              children: [
-                Label(
-                  "A premium tool for generating professional invoices locally on your device.",
-                ).regular,
-              ],
-            ),
+              _buildOption(
+                LucideIcons.palette,
+                "App Theme",
+                "Switch Light/Dark Mode",
+                trailing: ValueListenableBuilder<ThemeMode>(
+                  valueListenable: themeModeNotifier,
+                  builder: (context, mode, _) {
+                    return Row(
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: 5,
+                      children: ThemeMode.values.map((e) {
+                        final isSelected = mode == e;
+                        IconData icon;
+                        switch (e) {
+                          case ThemeMode.light:
+                            icon = LucideIcons.sun;
+                            break;
+                          case ThemeMode.dark:
+                            icon = LucideIcons.moon;
+                            break;
+                          default:
+                            icon = LucideIcons.monitor;
+                        }
+
+                        return InkWell(
+                          onTap: () async {
+                            themeModeNotifier.value = e;
+                            final pref = await SharedPreferences.getInstance();
+                            await pref.setInt("theme_mode", e.index);
+                          },
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? kColor(context).primary
+                                  : kColor(context)
+                                      .surfaceContainerHigh
+                                      .withValues(alpha: .5),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Icon(
+                              icon,
+                              size: 18,
+                              color: isSelected
+                                  ? kColor(context).onPrimary
+                                  : kColor(context).onSurfaceVariant,
+                            ),
+                          ),
+                        );
+                      }).toList(),
+                    );
+                  },
+                ),
+                onTap: () {},
+              ),
+              _buildOption(
+                LucideIcons.fileText,
+                "Show/Hide Watermark",
+                "Toggle Watermark",
+                trailing: Switch(
+                  value: isWatermarkEnabled,
+                  activeTrackColor: kColor(context).primary,
+                  onChanged: (val) async {
+                    final pref = await SharedPreferences.getInstance();
+                    await pref.setBool("pdf_watermark", val);
+                    setState(() => isWatermarkEnabled = val);
+                    if (context.mounted) {
+                      KSnackbar(
+                        context,
+                        message: "Watermark ${val ? 'Enabled' : 'Disabled'}",
+                      );
+                    }
+                  },
+                ),
+                onTap: () {},
+              ),
+              _buildOption(
+                LucideIcons.database,
+                "Backup & Restore",
+                "Clear all data",
+                onTap: () => _showClearDialog(context),
+              ),
+              _buildOption(
+                LucideIcons.info,
+                "About",
+                "Version 1.0.0",
+                onTap: () => showAboutDialog(
+                  context: context,
+                  applicationName: "Invoice Generator",
+                  applicationVersion: "1.0.0",
+                  applicationIcon: Icon(
+                    LucideIcons.fileText,
+                    size: 40,
+                    color: kColor(context).primary,
+                  ),
+                  children: [
+                    Label(
+                      "A premium tool for generating professional invoices locally on your device.",
+                    ).regular,
+                  ],
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }
@@ -143,7 +176,7 @@ class _SetupUIState extends State<SetupUI> {
           ),
           TextButton(
             onPressed: () async {
-              await DatabaseHelper.instance.clearDatabase();
+              await DatabaseService.instance.clearDatabase();
               if (context.mounted) {
                 Navigator.pop(context);
                 KSnackbar(context, message: "Database cleared successfully!");

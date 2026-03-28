@@ -1,4 +1,5 @@
 // ignore_for_file: public_member_api_docs, sort_constructors_first
+import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -50,7 +51,12 @@ class KScaffold extends StatelessWidget {
                 body: SizedBox(
                   height: double.maxFinite,
                   width: double.maxFinite,
-                  child: body,
+                  child: Scrollbar(
+                    controller: PrimaryScrollController.maybeOf(context),
+                    thumbVisibility: Platform.isWindows || Platform.isLinux,
+                    trackVisibility: Platform.isWindows || Platform.isLinux,
+                    child: body,
+                  ),
                 ),
                 floatingActionButtonAnimator: floatingActionButtonAnimator,
                 floatingActionButtonLocation: floatingActionButtonLocation,

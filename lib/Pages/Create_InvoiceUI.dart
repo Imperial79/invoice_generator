@@ -2,22 +2,23 @@ import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_contacts/flutter_contacts.dart';
-import 'package:invoice_generator/Essentials/KScaffold.dart';
-import 'package:invoice_generator/Essentials/Label.dart';
-import 'package:invoice_generator/Essentials/kButton.dart';
-import 'package:invoice_generator/Essentials/kCard.dart';
-import 'package:invoice_generator/Essentials/kField.dart';
-import 'package:invoice_generator/Helper/date_helper.dart';
-import 'package:invoice_generator/Helper/database_helper.dart';
-import 'package:invoice_generator/Helper/pdf_helper.dart';
-import 'package:invoice_generator/Models/Invoice_Model.dart';
-import 'package:invoice_generator/Models/Item_Model.dart';
-import 'package:invoice_generator/Resources/app-data.dart';
-import 'package:invoice_generator/Resources/colors.dart';
-import 'package:invoice_generator/Resources/commons.dart';
-import 'package:invoice_generator/Resources/constants.dart';
+import 'package:prime_invoice/Essentials/KScaffold.dart';
+import 'package:prime_invoice/Essentials/Label.dart';
+import 'package:prime_invoice/Essentials/kButton.dart';
+import 'package:prime_invoice/Essentials/kCard.dart';
+import 'package:prime_invoice/Essentials/kField.dart';
+import 'package:prime_invoice/Helper/date_helper.dart';
+import 'package:prime_invoice/Helper/database_service.dart';
+import 'package:prime_invoice/Helper/pdf_helper.dart';
+import 'package:prime_invoice/Models/Invoice_Model.dart';
+import 'package:prime_invoice/Models/Item_Model.dart';
+import 'package:prime_invoice/Resources/app-data.dart';
+import 'package:prime_invoice/Resources/colors.dart';
+import 'package:prime_invoice/Resources/commons.dart';
+import 'package:prime_invoice/Resources/constants.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:prime_invoice/Helper/responsive.dart';
 
 class CreateInvoiceUI extends StatefulWidget {
   final InvoiceModel? invoice;
@@ -144,7 +145,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
         invoiceDate: invoiceDate,
       );
       await PdfHelper.generateInvoice(invoiceData);
-      await DatabaseHelper.instance.saveInvoice(invoiceData);
+      await DatabaseService.instance.saveInvoice(invoiceData);
       if (mounted) {
         Navigator.pop(context, true);
         KSnackbar(
@@ -212,30 +213,82 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(kPadding),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 20,
-            children: [
-              _buildSectionHeader("Invoice Details", LucideIcons.fileText),
-              _buildInvoiceInfo(),
-              _buildSectionHeader("Items List", LucideIcons.package),
-              _buildItemsSection(),
-              _buildSummarySection(),
-              _buildSectionHeader("Party Details", LucideIcons.user),
-              _buildPartyDetails(),
-              _buildSectionHeader("Other Details", LucideIcons.ellipsis),
-              KField(
-                controller: billingAddress,
-                maxLines: 4,
-                minLines: 3,
-                label: "Billing Address",
-                hintText: "Enter complete billing address",
-                validator: (val) => KValidation.required(val),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1000),
+            child: SingleChildScrollView(
+              primary: true,
+              padding: const EdgeInsets.all(kPadding),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                spacing: 20,
+                children: [
+                  if (Responsive.isMobile(context)) ...[
+                    _buildSectionHeader(
+                      "Invoice Details",
+                      LucideIcons.fileText,
+                    ),
+                    _buildInvoiceInfo(),
+                    _buildSectionHeader("Items List", LucideIcons.package),
+                    _buildItemsSection(),
+                    _buildSummarySection(),
+                    _buildSectionHeader("Party Details", LucideIcons.user),
+                    _buildPartyDetails(),
+                  ] else ...[
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      spacing: 30,
+                      children: [
+                        Expanded(
+                          flex: 1,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            spacing: 20,
+                            children: [
+                              _buildSectionHeader(
+                                "Invoice Details",
+                                LucideIcons.fileText,
+                              ),
+                              _buildInvoiceInfo(),
+                              _buildSectionHeader(
+                                "Party Details",
+                                LucideIcons.user,
+                              ),
+                              _buildPartyDetails(),
+                            ],
+                          ),
+                        ),
+                        Expanded(
+                          flex: 1,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            spacing: 20,
+                            children: [
+                              _buildSectionHeader(
+                                "Items List",
+                                LucideIcons.package,
+                              ),
+                              _buildItemsSection(),
+                              _buildSummarySection(),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                  _buildSectionHeader("Other Details", LucideIcons.ellipsis),
+                  KField(
+                    controller: billingAddress,
+                    maxLines: 4,
+                    minLines: 3,
+                    label: "Billing Address",
+                    hintText: "Enter complete billing address",
+                    validator: (val) => KValidation.required(val),
+                  ),
+                  const SizedBox(height: 80),
+                ],
               ),
-              const SizedBox(height: 80),
-            ],
+            ),
           ),
         ),
       ),

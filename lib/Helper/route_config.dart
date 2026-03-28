@@ -1,10 +1,10 @@
 import 'package:go_router/go_router.dart';
-import 'package:invoice_generator/Pages/Create_InvoiceUI.dart';
-import 'package:invoice_generator/Models/Invoice_Model.dart';
-import 'package:invoice_generator/Pages/ClientsUI.dart';
-import 'package:invoice_generator/Pages/CompanyProfileUI.dart';
-import 'package:invoice_generator/Pages/InvoicesListUI.dart';
-import 'package:invoice_generator/Pages/SetupUI.dart';
+import 'package:prime_invoice/Pages/Create_InvoiceUI.dart';
+import 'package:prime_invoice/Models/Invoice_Model.dart';
+import 'package:prime_invoice/Pages/ClientsUI.dart';
+import 'package:prime_invoice/Pages/CompanyProfileUI.dart';
+import 'package:prime_invoice/Pages/InvoicesListUI.dart';
+import 'package:prime_invoice/Pages/SetupUI.dart';
 import '../Pages/HomeUI.dart';
 
 final routerConfig = GoRouter(

@@ -1,4 +1,4 @@
-package com.example.invoice_generator
+package com.appkraft.prime_invoice
 
 import io.flutter.embedding.android.FlutterActivity
 
