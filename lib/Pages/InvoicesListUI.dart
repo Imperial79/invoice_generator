@@ -12,6 +12,8 @@ import 'package:prime_invoice/Resources/commons.dart';
 import 'package:prime_invoice/Resources/constants.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:prime_invoice/Helper/responsive.dart';
+import 'package:prime_invoice/Helper/date_helper.dart';
+import 'package:prime_invoice/Essentials/kField.dart';
 
 class InvoicesListUI extends StatefulWidget {
   const InvoicesListUI({super.key});
@@ -24,11 +26,19 @@ class _InvoicesListUIState extends State<InvoicesListUI> {
   final Set<String> loadingInvoiceIds = {};
   List<InvoiceModel> invoices = [];
   final isLoading = ValueNotifier(false);
+  final searchQuery = TextEditingController();
+  DateTimeRange? selectedDateRange;
 
   @override
   void initState() {
     super.initState();
     _loadInvoices();
+  }
+
+  @override
+  void dispose() {
+    searchQuery.dispose();
+    super.dispose();
   }
 
   Future<void> _loadInvoices() async {
@@ -40,57 +50,167 @@ class _InvoicesListUIState extends State<InvoicesListUI> {
     isLoading.value = false;
   }
 
+  List<InvoiceModel> get filteredInvoices {
+    return invoices.where((invoice) {
+      final query = searchQuery.text.toLowerCase().trim();
+      final matchesSearch =
+          query.isEmpty ||
+          invoice.invoiceId.toLowerCase().contains(query) ||
+          invoice.customerName.toLowerCase().contains(query) ||
+          invoice.customerPhone.toLowerCase().contains(query);
+
+      bool matchesDate = true;
+      if (selectedDateRange != null) {
+        final date = invoice.invoiceDate ?? DateTime.now();
+        matchesDate =
+            date.isAfter(
+              selectedDateRange!.start.subtract(const Duration(days: 1)),
+            ) &&
+            date.isBefore(selectedDateRange!.end.add(const Duration(days: 1)));
+      }
+
+      return matchesSearch && matchesDate;
+    }).toList();
+  }
+
   @override
   Widget build(BuildContext context) {
     return KScaffold(
       isLoading: isLoading,
-      appBar: KAppBar(context, title: "All Invoices"),
-      body: invoices.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+      appBar: KAppBar(
+        context,
+        title: "All Invoices",
+        actions: [
+          IconButton(
+            onPressed: () async {
+              final range = await DateHelper.pickDateRange(
+                context,
+                initialDateRange: selectedDateRange,
+              );
+              if (range != null) setState(() => selectedDateRange = range);
+            },
+            icon: Icon(
+              LucideIcons.calendarRange,
+              color: selectedDateRange != null ? kColor(context).primary : null,
+            ),
+          ),
+          if (selectedDateRange != null || searchQuery.text.isNotEmpty)
+            IconButton(
+              onPressed: () => setState(() {
+                searchQuery.clear();
+                selectedDateRange = null;
+              }),
+              icon: Icon(LucideIcons.filterX, color: kColor(context).error),
+            ),
+        ],
+      ),
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: kPadding,
+              vertical: 10,
+            ),
+            child: KField(
+              controller: searchQuery,
+              hintText: "Search by Name, Phone or ID",
+              prefix: const Icon(LucideIcons.search, size: 18),
+              onChanged: (v) => setState(() {}),
+            ),
+          ),
+          if (selectedDateRange != null)
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: kPadding),
+              child: Row(
                 children: [
-                  Icon(
-                    LucideIcons.inbox,
-                    size: 40,
-                    color: kColor(context).onSurfaceVariant,
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 6,
+                    ),
+                    decoration: BoxDecoration(
+                      color: kColor(context).primaryContainer,
+                      borderRadius: kRadius(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      spacing: 8,
+                      children: [
+                        Icon(
+                          LucideIcons.calendar,
+                          size: 14,
+                          color: kColor(context).onPrimaryContainer,
+                        ),
+                        Label(
+                          "${DateFormat('dd MMM').format(selectedDateRange!.start)} - ${DateFormat('dd MMM').format(selectedDateRange!.end)}",
+                          fontSize: 12,
+                          weight: 600,
+                          color: kColor(context).onPrimaryContainer,
+                        ).regular,
+                        InkWell(
+                          onTap: () => setState(() => selectedDateRange = null),
+                          child: Icon(
+                            LucideIcons.x,
+                            size: 14,
+                            color: kColor(context).onPrimaryContainer,
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  height10,
-                  Label(
-                    "No invoices found",
-                    color: kColor(context).onSurfaceVariant,
-                  ).regular,
                 ],
               ),
-            )
-          : Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 1200),
-                child: Responsive.isMobile(context)
-                    ? ListView.separated(
-                        primary: true,
-                        padding: const EdgeInsets.all(kPadding),
-                        itemCount: invoices.length,
-                        separatorBuilder: (context, index) => height15,
-                        itemBuilder: (context, index) =>
-                            _buildInvoiceCard(invoices[index]),
-                      )
-                    : GridView.builder(
-                        primary: true,
-                        padding: const EdgeInsets.all(kPadding),
-                        gridDelegate:
-                            const SliverGridDelegateWithMaxCrossAxisExtent(
-                              maxCrossAxisExtent: 500,
-                              mainAxisExtent: 130,
-                              crossAxisSpacing: 15,
-                              mainAxisSpacing: 15,
-                            ),
-                        itemCount: invoices.length,
-                        itemBuilder: (context, index) =>
-                            _buildInvoiceCard(invoices[index]),
-                      ),
-              ),
             ),
+          Expanded(
+            child: filteredInvoices.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          LucideIcons.inbox,
+                          size: 40,
+                          color: kColor(context).onSurfaceVariant,
+                        ),
+                        height10,
+                        Label(
+                          "No invoices found",
+                          color: kColor(context).onSurfaceVariant,
+                        ).regular,
+                      ],
+                    ),
+                  )
+                : Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 1200),
+                      child: Responsive.isMobile(context)
+                          ? ListView.separated(
+                              primary: true,
+                              padding: const EdgeInsets.all(kPadding),
+                              itemCount: filteredInvoices.length,
+                              separatorBuilder: (context, index) => height15,
+                              itemBuilder: (context, index) =>
+                                  _buildInvoiceCard(filteredInvoices[index]),
+                            )
+                          : GridView.builder(
+                              primary: true,
+                              padding: const EdgeInsets.all(kPadding),
+                              gridDelegate:
+                                  const SliverGridDelegateWithMaxCrossAxisExtent(
+                                    maxCrossAxisExtent: 500,
+                                    mainAxisExtent: 130,
+                                    crossAxisSpacing: 15,
+                                    mainAxisSpacing: 15,
+                                  ),
+                              itemCount: filteredInvoices.length,
+                              itemBuilder: (context, index) =>
+                                  _buildInvoiceCard(filteredInvoices[index]),
+                            ),
+                    ),
+                  ),
+          ),
+        ],
+      ),
     );
   }
 

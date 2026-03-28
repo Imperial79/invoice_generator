@@ -340,6 +340,7 @@ class _HomeUIState extends State<HomeUI> {
     }
     return ListView.separated(
       shrinkWrap: true,
+      padding: .only(top: 10),
       physics: const NeverScrollableScrollPhysics(),
       itemCount: recentInvoices.length,
       separatorBuilder: (context, index) => height15,

@@ -21,4 +21,25 @@ class DateHelper {
       ),
     );
   }
+
+  static Future<DateTimeRange?> pickDateRange(
+    BuildContext context, {
+    DateTimeRange? initialDateRange,
+  }) async {
+    return await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime.now(),
+      initialDateRange: initialDateRange,
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          datePickerTheme: DatePickerThemeData(
+            shape: RoundedRectangleBorder(borderRadius: kRadius(15)),
+            elevation: 0,
+          ),
+        ),
+        child: child!,
+      ),
+    );
+  }
 }

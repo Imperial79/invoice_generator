@@ -15,7 +15,7 @@ extension ColorUtils on Color {
 
 class Kolor {
   static const Color scaffold = Colors.white;
-  static const Color primary = Color.fromARGB(255, 0, 104, 165); // light green
+  static const Color primary = Color.fromARGB(255, 0, 104, 165);
   static const Color secondary = Color(0xff2b2c43);
   static const Color tertiary = Color.fromARGB(255, 233, 128, 30);
   static const Color card = Color(0XFFf6f6f6);

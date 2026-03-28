@@ -560,47 +560,62 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
               label: "Customer Name",
               hintText: "Enter Name",
               prefix: const Icon(LucideIcons.user, size: 16),
-              suffix: IconButton(
-                onPressed: () async {
-                  try {
-                    if (await FlutterContacts.requestPermission()) {
-                      final contact = await FlutterContacts.openExternalPick();
-                      if (contact != null) {
-                        setState(() {
-                          customerName.text = contact.displayName;
-                          if (contact.phones.isNotEmpty) {
-                            customerPhone.text = contact.phones.first.number
-                                .replaceAll(RegExp(r'[^0-9]'), '');
-                            if (customerPhone.text.length > 10 &&
-                                customerPhone.text.startsWith('91')) {
-                              customerPhone.text = customerPhone.text.substring(
-                                2,
-                              );
-                            }
+              suffix: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    onPressed: () => _showExistingClients(),
+                    icon: Icon(
+                      LucideIcons.users,
+                      size: 18,
+                      color: kColor(context).secondary,
+                    ),
+                    tooltip: "Choose from existing clients",
+                  ),
+                  IconButton(
+                    onPressed: () async {
+                      try {
+                        if (await FlutterContacts.requestPermission()) {
+                          final contact =
+                              await FlutterContacts.openExternalPick();
+                          if (contact != null) {
+                            setState(() {
+                              customerName.text = contact.displayName;
+                              if (contact.phones.isNotEmpty) {
+                                customerPhone.text = contact.phones.first.number
+                                    .replaceAll(RegExp(r'[^0-9]'), '');
+                                if (customerPhone.text.length > 10 &&
+                                    customerPhone.text.startsWith('91')) {
+                                  customerPhone.text =
+                                      customerPhone.text.substring(2);
+                                }
+                              }
+                            });
                           }
-                        });
+                        } else {
+                          KSnackbar(
+                            context,
+                            message: "Contact permission denied!",
+                            error: true,
+                          );
+                        }
+                      } catch (e) {
+                        log("Contact Pick Error: $e");
+                        KSnackbar(
+                          context,
+                          message: "Couldn't pick contact",
+                          error: true,
+                        );
                       }
-                    } else {
-                      KSnackbar(
-                        context,
-                        message: "Contact permission denied!",
-                        error: true,
-                      );
-                    }
-                  } catch (e) {
-                    log("Contact Pick Error: $e");
-                    KSnackbar(
-                      context,
-                      message: "Couldn't pick contact",
-                      error: true,
-                    );
-                  }
-                },
-                icon: Icon(
-                  LucideIcons.contact,
-                  size: 18,
-                  color: kColor(context).primary,
-                ),
+                    },
+                    icon: Icon(
+                      LucideIcons.contact,
+                      size: 18,
+                      color: kColor(context).primary,
+                    ),
+                    tooltip: "Pick from contacts",
+                  ),
+                ],
               ),
               validator: (val) => KValidation.required(val),
             ),
@@ -642,8 +657,116 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
     );
   }
 
+  void _showExistingClients() async {
+    isLoading.value = true;
+    final invoices = await DatabaseService.instance.getAllInvoices();
+    final uniqueClients = <String, InvoiceModel>{};
+    for (var inv in invoices) {
+      final key = "${inv.customerName}-${inv.customerPhone}";
+      if (!uniqueClients.containsKey(key)) {
+        uniqueClients[key] = inv;
+      }
+    }
+    isLoading.value = false;
+
+    if (uniqueClients.isEmpty) {
+      if (mounted) {
+        KSnackbar(context, message: "No existing clients found!", error: true);
+      }
+      return;
+    }
+
+    final clientList = uniqueClients.values.toList();
+
+    if (mounted) {
+      showDialog(
+        context: context,
+        builder: (context) {
+          String search = "";
+          return StatefulBuilder(
+            builder: (context, setDialogState) {
+              final filtered = clientList
+                  .where(
+                    (c) =>
+                        c.customerName.toLowerCase().contains(
+                          search.toLowerCase(),
+                        ) ||
+                        c.customerPhone.contains(search),
+                  )
+                  .toList();
+
+              return _dialog(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: 15,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Label(
+                          "Select Existing Client",
+                          fontSize: 18,
+                          weight: 700,
+                        ).title,
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(LucideIcons.x, size: 20),
+                        ),
+                      ],
+                    ),
+                    KField(
+                      hintText: "Search name or phone",
+                      prefix: const Icon(LucideIcons.search, size: 16),
+                      onChanged: (v) => setDialogState(() => search = v),
+                    ),
+                    kDiv(context),
+                    if (filtered.isEmpty)
+                      Center(
+                        child: Label(
+                          "No results",
+                          color: kColor(context).onSurfaceVariant,
+                        ).regular,
+                      )
+                    else
+                      ...filtered.map(
+                        (client) => ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          leading: CircleAvatar(
+                            backgroundColor: kColor(context).primaryContainer,
+                            child: Icon(
+                              LucideIcons.user,
+                              size: 18,
+                              color: kColor(context).onPrimaryContainer,
+                            ),
+                          ),
+                          title: Label(client.customerName, weight: 600).regular,
+                          subtitle:
+                              Label(client.customerPhone, fontSize: 12).regular,
+                          onTap: () {
+                            setState(() {
+                              customerName.text = client.customerName;
+                              customerPhone.text = client.customerPhone;
+                              customerPan.text = client.customerPan;
+                              customerAadhaar.text = client.customerAadhaar;
+                            });
+                            Navigator.pop(context);
+                          },
+                        ),
+                      ),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      );
+    }
+  }
+
   Widget _dialog({required Widget child}) {
     return Dialog(
+      constraints: BoxConstraints(maxWidth: 1000),
       shape: RoundedRectangleBorder(borderRadius: kRadius(20)),
       backgroundColor: kColor(context).surface,
       insetPadding: const EdgeInsets.all(kPadding),
@@ -688,62 +811,113 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                   label: "HSN/SAC Code",
                   hintText: "e.g. 9983",
                   textCapitalization: TextCapitalization.characters,
-                  validator: (val) => KValidation.required(val),
                 ),
-                Row(
-                  spacing: 12,
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: KField(
-                        controller: qty,
-                        label: "Qty",
-                        keyboardType: TextInputType.number,
-                        validator: (val) => KValidation.required(val),
-                        onChanged: (v) => setState(() {
-                          amount =
-                              (parseToDouble(v) * parseToDouble(price.text));
-                        }),
-                      ),
-                    ),
-                    Expanded(
-                      flex: 1,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        spacing: 5,
-                        children: [
-                          Label("Unit", fontSize: 13, weight: 600).regular,
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10),
-                            decoration: BoxDecoration(
-                              border: Border.all(
-                                color: kColor(context).outlineVariant,
-                              ),
+                if (Responsive.isMobile(context)) ...[
+                  KField(
+                    controller: qty,
+                    label: "Qty",
+                    keyboardType: TextInputType.number,
+                    validator: (val) => KValidation.required(val),
+                    onChanged: (v) => setState(() {
+                      amount = (parseToDouble(v) * parseToDouble(price.text));
+                    }),
+                  ),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    spacing: 5,
+                    children: [
+                      Label("Unit", fontSize: 13, weight: 600).regular,
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: unitList.map((e) {
+                          final isSelected = unit == e;
+                          return ChoiceChip(
+                            label: Label(e, fontSize: 12).regular,
+                            selected: isSelected,
+                            onSelected: (v) {
+                              if (v) setState(() => unit = e);
+                            },
+                            showCheckmark: false,
+                            selectedColor: kColor(context).primaryContainer,
+                            labelStyle: TextStyle(
+                              color: isSelected
+                                  ? kColor(context).onPrimaryContainer
+                                  : kColor(context).onSurface,
+                            ),
+                            shape: RoundedRectangleBorder(
                               borderRadius: kRadius(10),
-                            ),
-                            child: DropdownButtonHideUnderline(
-                              child: DropdownButton<String>(
-                                value: unit,
-                                isExpanded: true,
-                                items: unitList
-                                    .map(
-                                      (e) => DropdownMenuItem(
-                                        value: e,
-                                        child: Label(e).regular,
-                                      ),
-                                    )
-                                    .toList(),
-                                onChanged: (v) {
-                                  if (v != null) setState(() => unit = v);
-                                },
+                              side: BorderSide(
+                                color: isSelected
+                                    ? kColor(context).primary
+                                    : kColor(context).outlineVariant,
                               ),
                             ),
-                          ),
-                        ],
+                          );
+                        }).toList(),
                       ),
-                    ),
-                  ],
-                ),
+                    ],
+                  ),
+                ] else
+                  Row(
+                    spacing: 12,
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: KField(
+                          controller: qty,
+                          label: "Qty",
+                          keyboardType: TextInputType.number,
+                          validator: (val) => KValidation.required(val),
+                          onChanged: (v) => setState(() {
+                            amount =
+                                (parseToDouble(v) * parseToDouble(price.text));
+                          }),
+                        ),
+                      ),
+                      Expanded(
+                        flex: 1,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          spacing: 5,
+                          children: [
+                            Label("Unit", fontSize: 13, weight: 600).regular,
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: unitList.map((e) {
+                                final isSelected = unit == e;
+                                return ChoiceChip(
+                                  label: Label(e, fontSize: 12).regular,
+                                  selected: isSelected,
+                                  onSelected: (v) {
+                                    if (v) setState(() => unit = e);
+                                  },
+                                  showCheckmark: false,
+                                  selectedColor: kColor(
+                                    context,
+                                  ).primaryContainer,
+                                  labelStyle: TextStyle(
+                                    color: isSelected
+                                        ? kColor(context).onPrimaryContainer
+                                        : kColor(context).onSurface,
+                                  ),
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: kRadius(10),
+                                    side: BorderSide(
+                                      color: isSelected
+                                          ? kColor(context).primary
+                                          : kColor(context).outlineVariant,
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 Row(
                   spacing: 12,
                   children: [
