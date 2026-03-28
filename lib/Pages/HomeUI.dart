@@ -154,7 +154,7 @@ class _HomeUIState extends State<HomeUI> {
               color: kColor(context).onSurfaceVariant,
             ).regular,
             Label(
-              "Sujit Verma",
+              "Shri Krishn Jewellers",
               fontSize: Responsive.isMobile(context) ? 24 : 32,
               weight: 700,
             ).title,

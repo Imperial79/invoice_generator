@@ -37,7 +37,7 @@ class _SetupUIState extends State<SetupUI> {
   @override
   Widget build(BuildContext context) {
     return KScaffold(
-      appBar: KAppBar(context, title: "Settings"),
+      appBar: KAppBar(context, title: "Settings", showBack: false),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 800),
@@ -87,9 +87,8 @@ class _SetupUIState extends State<SetupUI> {
                             decoration: BoxDecoration(
                               color: isSelected
                                   ? kColor(context).primary
-                                  : kColor(context)
-                                      .surfaceContainerHigh
-                                      .withValues(alpha: .5),
+                                  : kColor(context).surfaceContainerHigh
+                                        .withValues(alpha: .5),
                               borderRadius: BorderRadius.circular(10),
                             ),
                             child: Icon(
