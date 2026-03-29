@@ -38,13 +38,25 @@ class _HomeUIState extends State<HomeUI> {
       isLoading.value = true;
       final invoices = await DatabaseService.instance.getAllInvoices();
       double total = 0;
+      double todayTotal = 0;
+      final now = DateTime.now();
+
       for (var inv in invoices) {
         total += inv.grandTotal;
+        final invDate = inv.invoiceDate ?? DateTime.now();
+        if (invDate.year == now.year &&
+            invDate.month == now.month &&
+            invDate.day == now.day) {
+          todayTotal += inv.grandTotal;
+        }
       }
+
       if (mounted) {
         setState(() {
           recentInvoices = invoices.take(5).toList();
           totalInvoicedNum = total;
+          todaySales = todayTotal;
+          totalOrders = invoices.length;
         });
       }
     } catch (e) {
@@ -53,6 +65,10 @@ class _HomeUIState extends State<HomeUI> {
       isLoading.value = false;
     }
   }
+
+  double todaySales = 0;
+  int totalOrders = 0;
+  int lowStockCount = 3; // Mock low stock count for now
 
   @override
   Widget build(BuildContext context) {
@@ -64,80 +80,121 @@ class _HomeUIState extends State<HomeUI> {
           padding: const EdgeInsets.all(kPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 20,
+            spacing: 24,
             children: [
-              ValueListenableBuilder<bool>(
-                valueListenable: DatabaseService.hasWriteIssue,
-                builder: (context, hasIssue, _) {
-                  if (!hasIssue || Responsive.isMobile(context)) {
-                    return const SizedBox.shrink();
-                  }
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: .1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.red.withValues(alpha: .3),
-                      ),
-                    ),
-                    child: Row(
-                      spacing: 12,
-                      children: [
-                        const Icon(
-                          Icons.warning_amber_rounded,
-                          color: Colors.red,
-                          size: 20,
+              _buildNTFSNotice(),
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1200),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    spacing: 24,
+                    children: [
+                      _buildHeader(),
+                      _buildSummaryCards(),
+                      if (Responsive.isMobile(context)) ...[
+                        _buildQuickActions(),
+                        _buildRecentInvoicesHeader(),
+                        _buildRecentInvoicesList(),
+                      ] else
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          spacing: 30,
+                          children: [
+                            Expanded(flex: 2, child: _buildQuickActions()),
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildRecentInvoicesHeader(),
+                                  _buildRecentInvoicesList(),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        Expanded(
-                          child: Label(
-                            "Drive '${DatabaseService.driveName}' is Read-Only (NTFS). Data is being saved to Local Storage instead.",
-                            color: Colors.red,
-                            fontSize: 12,
-                            weight: 600,
-                          ).regular,
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              _buildHeader(),
-              if (Responsive.isMobile(context)) ...[
-                _buildSummary(),
-                _buildActions(),
-                _buildRecentInvoicesHeader(),
-                _buildRecentInvoicesList(),
-              ] else
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  spacing: 30,
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        spacing: 20,
-                        children: [_buildSummary(), _buildActions()],
-                      ),
-                    ),
-                    Expanded(
-                      flex: 3,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildRecentInvoicesHeader(),
-                          _buildRecentInvoicesList(),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+              ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildNTFSNotice() {
+    return ValueListenableBuilder<bool>(
+      valueListenable: DatabaseService.hasWriteIssue,
+      builder: (context, hasIssue, _) {
+        if (!hasIssue || Responsive.isMobile(context)) {
+          return const SizedBox.shrink();
+        }
+        return Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: Colors.red.withValues(alpha: .1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.red.withValues(alpha: .3)),
+          ),
+          child: Row(
+            spacing: 12,
+            children: [
+              const Icon(
+                Icons.warning_amber_rounded,
+                color: Colors.red,
+                size: 20,
+              ),
+              Expanded(
+                child: Label(
+                  "Drive '${DatabaseService.driveName}' is Read-Only (NTFS). Data is being saved to Local Storage instead.",
+                  color: Colors.red,
+                  fontSize: 12,
+                  weight: 600,
+                ).regular,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildSummaryCards() {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: Responsive.isMobile(context)
+          ? 1
+          : MediaQuery.of(context).size.width > 1400
+          ? 3
+          : 2,
+      crossAxisSpacing: 20,
+      mainAxisSpacing: 20,
+      childAspectRatio: Responsive.isMobile(context) ? 1.6 : 1.4,
+      children: [
+        _summaryCard(
+          "Today's Sales",
+          kCurrencyFormat(todaySales),
+          LucideIcons.indianRupee,
+          Colors.green,
+        ),
+        _summaryCard(
+          "Total Orders",
+          totalOrders.toString(),
+          LucideIcons.shoppingBag,
+          Colors.blue,
+        ),
+        _summaryCard(
+          "Low Stock Alerts",
+          lowStockCount.toString(),
+          LucideIcons.info,
+          Colors.orange,
+        ),
+      ],
     );
   }
 
@@ -214,58 +271,91 @@ class _HomeUIState extends State<HomeUI> {
     );
   }
 
-  Widget _buildSummary() {
+  Widget _summaryCard(String title, String value, IconData icon, Color color) {
     return KCard(
-      width: double.infinity,
-      padding: const EdgeInsets.all(15),
-      color: kColor(context).primaryContainer.withValues(alpha: 0.3),
+      padding: const EdgeInsets.all(20),
+      color: color.withValues(alpha: .08),
+      borderColor: color.withValues(alpha: .2),
+      borderWidth: 1,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        spacing: 5,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Label(
-            "Total Invoiced",
-            fontSize: 12,
-            color: kColor(context).primary,
-          ).regular,
-          Label(
-            kCurrencyFormat(totalInvoicedNum),
-            fontSize: 18,
-            weight: 700,
-          ).title,
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: .1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              Icon(
+                LucideIcons.chevronRight,
+                size: 16,
+                color: kColor(context).onSurfaceVariant,
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Label(
+                value,
+                fontSize: 24,
+                weight: 800,
+                color: kColor(context).onSurface,
+              ).title,
+              Label(
+                title,
+                fontSize: 12,
+                color: kColor(context).onSurfaceVariant,
+              ).regular,
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildActions() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        spacing: 12,
-        children: [
-          _actionButton(
-            LucideIcons.plus,
-            "Create",
-            () async {
+  Widget _buildQuickActions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: 16,
+      children: [
+        Label("Quick Actions", fontSize: 18, weight: 600).title,
+        GridView(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 200,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: Responsive.isMobile(context) ? 1.4 : 1.2,
+          ),
+          children: [
+            _actionButton(LucideIcons.filePlus2, "Create Bill", () async {
               final res = await context.push("/create-invoice");
               if (res == true) _loadData();
-            },
-            bgColor: kColor(context).primary,
-            fgColor: kColor(context).onPrimary,
-          ),
-          _actionButton(
-            LucideIcons.users,
-            "Clients",
-            () => context.push("/clients"),
-          ),
-          _actionButton(
-            LucideIcons.settings,
-            "Setup",
-            () => context.push("/setup"),
-          ),
-        ],
-      ),
+            }, color: kColor(context).primary),
+            _actionButton(
+              LucideIcons.userPlus,
+              "Add Customer",
+              () => context.push("/clients"),
+              color: Colors.blueGrey,
+            ),
+            _actionButton(LucideIcons.packagePlus, "Add Inventory", () {
+              context.push("/inventory");
+            }, color: Colors.brown),
+            _actionButton(LucideIcons.layoutPanelTop, "Reports", () {
+              // REPORTS View
+            }, color: Colors.indigo),
+          ],
+        ),
+      ],
     );
   }
 
@@ -273,27 +363,34 @@ class _HomeUIState extends State<HomeUI> {
     IconData icon,
     String label,
     VoidCallback onTap, {
-    Color? bgColor,
-    Color? fgColor,
+    required Color color,
   }) {
-    return Column(
-      spacing: 5,
-      children: [
-        KCard(
-          radius: 12,
-          padding: const EdgeInsets.all(12),
-          color: bgColor ?? kColor(context).surfaceContainerLow,
-          borderWidth: 1,
-          borderColor: kColor(context).outlineVariant,
-          onTap: onTap,
-          child: Icon(
-            icon,
-            size: 20,
-            color: fgColor ?? kColor(context).onSurface,
+    return KCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(15),
+      color: kColor(context).surfaceContainerLow,
+      borderWidth: 1,
+      borderColor: kColor(context).outlineVariant,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        spacing: 10,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: .1),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(icon, color: color, size: 24),
           ),
-        ),
-        Label(label, fontSize: 12).regular,
-      ],
+          Label(
+            label,
+            fontSize: 13,
+            weight: 600,
+            textAlign: TextAlign.center,
+          ).regular,
+        ],
+      ),
     );
   }
 

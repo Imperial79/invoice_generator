@@ -80,6 +80,7 @@ class _InvoicesListUIState extends State<InvoicesListUI> {
       appBar: KAppBar(
         context,
         title: "All Invoices",
+        showBack: false,
         actions: [
           IconButton(
             onPressed: () async {

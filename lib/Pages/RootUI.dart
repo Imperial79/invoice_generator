@@ -14,14 +14,47 @@ class RootUI extends StatefulWidget {
   State<RootUI> createState() => _RootUIState();
 }
 
-class _RootUIState extends State<RootUI> {
+class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
+  DateTime? _backgroundTimestamp;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      // 🕒 Record the time when app goes to background
+      _backgroundTimestamp = DateTime.now();
+    } else if (state == AppLifecycleState.resumed) {
+      if (_backgroundTimestamp != null) {
+        final elapsed = DateTime.now().difference(_backgroundTimestamp!);
+        // 🔒 Logout only if app was in background for more than 20 seconds
+        // This avoids logging out during quick app switches but captures device sleep.
+        if (elapsed.inSeconds >= 20) {
+          context.go('/login');
+        }
+        _backgroundTimestamp = null;
+      }
+    }
+  }
+
   int _calculateSelectedIndex(BuildContext context) {
     final String location = GoRouterState.of(context).uri.path;
     if (location == '/') return 0;
     if (location == '/invoices') return 1;
     if (location == '/create-invoice') return 2;
     if (location == '/clients') return 3;
-    if (location == '/setup' || location == '/company-profile') return 4;
+    if (location == '/inventory') return 4;
+    if (location == '/setup' || location == '/company-profile') return 5;
     return 0;
   }
 
@@ -40,6 +73,9 @@ class _RootUIState extends State<RootUI> {
         context.go('/clients');
         break;
       case 4:
+        context.go('/inventory');
+        break;
+      case 5:
         context.go('/setup');
         break;
     }
@@ -66,7 +102,7 @@ class _RootUIState extends State<RootUI> {
 
   Widget _buildSidebar(BuildContext context, int selectedIndex) {
     return Container(
-      padding: .all(kPadding),
+      padding: const EdgeInsets.all(kPadding),
       width: 280,
       height: double.infinity,
       decoration: BoxDecoration(
@@ -110,12 +146,19 @@ class _RootUIState extends State<RootUI> {
                   index: 3,
                   selectedIndex: selectedIndex,
                 ),
+                _sidebarItem(
+                  context,
+                  icon: LucideIcons.package2,
+                  label: "Inventory",
+                  index: 4,
+                  selectedIndex: selectedIndex,
+                ),
                 const Divider(height: 40),
                 _sidebarItem(
                   context,
                   icon: LucideIcons.settings,
                   label: "Settings",
-                  index: 4,
+                  index: 5,
                   selectedIndex: selectedIndex,
                 ),
               ],
@@ -248,10 +291,14 @@ class _RootUIState extends State<RootUI> {
               ],
             ),
           ),
-          Icon(
-            LucideIcons.ellipsis,
-            size: 16,
-            color: kColor(context).onSurfaceVariant,
+          IconButton(
+            onPressed: () => context.go('/login'),
+            icon: Icon(
+              LucideIcons.logOut,
+              size: 18,
+              color: kColor(context).onSurfaceVariant,
+            ),
+            tooltip: "Logout",
           ),
         ],
       ),

@@ -4,6 +4,10 @@ import 'package:prime_invoice/Models/Invoice_Model.dart';
 import 'package:path/path.dart';
 import 'package:sqflite/sqflite.dart';
 
+import 'package:prime_invoice/Models/Customer_Model.dart';
+
+import 'package:prime_invoice/Models/Inventory_Model.dart';
+
 class DatabaseService {
   // CONFIG: The name of your portable USB volume
   static const String driveName = "VB";
@@ -53,7 +57,7 @@ class DatabaseService {
       if (externalConnected) {
         hasWriteIssue.value = true;
       }
-      
+
       // Fallback to local
       try {
         final internalPath = await getDatabasesPath();
@@ -62,22 +66,111 @@ class DatabaseService {
       } catch (inner) {
         debugPrint("CRITICAL: Local storage path failed: $inner");
         // Final ultimate fallback path
-        path = dbName; 
+        path = dbName;
       }
     }
 
-    // 3. Open Database with safety timeout if possible
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    // 7. Open Database with version 7
+    return await openDatabase(
+      path,
+      version: 7,
+      onCreate: _createDB,
+      onUpgrade: _onUpgrade,
+    );
   }
 
   Future _createDB(Database db, int version) async {
     await db.execute('''
-      CREATE TABLE invoices (
+      CREATE TABLE IF NOT EXISTS invoices (
         id TEXT PRIMARY KEY,
         data TEXT NOT NULL,
         createdAt TEXT NOT NULL
       )
     ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS customers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        phone TEXT NOT NULL UNIQUE,
+        address TEXT,
+        gst TEXT,
+        pan TEXT,
+        aadhaar TEXT
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS inventory (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sku TEXT,
+        name TEXT NOT NULL,
+        category TEXT NOT NULL,
+        weight REAL NOT NULL,
+        purity TEXT NOT NULL,
+        makingCharges REAL NOT NULL,
+        stock REAL NOT NULL,
+        minStockAlert REAL NOT NULL DEFAULT 2
+      )
+    ''');
+  }
+
+  Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS customers (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          name TEXT NOT NULL,
+          phone TEXT NOT NULL UNIQUE,
+          address TEXT,
+          gst TEXT
+        )
+      ''');
+    }
+    if (oldVersion < 3) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS inventory (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          sku TEXT,
+          name TEXT NOT NULL,
+          category TEXT NOT NULL,
+          weight REAL NOT NULL,
+          purity TEXT NOT NULL,
+          makingCharges REAL NOT NULL,
+          stock REAL NOT NULL,
+          minStockAlert REAL NOT NULL DEFAULT 2
+        )
+      ''');
+    }
+
+    // Schema Repair Logic
+    if (oldVersion < 7) {
+      // 1. Repair Customers
+      final customerCols = ["pan", "aadhaar"];
+      for (var col in customerCols) {
+        try {
+          await db.execute('ALTER TABLE customers ADD COLUMN $col TEXT');
+        } catch (_) {}
+      }
+
+      // 2. Repair Inventory
+      final inventoryCols = {
+        "sku": "TEXT",
+        "name": "TEXT NOT NULL DEFAULT ''",
+        "category": "TEXT NOT NULL DEFAULT 'Gold'",
+        "weight": "REAL NOT NULL DEFAULT 0",
+        "purity": "TEXT NOT NULL DEFAULT ''",
+        "makingCharges": "REAL NOT NULL DEFAULT 0",
+        "stock": "REAL NOT NULL DEFAULT 0",
+        "minStockAlert": "REAL NOT NULL DEFAULT 2",
+      };
+
+      for (var entry in inventoryCols.entries) {
+        try {
+          await db.execute(
+            'ALTER TABLE inventory ADD COLUMN ${entry.key} ${entry.value}',
+          );
+        } catch (_) {}
+      }
+    }
   }
 
   // Verify if the directory exists in /Volumes/
@@ -101,7 +194,9 @@ class DatabaseService {
     }
   }
 
-  // --- CRUD Operations (Migrated from DatabaseHelper) ---
+  // --- CRUD Operations ---
+
+  // INVOICES
 
   Future<int> saveInvoice(InvoiceModel invoice) async {
     final db = await instance.database;
@@ -115,14 +210,25 @@ class DatabaseService {
   }
 
   Future<List<InvoiceModel>> getAllInvoices() async {
-    // Note: No connection guard return here, let it try to query whatever DB is open
-    // If it was unplugged mid-session, sqflite will handle errors or we'll detect via [isDriveConnected]
     await checkDriveAvailability();
-
     final db = await instance.database;
     final result = await db.query('invoices', orderBy: 'createdAt DESC');
     return result
         .map((json) => InvoiceModel.fromJson(json['data'] as String))
+        .toList();
+  }
+
+  Future<List<InvoiceModel>> getInvoicesByCustomer(
+    String name,
+    String phone,
+  ) async {
+    final all = await getAllInvoices();
+    return all
+        .where(
+          (inv) =>
+              inv.customerName.toLowerCase() == name.toLowerCase() ||
+              inv.customerPhone == phone,
+        )
         .toList();
   }
 
@@ -131,8 +237,72 @@ class DatabaseService {
     return await db.delete('invoices', where: 'id = ?', whereArgs: [id]);
   }
 
+  // CUSTOMERS
+
+  Future<CustomerModel?> getCustomerByPhone(String phone) async {
+    final db = await instance.database;
+    final result = await db.query(
+      'customers',
+      where: 'phone = ?',
+      whereArgs: [phone],
+    );
+    if (result.isNotEmpty) {
+      return CustomerModel.fromMap(result.first);
+    }
+    return null;
+  }
+
+  Future<int> saveCustomer(CustomerModel customer) async {
+    final db = await instance.database;
+    return await db.insert(
+      'customers',
+      customer.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<CustomerModel>> getAllCustomers() async {
+    final db = await instance.database;
+    final result = await db.query('customers', orderBy: 'name ASC');
+    return result.map((json) => CustomerModel.fromMap(json)).toList();
+  }
+
+  Future<int> deleteCustomer(int id) async {
+    final db = await instance.database;
+    return await db.delete('customers', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // INVENTORY
+
+  Future<int> saveInventoryItem(InventoryModel item) async {
+    final db = await instance.database;
+    return await db.insert(
+      'inventory',
+      item.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<InventoryModel>> getAllInventory() async {
+    final db = await instance.database;
+    final result = await db.query(
+      'inventory',
+      orderBy: 'category ASC, name ASC',
+    );
+    return result.map((json) => InventoryModel.fromMap(json)).toList();
+  }
+
+  Future<int> deleteInventoryItem(int id) async {
+    final db = await instance.database;
+    return await db.delete('inventory', where: 'id = ?', whereArgs: [id]);
+  }
+
+  // System Helpers
+
   Future<void> clearDatabase() async {
     final db = await instance.database;
     await db.delete('invoices');
+    await db.delete('customers');
+    await db.delete('inventory');
   }
 }

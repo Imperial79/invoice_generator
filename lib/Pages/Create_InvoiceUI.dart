@@ -10,6 +10,7 @@ import 'package:prime_invoice/Essentials/kField.dart';
 import 'package:prime_invoice/Helper/date_helper.dart';
 import 'package:prime_invoice/Helper/database_service.dart';
 import 'package:prime_invoice/Helper/pdf_helper.dart';
+import 'package:prime_invoice/Models/Customer_Model.dart';
 import 'package:prime_invoice/Models/Invoice_Model.dart';
 import 'package:prime_invoice/Models/Item_Model.dart';
 import 'package:prime_invoice/Resources/app-data.dart';
@@ -144,6 +145,22 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
         grandTotal: total,
         invoiceDate: invoiceDate,
       );
+
+      // Auto-save customer
+      if (customerName.text.isNotEmpty && customerPhone.text.length == 10) {
+        final existing = await DatabaseService.instance
+            .getCustomerByPhone(customerPhone.text);
+        final customer = CustomerModel(
+          id: existing?.id,
+          name: customerName.text,
+          phone: customerPhone.text,
+          address: billingAddress.text,
+          pan: customerPan.text,
+          aadhaar: customerAadhaar.text,
+        );
+        await DatabaseService.instance.saveCustomer(customer);
+      }
+
       await PdfHelper.generateInvoice(invoiceData);
       await DatabaseService.instance.saveInvoice(invoiceData);
       if (mounted) {
@@ -659,24 +676,15 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
 
   void _showExistingClients() async {
     isLoading.value = true;
-    final invoices = await DatabaseService.instance.getAllInvoices();
-    final uniqueClients = <String, InvoiceModel>{};
-    for (var inv in invoices) {
-      final key = "${inv.customerName}-${inv.customerPhone}";
-      if (!uniqueClients.containsKey(key)) {
-        uniqueClients[key] = inv;
-      }
-    }
+    final customers = await DatabaseService.instance.getAllCustomers();
     isLoading.value = false;
 
-    if (uniqueClients.isEmpty) {
+    if (customers.isEmpty) {
       if (mounted) {
         KSnackbar(context, message: "No existing clients found!", error: true);
       }
       return;
     }
-
-    final clientList = uniqueClients.values.toList();
 
     if (mounted) {
       showDialog(
@@ -685,13 +693,11 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
           String search = "";
           return StatefulBuilder(
             builder: (context, setDialogState) {
-              final filtered = clientList
+              final filtered = customers
                   .where(
                     (c) =>
-                        c.customerName.toLowerCase().contains(
-                          search.toLowerCase(),
-                        ) ||
-                        c.customerPhone.contains(search),
+                        c.name.toLowerCase().contains(search.toLowerCase()) ||
+                        c.phone.contains(search),
                   )
                   .toList();
 
@@ -740,15 +746,18 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                               color: kColor(context).onPrimaryContainer,
                             ),
                           ),
-                          title: Label(client.customerName, weight: 600).regular,
-                          subtitle:
-                              Label(client.customerPhone, fontSize: 12).regular,
+                          title: Label(client.name, weight: 600).regular,
+                          subtitle: Label(client.phone, fontSize: 12).regular,
                           onTap: () {
                             setState(() {
-                              customerName.text = client.customerName;
-                              customerPhone.text = client.customerPhone;
-                              customerPan.text = client.customerPan;
-                              customerAadhaar.text = client.customerAadhaar;
+                              customerName.text = client.name;
+                              customerPhone.text = client.phone;
+                              customerPan.text = client.pan;
+                              customerAadhaar.text = client.aadhaar;
+                              // Optionally update address if customer has one
+                              if (client.address.isNotEmpty) {
+                                billingAddress.text = client.address;
+                              }
                             });
                             Navigator.pop(context);
                           },
