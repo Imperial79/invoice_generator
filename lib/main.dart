@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:prime_invoice/Helper/route_config.dart';
-import 'package:prime_invoice/Resources/theme.dart';
+import 'package:prime_invoice/JewelleryApp/Theme.dart';
+import 'package:prime_invoice/Helper/theme_service.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'dart:io';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:ui';
 import 'package:prime_invoice/Helper/database_service.dart';
 import 'package:prime_invoice/Essentials/ConnectionGuard.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // 🎨 Initialize Theme Service (Hive Persistence)
+  await ThemeService.instance.init();
+
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
     sqfliteFfiInit();
     databaseFactory = databaseFactoryFfi;
   }
-
-  final pref = await SharedPreferences.getInstance();
-  final index = pref.getInt("theme_mode") ?? 0; // 0: system, 1: light, 2: dark
-  themeModeNotifier.value = ThemeMode.values[index];
 
   // 🛑 Initialize Database on External Drive
   await DatabaseService.instance.checkDriveAvailability();
@@ -48,7 +48,6 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // 🛡️ Safe Shutdown when app is closed
     if (state == AppLifecycleState.detached ||
         state == AppLifecycleState.paused) {
       DatabaseService.instance.safeShutdown();
@@ -57,17 +56,21 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
-    return DynamicColorBuilder(
-      builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
-        return ValueListenableBuilder<ThemeMode>(
-          valueListenable: themeModeNotifier,
-          builder: (context, mode, _) {
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: ThemeService.instance.themeModeNotifier,
+      builder: (context, mode, _) {
+        debugPrint("[ThemeUpdate] Rebuilding Root with ThemeMode: $mode");
+        return DynamicColorBuilder(
+          builder: (ColorScheme? lightDynamic, ColorScheme? darkDynamic) {
             return MaterialApp.router(
+              key: ValueKey(
+                mode,
+              ), // Force reset structure on mode change if needed
               debugShowCheckedModeBanner: false,
               themeMode: mode,
-              title: 'Prime Invoice',
-              theme: kTheme(context, lightDynamic: lightDynamic),
-              darkTheme: kDarkTheme(context, darkDynamic: darkDynamic),
+              title: 'Aurora Jewellers',
+              theme: JewelleryTheme.lightTheme(context),
+              darkTheme: JewelleryTheme.darkTheme(context),
               routerConfig: routerConfig,
               scrollBehavior: const MyScrollBehavior(),
               builder: (context, child) => ConnectionGuard(child: child!),

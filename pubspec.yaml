@@ -49,6 +49,8 @@ dependencies:
   sqlite3_flutter_libs: ^0.5.20
   path: ^1.9.0
   dynamic_color: ^1.8.1
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
 
 dev_dependencies:
   flutter_test:
