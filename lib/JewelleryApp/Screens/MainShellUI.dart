@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:go_router/go_router.dart';
+import 'package:prime_invoice/Resources/commons.dart';
+import 'package:prime_invoice/Resources/constants.dart';
 import '../Theme.dart';
 import 'DashboardUI.dart';
 import 'POS_BillingUI.dart';
@@ -25,9 +27,9 @@ class _MainShellUIState extends State<MainShellUI> with WidgetsBindingObserver {
     const InventoryUI(),
     const POSBillingUI(),
     const DashboardUI(),
-    const InvoicesListUI(), 
-    const ClientsUI(),      
-    const SetupUI(),        
+    const InvoicesListUI(),
+    const ClientsUI(),
+    const SetupUI(),
     const ReportsUI(),
   ];
 
@@ -53,7 +55,9 @@ class _MainShellUIState extends State<MainShellUI> with WidgetsBindingObserver {
     // 🛡️ Logout ONLY on system sleep (detected as 'hidden' in Flutter 3.13+)
     // We removed 'paused' to prevent logout when the app is simply minimized.
     if (state == AppLifecycleState.hidden) {
-      debugPrint("System hidden state detected (potentially sleep/lock). Logging out...");
+      debugPrint(
+        "System hidden state detected (potentially sleep/lock). Logging out...",
+      );
       _logout();
     }
   }
@@ -77,30 +81,38 @@ class _MainShellUIState extends State<MainShellUI> with WidgetsBindingObserver {
           Container(
             width: 280,
             color: theme.colorScheme.surface,
-            padding: const EdgeInsets.symmetric(vertical: 32),
+            padding: .all(kPadding),
             child: Column(
               children: [
                 // Logo section remains in View
                 _buildSidebarLogo(theme),
-                const SizedBox(height: 64),
+                height20,
 
-                // Nav Items
-                _navItem(0, LucideIcons.package, "Inventory"),
-                _navItem(1, LucideIcons.shoppingCart, "POS / Billing"),
-                _navItem(2, LucideIcons.layoutDashboard, "Dashboard"),
-                _navItem(3, LucideIcons.receipt, "Past Invoices"),
-                _navItem(4, LucideIcons.users, "Customers"),
-                _navItem(5, LucideIcons.settings, "Setup & Shop"),
-                _navItem(6, LucideIcons.trendingUp, "Reports"),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Column(
+                      spacing: 10,
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Nav Items
+                        _navItem(0, LucideIcons.package, "Inventory"),
+                        _navItem(1, LucideIcons.shoppingCart, "POS / Billing"),
+                        _navItem(2, LucideIcons.layoutDashboard, "Dashboard"),
+                        _navItem(3, LucideIcons.receipt, "Past Invoices"),
+                        _navItem(4, LucideIcons.users, "Customers"),
+                        _navItem(5, LucideIcons.settings, "Setup & Shop"),
+                        _navItem(6, LucideIcons.trendingUp, "Reports"),
+                      ],
+                    ),
+                  ),
+                ),
 
-                const Spacer(),
-                
                 // User Profile & Logout
                 _buildUserProfileTile(theme, isDark),
               ],
             ),
           ),
-          
+
           // Content
           Expanded(child: _screens[_shellController.selectedIndex]),
         ],
@@ -137,7 +149,6 @@ class _MainShellUIState extends State<MainShellUI> with WidgetsBindingObserver {
 
   Widget _buildUserProfileTile(ThemeData theme, bool isDark) {
     return Container(
-      margin: const EdgeInsets.all(16),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: theme.scaffoldBackgroundColor,
@@ -147,7 +158,13 @@ class _MainShellUIState extends State<MainShellUI> with WidgetsBindingObserver {
         children: [
           const CircleAvatar(
             backgroundColor: JewelleryTheme.gold,
-            child: Text("JD", style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700)),
+            child: Text(
+              "JD",
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -155,26 +172,32 @@ class _MainShellUIState extends State<MainShellUI> with WidgetsBindingObserver {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  "John Doe", 
+                  "John Doe",
                   style: TextStyle(
-                    fontWeight: FontWeight.w700, 
+                    fontWeight: FontWeight.w700,
                     fontSize: 13,
                     color: theme.colorScheme.onSurface,
                   ),
                 ),
                 Text(
-                  "Admin", 
+                  "Admin",
                   style: TextStyle(
-                    fontSize: 11, 
-                    color: isDark ? theme.colorScheme.onSurface.withValues(alpha: 0.6) : JewelleryTheme.slate,
+                    fontSize: 11,
+                    color: isDark
+                        ? theme.colorScheme.onSurface.withValues(alpha: 0.6)
+                        : JewelleryTheme.slate,
                   ),
                 ),
               ],
             ),
           ),
           IconButton(
-            onPressed: _logout, 
-            icon: Icon(LucideIcons.logOut, size: 16, color: theme.colorScheme.onSurface),
+            onPressed: _logout,
+            icon: Icon(
+              LucideIcons.logOut,
+              size: 16,
+              color: theme.colorScheme.onSurface,
+            ),
           ),
         ],
       ),
@@ -187,10 +210,9 @@ class _MainShellUIState extends State<MainShellUI> with WidgetsBindingObserver {
     return InkWell(
       onTap: () => _shellController.setIndex(index),
       child: Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         decoration: BoxDecoration(
-          color: isActive ? JewelleryTheme.gold.withValues(alpha: 0.1) : Colors.transparent,
+          color: isActive ? JewelleryTheme.darkSurface : Colors.transparent,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -198,7 +220,9 @@ class _MainShellUIState extends State<MainShellUI> with WidgetsBindingObserver {
             Icon(
               icon,
               size: 20,
-              color: isActive ? JewelleryTheme.gold : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              color: isActive
+                  ? JewelleryTheme.gold
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.6),
             ),
             const SizedBox(width: 16),
             Text(
@@ -206,7 +230,9 @@ class _MainShellUIState extends State<MainShellUI> with WidgetsBindingObserver {
               style: TextStyle(
                 fontSize: 14,
                 fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
-                color: isActive ? theme.colorScheme.onSurface : theme.colorScheme.onSurface.withValues(alpha: 0.6),
+                color: isActive
+                    ? JewelleryTheme.gold
+                    : theme.colorScheme.onSurface.withValues(alpha: 0.6),
               ),
             ),
           ],

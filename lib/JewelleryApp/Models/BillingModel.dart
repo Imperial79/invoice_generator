@@ -33,11 +33,17 @@ class CartItem {
 class BillingTab {
   final String id;
   String customerName;
+  String customerPhone;
+  String customerAddress;
+  double defaultMetalRate;
   List<CartItem> cartItems;
 
   BillingTab({
     required this.id,
     this.customerName = "Walk-in Customer",
+    this.customerPhone = "",
+    this.customerAddress = "",
+    this.defaultMetalRate = 5800.0,
     required this.cartItems,
   });
 

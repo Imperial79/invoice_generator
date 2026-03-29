@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 class InventoryItem {
   final String sku;
   final String name;
@@ -23,10 +25,6 @@ class InventoryItem {
 
   void sell(double sellWeight) {
     if (stock > 0) stock--;
-    // Weight adjustment can be complex, for now we subtract the sold weight from total stock weight if tracked
-    // but usually in jewellery, one item has one weight.
-    // If it's a bulk item, weight decreases. If it's a unique item, stock becomes 0.
-    // Let's assume unique items for now for simplicity of Stock logic.
   }
 
   Map<String, dynamic> toMap() {
@@ -39,4 +37,20 @@ class InventoryItem {
       'stock': stock,
     };
   }
+
+  String toJson() => json.encode(toMap());
+
+  factory InventoryItem.fromMap(Map<String, dynamic> map) {
+    return InventoryItem(
+      sku: map['sku'] ?? '',
+      name: map['name'] ?? '',
+      category: map['category'] ?? '',
+      purity: map['purity'] ?? '',
+      weight: (map['weight'] ?? 0.0).toDouble(),
+      stock: map['stock'] ?? 0,
+    );
+  }
+
+  factory InventoryItem.fromJson(String source) => 
+      InventoryItem.fromMap(json.decode(source));
 }

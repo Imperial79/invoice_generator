@@ -1,24 +1,37 @@
 import 'package:flutter/material.dart';
 import '../Models/InventoryModel.dart';
+import '../../Helper/database_service.dart';
 
 class InventoryController extends ChangeNotifier {
-  // Static final so it persists between screens if they reuse the same instance or I can use a Singleton.
-  // The user says "Controller", so I'll use a Singleton for the main data.
   static final InventoryController _instance = InventoryController._();
-  InventoryController._();
+  InventoryController._() {
+    loadItems(); // Initial load
+  }
   factory InventoryController() => _instance;
 
-  final List<InventoryItem> items = [
-    InventoryItem(sku: "G-101", name: "Wedding Band (Men)", category: "Gold", purity: "22K", weight: 8.5, stock: 12),
-    InventoryItem(sku: "D-202", name: "Solitaire Ring", category: "Diamond", purity: "18K", weight: 2.1, stock: 3),
-    InventoryItem(sku: "G-303", name: "Temple Necklace", category: "Gold", purity: "22K", weight: 45.0, stock: 2),
-    InventoryItem(sku: "S-404", name: "Silver Bracelet", category: "Silver", purity: "925", weight: 15.0, stock: 10),
-  ];
+  final List<InventoryItem> items = [];
 
   // Validation State for UI
   String? nameError;
   String? skuError;
   String? weightError;
+
+  Future<void> loadItems() async {
+    try {
+      final rows = await DatabaseService.instance.getAllInventoryRows();
+      items.clear();
+      for (var row in rows) {
+        items.add(InventoryItem.fromJson(row['data'] as String));
+      }
+      // If DB is empty, add some defaults once or keep it empty
+      if (items.isEmpty) {
+        // _addDefaultItems(); // Optional: add dummy data on first run
+      }
+      notifyListeners();
+    } catch (e) {
+      debugPrint("Error loading inventory items: $e");
+    }
+  }
 
   void validate(String name, String sku, String weight) {
     nameError = name.trim().isEmpty ? "Product name is required" : null;
@@ -29,19 +42,26 @@ class InventoryController extends ChangeNotifier {
 
   bool get isValid => nameError == null && skuError == null && weightError == null;
 
-  void addItem(InventoryItem item) {
+  Future<void> addItem(InventoryItem item) async {
     items.insert(0, item);
+    // Persist to local DB
+    await DatabaseService.instance.saveInventoryItem({
+      'sku': item.sku,
+      'data': item.toJson(),
+    });
     notifyListeners();
   }
 
-  void updateStockForSKU(String sku, double weightSold) {
+  Future<void> updateStockForSKU(String sku, double weightSold) async {
     for (var item in items) {
       if (item.sku == sku) {
         if (item.stock > 0) {
           item.stock--;
-          // For unique jewellery, weight is fixed. For bulk items (like coins), subtract.
-          // Let's assume unique items stay in inventory unless stock is out.
-          debugPrint("Stock updated for $sku: ${item.stock} left");
+          // Persist update
+          await DatabaseService.instance.saveInventoryItem({
+            'sku': item.sku,
+            'data': item.toJson(),
+          });
         }
         break;
       }
@@ -56,15 +76,26 @@ class InventoryController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void clearFields() {
-    resetValidation();
+  List<InventoryItem> searchItems(String query) {
+    if (query.isEmpty) return [];
+    final q = query.toUpperCase();
+    return items.where((item) {
+      return item.sku.toUpperCase().contains(q) || 
+             item.name.toUpperCase().contains(q);
+    }).toList();
   }
 
   InventoryItem? findBySKU(String sku) {
     try {
-      return items.firstWhere((e) => e.sku == sku);
+      return items.firstWhere((e) => e.sku.toUpperCase() == sku.toUpperCase());
     } catch (e) {
       return null;
     }
+  }
+
+  Future<void> deleteItem(String sku) async {
+    items.removeWhere((e) => e.sku == sku);
+    await DatabaseService.instance.deleteInventoryItem(sku);
+    notifyListeners();
   }
 }

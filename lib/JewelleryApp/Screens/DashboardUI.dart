@@ -96,7 +96,11 @@ class _DashboardUIState extends State<DashboardUI> {
                             "Business Summary: ${DateFormat('dd MMMM yyyy').format(DateTime.now())}",
                             style: TextStyle(
                               fontSize: 14,
-                              color: isDark ? theme.colorScheme.onSurface.withValues(alpha: 0.6) : JewelleryTheme.slate,
+                              color: isDark
+                                  ? theme.colorScheme.onSurface.withValues(
+                                      alpha: 0.6,
+                                    )
+                                  : JewelleryTheme.slate,
                             ),
                           ),
                         ],
@@ -183,7 +187,10 @@ class _DashboardUIState extends State<DashboardUI> {
                                       child: Center(
                                         child: Text(
                                           "No transactions yet",
-                                          style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+                                          style: TextStyle(
+                                            color: theme.colorScheme.onSurface
+                                                .withValues(alpha: 0.6),
+                                          ),
                                         ),
                                       ),
                                     )
@@ -326,12 +333,17 @@ class _DashboardUIState extends State<DashboardUI> {
     final theme = Theme.of(context);
     return ListTile(
       title: Text(
-        user, 
-        style: TextStyle(fontWeight: FontWeight.w700, color: theme.colorScheme.onSurface),
+        user,
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          color: theme.colorScheme.onSurface,
+        ),
       ),
       subtitle: Text(
         item,
-        style: TextStyle(color: theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+        style: TextStyle(
+          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+        ),
       ),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -340,7 +352,7 @@ class _DashboardUIState extends State<DashboardUI> {
           Text(
             price,
             style: TextStyle(
-              fontWeight: FontWeight.w700, 
+              fontWeight: FontWeight.w700,
               fontSize: 13,
               color: theme.colorScheme.onSurface,
             ),

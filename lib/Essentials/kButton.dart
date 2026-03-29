@@ -170,11 +170,8 @@ class KButton extends StatelessWidget {
               fontSize: fontSize,
             ).regular,
             if (icon != null) ...[
-              const Spacer(),
-              Padding(
-                padding: const EdgeInsets.only(left: 10),
-                child: icon,
-              ),
+              const SizedBox(width: 10),
+              icon!,
             ]
           ],
         );
@@ -193,7 +190,10 @@ class KButton extends StatelessWidget {
       case KButtonStyle.regular:
       case KButtonStyle.expanded:
         return Row(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: style == KButtonStyle.expanded
+              ? MainAxisSize.max
+              : MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Label(
               label,
@@ -201,7 +201,11 @@ class KButton extends StatelessWidget {
               fontSize: fontSize,
               textAlign: TextAlign.center,
             ).regular,
-            if (icon != null) ...[const Spacer(), icon!],
+            if (icon != null) ...[
+              if (style == KButtonStyle.expanded) const Spacer(),
+              if (style != KButtonStyle.expanded) const SizedBox(width: 10),
+              icon!,
+            ],
           ],
         );
     }

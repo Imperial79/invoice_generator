@@ -67,7 +67,24 @@ class DatabaseService {
     }
 
     // 3. Open Database with safety timeout if possible
-    return await openDatabase(path, version: 1, onCreate: _createDB);
+    return await openDatabase(
+      path,
+      version: 2,
+      onCreate: _createDB,
+      onUpgrade: _onUpgrade,
+    );
+  }
+
+  Future _onUpgrade(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      await db.execute('''
+        CREATE TABLE inventory (
+          sku TEXT PRIMARY KEY,
+          data TEXT NOT NULL,
+          updatedAt TEXT NOT NULL
+        )
+      ''');
+    }
   }
 
   Future _createDB(Database db, int version) async {
@@ -76,6 +93,13 @@ class DatabaseService {
         id TEXT PRIMARY KEY,
         data TEXT NOT NULL,
         createdAt TEXT NOT NULL
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE inventory (
+        sku TEXT PRIMARY KEY,
+        data TEXT NOT NULL,
+        updatedAt TEXT NOT NULL
       )
     ''');
   }
@@ -134,5 +158,27 @@ class DatabaseService {
   Future<void> clearDatabase() async {
     final db = await instance.database;
     await db.delete('invoices');
+    await db.delete('inventory');
+  }
+
+  // --- Inventory CRUD ---
+
+  Future<int> saveInventoryItem(Map<String, dynamic> item) async {
+    final db = await instance.database;
+    return await db.insert('inventory', {
+      'sku': item['sku'],
+      'data': item['data'], // JSON string
+      'updatedAt': DateTime.now().toIso8601String(),
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
+  }
+
+  Future<List<Map<String, dynamic>>> getAllInventoryRows() async {
+    final db = await instance.database;
+    return await db.query('inventory', orderBy: 'updatedAt DESC');
+  }
+
+  Future<int> deleteInventoryItem(String sku) async {
+    final db = await instance.database;
+    return await db.delete('inventory', where: 'sku = ?', whereArgs: [sku]);
   }
 }

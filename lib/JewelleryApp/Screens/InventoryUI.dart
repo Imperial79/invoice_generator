@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:prime_invoice/Resources/constants.dart';
 import '../Theme.dart';
 import '../Widgets/JewelleryCard.dart';
 import '../Models/InventoryModel.dart';
@@ -279,18 +280,18 @@ class _InventoryUIState extends State<InventoryUI> {
     return Scaffold(
       // backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("INVENTORY MANAGEMENT"),
+        title: const Text("Inventory Management"),
         actions: [
           ElevatedButton.icon(
             onPressed: () => _showAddItemDialog(),
             icon: const Icon(LucideIcons.plus, size: 18),
             label: const Text("ADD ITEM"),
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: kPadding),
         ],
       ),
       body: Padding(
-        padding: const EdgeInsets.all(24.0),
+        padding: const EdgeInsets.all(kPadding),
         child: Column(
           children: [
             // Stats Row
@@ -442,7 +443,11 @@ class _InventoryUIState extends State<InventoryUI> {
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      color: headerColor,
+      decoration: BoxDecoration(
+        color: headerColor,
+        borderRadius: .vertical(top: Radius.circular(15)),
+      ),
+
       child: Row(
         children: [
           _headerText("ITEM NAME", 3),

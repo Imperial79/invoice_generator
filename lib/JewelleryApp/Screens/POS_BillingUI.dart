@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:prime_invoice/Resources/commons.dart';
+import 'package:prime_invoice/Resources/constants.dart';
 import '../Theme.dart';
 import '../Widgets/JewelleryCard.dart';
 import '../Models/BillingModel.dart';
 import '../Models/InventoryModel.dart';
 import '../Controllers/BillingController.dart';
 import '../Controllers/InventoryController.dart';
+import '../../Essentials/kField.dart';
+import '../../Essentials/kButton.dart';
+import '../../Essentials/Label.dart';
+import '../../Helper/pdf_helper.dart';
+import '../../Models/Invoice_Model.dart';
 
 class POSBillingUI extends StatefulWidget {
   const POSBillingUI({super.key});
@@ -18,22 +25,57 @@ class _POSBillingUIState extends State<POSBillingUI> {
   final BillingController _billing = BillingController();
   final InventoryController _inventory = InventoryController();
 
+  final _nameCtrl = TextEditingController();
+  final _phoneCtrl = TextEditingController();
+  final _metalRateCtrl = TextEditingController();
+  final _searchCtrl = TextEditingController();
+  bool _isUpdatingFromSource = false;
+
   @override
   void initState() {
     super.initState();
-    _billing.addListener(() {
-      if (mounted) setState(() {});
-    });
+    _updateSyncFromSource();
+    _billing.addListener(_handleBillingUpdate);
     _inventory.addListener(() {
       if (mounted) setState(() {});
     });
   }
 
-  void _showAddItemToCartDialog({InventoryItem? preloadedItem}) {
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _phoneCtrl.dispose();
+    _metalRateCtrl.dispose();
+    _searchCtrl.dispose();
+    _billing.removeListener(_handleBillingUpdate);
+    super.dispose();
+  }
+
+  void _handleBillingUpdate() {
+    if (!mounted) return;
+    if (!_isUpdatingFromSource) {
+      setState(() {
+        _updateSyncFromSource();
+      });
+    }
+  }
+
+  void _updateSyncFromSource() {
+    _isUpdatingFromSource = true;
+    _nameCtrl.text = _billing.currentTab.customerName;
+    _phoneCtrl.text = _billing.currentTab.customerPhone;
+    _metalRateCtrl.text = _billing.currentTab.defaultMetalRate.toString();
+    _isUpdatingFromSource = false;
+  }
+
+  void _showAddItemToCartDialog({
+    InventoryItem? preloadedItem,
+    String? initialSearch,
+  }) {
     String name = preloadedItem?.name ?? "";
     String sku = preloadedItem?.sku ?? "AUTO";
     double weight = preloadedItem?.weight ?? 0.0;
-    double rate = 5800.0;
+    double rate = _billing.currentTab.defaultMetalRate;
     MakingChargeType makingType = MakingChargeType.percentage;
     double makingValue = 12.0;
 
@@ -42,189 +84,226 @@ class _POSBillingUIState extends State<POSBillingUI> {
     final weightCtrl = TextEditingController(
       text: weight > 0 ? weight.toString() : "",
     );
+    final rateCtrl = TextEditingController(text: rate.toString());
+    final makingValueCtrl = TextEditingController(text: makingValue.toString());
+
+    List<InventoryItem> searchResults =
+        (initialSearch != null && initialSearch.isNotEmpty)
+        ? _inventory.searchItems(initialSearch)
+        : [];
+
+    final searchCtrl = TextEditingController(text: initialSearch)
+      ..selection = TextSelection.fromPosition(
+        TextPosition(offset: initialSearch?.length ?? 0),
+      );
 
     showDialog(
       context: context,
       builder: (context) {
-        final theme = Theme.of(context);
         return StatefulBuilder(
           builder: (context, setDialogState) => Dialog(
-            backgroundColor: theme.cardTheme.color,
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(24),
             ),
             child: Container(
-              width: 500,
+              width: 550,
               padding: const EdgeInsets.all(32),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    "ADD ITEM TO CART",
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 2,
-                      color: theme.colorScheme.onSurface,
-                    ),
-                  ),
-                  const SizedBox(height: 32),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Label("ADD ITEM TO CART", weight: 900, fontSize: 18).spread,
+                    const SizedBox(height: 32),
 
-                  // SKU Search Feature
-                  if (preloadedItem == null) ...[
-                    _formLabel("Search Inventory by SKU"),
-                    TextField(
-                      onChanged: (v) {
-                        final found = _inventory.findBySKU(v.toUpperCase());
-                        if (found != null && found.stock > 0) {
+                    if (preloadedItem == null) ...[
+                      KField(
+                        label: "Search Inventory (SKU or Name)",
+                        hintText: "e.g. G-101 or Gold Ring",
+                        prefix: const Icon(LucideIcons.search, size: 18),
+                        controller: searchCtrl,
+                        onChanged: (v) {
                           setDialogState(() {
-                            name = found.name;
-                            sku = found.sku;
-                            weight = found.weight;
-                            nameCtrl.text = name;
-                            skuCtrl.text = sku;
-                            weightCtrl.text = weight.toString();
+                            searchResults = _inventory.searchItems(v);
                           });
-                        }
-                      },
-                      textCapitalization: TextCapitalization.characters,
-                      decoration: const InputDecoration(
-                        hintText: "Enter SKU (e.g. G-101)",
-                        prefixIcon: Icon(LucideIcons.search, size: 18),
+                        },
                       ),
-                    ),
-                    const SizedBox(height: 24),
-                    const Divider(height: 1),
-                    const SizedBox(height: 24),
-                  ],
-
-                  _formLabel("Product Name"),
-                  TextField(
-                    controller: nameCtrl,
-                    onChanged: (v) => name = v,
-                    decoration: const InputDecoration(
-                      hintText: "Enter item name",
-                    ),
-                  ),
-                  const SizedBox(height: 24),
-
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _formLabel("Weight (g)"),
-                            TextField(
-                              controller: weightCtrl,
-                              onChanged: (v) =>
-                                  weight = double.tryParse(v) ?? 0.0,
-                              keyboardType:
-                                  const TextInputType.numberWithOptions(
-                                    decimal: true,
+                      if (searchResults.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          constraints: const BoxConstraints(maxHeight: 200),
+                          decoration: BoxDecoration(
+                            color: Theme.of(context)
+                                .colorScheme
+                                .surfaceContainerHighest
+                                .withValues(alpha: 0.3),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color:
+                                  Theme.of(context).dividerTheme.color ??
+                                  Colors.grey.withValues(alpha: 0.2),
+                            ),
+                          ),
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: searchResults.length,
+                            separatorBuilder: (c, i) =>
+                                const Divider(height: 1),
+                            itemBuilder: (c, i) {
+                              final item = searchResults[i];
+                              return ListTile(
+                                leading: const Icon(
+                                  LucideIcons.package,
+                                  size: 16,
+                                ),
+                                title: Text(
+                                  item.name,
+                                  style: const TextStyle(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.bold,
                                   ),
-                              decoration: const InputDecoration(
-                                hintText: "0.00",
-                              ),
-                            ),
-                          ],
+                                ),
+                                subtitle: Text(
+                                  "SKU: ${item.sku} | Wgt: ${item.weight}g | Stock: ${item.stock}",
+                                  style: const TextStyle(fontSize: 11),
+                                ),
+                                visualDensity: VisualDensity.compact,
+                                onTap: () {
+                                  setDialogState(() {
+                                    name = item.name;
+                                    sku = item.sku;
+                                    weight = item.weight;
+                                    nameCtrl.text = name;
+                                    skuCtrl.text = sku;
+                                    weightCtrl.text = weight.toString();
+                                    searchResults = [];
+                                  });
+                                },
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 20),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _formLabel("Metal Rate (per g)"),
-                            TextField(
-                              onChanged: (v) =>
-                                  rate = double.tryParse(v) ?? 5800.0,
-                              keyboardType: TextInputType.number,
-                              decoration: const InputDecoration(
-                                hintText: "₹5800",
-                                prefixText: "₹",
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
+                      ],
+                      const SizedBox(height: 24),
+                      const Divider(height: 1),
+                      const SizedBox(height: 24),
                     ],
-                  ),
-                  const SizedBox(height: 24),
 
-                  _formLabel("Making Charge Type"),
-                  Row(
-                    children: [
-                      _toggleButton(
-                        "PERCENTAGE (%)",
-                        makingType == MakingChargeType.percentage,
-                        () => setDialogState(
-                          () => makingType = MakingChargeType.percentage,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      _toggleButton(
-                        "FIXED (₹)",
-                        makingType == MakingChargeType.fixed,
-                        () => setDialogState(
-                          () => makingType = MakingChargeType.fixed,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 24),
-
-                  _formLabel(
-                    makingType == MakingChargeType.percentage
-                        ? "Making Percentage (%)"
-                        : "Making Charge (Amount)",
-                  ),
-                  TextField(
-                    onChanged: (v) => makingValue = double.tryParse(v) ?? 0.0,
-                    keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true,
+                    KField(
+                      label: "Product Name",
+                      controller: nameCtrl,
+                      hintText: "Enter item name",
+                      onChanged: (v) => name = v,
                     ),
-                    decoration: InputDecoration(
+                    const SizedBox(height: 20),
+
+                    Row(
+                      children: [
+                        Expanded(
+                          child: KField(
+                            label: "Weight (g)",
+                            controller: weightCtrl,
+                            hintText: "0.00",
+                            keyboardType: const TextInputType.numberWithOptions(
+                              decimal: true,
+                            ),
+                            onChanged: (v) =>
+                                weight = double.tryParse(v) ?? 0.0,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: KField(
+                            label: "Metal Rate (per g)",
+                            controller: rateCtrl,
+                            hintText: kCurrencyFormat(5800, symbol: "₹"),
+                            prefixText: "₹",
+                            keyboardType: TextInputType.number,
+                            onChanged: (v) =>
+                                rate = double.tryParse(v) ?? 5800.0,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    Label(
+                      "Making Charge Type",
+                      weight: 600,
+                      fontSize: 13,
+                    ).regular,
+                    const SizedBox(height: 8),
+                    Row(
+                      children: [
+                        _toggleButton(
+                          "PERCENTAGE (%)",
+                          makingType == MakingChargeType.percentage,
+                          () => setDialogState(
+                            () => makingType = MakingChargeType.percentage,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        _toggleButton(
+                          "FIXED (₹)",
+                          makingType == MakingChargeType.fixed,
+                          () => setDialogState(
+                            () => makingType = MakingChargeType.fixed,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+
+                    KField(
+                      label: makingType == MakingChargeType.percentage
+                          ? "Making Percentage (%)"
+                          : "Making Charge (Amount)",
+                      controller: makingValueCtrl,
                       hintText: makingType == MakingChargeType.percentage
                           ? "12%"
-                          : "₹1500",
+                          : kCurrencyFormat(1500, symbol: "₹"),
+                      keyboardType: const TextInputType.numberWithOptions(
+                        decimal: true,
+                      ),
+                      onChanged: (v) => makingValue = double.tryParse(v) ?? 0.0,
                     ),
-                  ),
-                  const SizedBox(height: 48),
+                    const SizedBox(height: 40),
 
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text("CANCEL"),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: KButton(
+                            onPressed: () => Navigator.pop(context),
+                            label: "CANCEL",
+                            style: KButtonStyle.outlined,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: () {
-                            if (name.isNotEmpty && weight > 0) {
-                              _billing.addCartItem(
-                                CartItem(
-                                  sku: sku,
-                                  name: name,
-                                  weight: weight,
-                                  metalRate: rate,
-                                  makingType: makingType,
-                                  makingValue: makingValue,
-                                ),
-                              );
-                              Navigator.pop(context);
-                            }
-                          },
-                          child: const Text("ADD TO CART"),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: KButton(
+                            onPressed: () {
+                              if (name.isNotEmpty && weight > 0) {
+                                _billing.addCartItem(
+                                  CartItem(
+                                    sku: sku,
+                                    name: name,
+                                    weight: weight,
+                                    metalRate: rate,
+                                    makingType: makingType,
+                                    makingValue: makingValue,
+                                  ),
+                                );
+                                Navigator.pop(context);
+                              }
+                            },
+                            label: "ADD TO CART",
+                            style: KButtonStyle.regular,
+                          ),
                         ),
-                      ),
-                    ],
-                  ),
-                ],
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -272,7 +351,7 @@ class _POSBillingUIState extends State<POSBillingUI> {
     return Scaffold(
       backgroundColor: theme.scaffoldBackgroundColor,
       appBar: AppBar(
-        title: const Text("MULTI-CUSTOMER BILLING"),
+        title: const Text("Billing"),
         automaticallyImplyLeading: false,
         actions: [
           IconButton(
@@ -295,37 +374,93 @@ class _POSBillingUIState extends State<POSBillingUI> {
                     padding: const EdgeInsets.all(24.0),
                     child: Column(
                       children: [
+                        JewelleryCard(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Label(
+                                "Customer Information",
+                                weight: 700,
+                                fontSize: 13,
+                              ).regular,
+                              const SizedBox(height: 16),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: KField(
+                                      hintText: "Customer Name",
+                                      prefix: const Icon(
+                                        LucideIcons.user,
+                                        size: 16,
+                                      ),
+                                      onChanged: (v) {
+                                        _isUpdatingFromSource = true;
+                                        _billing.updateCustomerName(v);
+                                        _isUpdatingFromSource = false;
+                                      },
+                                      controller: _nameCtrl,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: KField(
+                                      hintText: "Phone Number",
+                                      prefix: const Icon(
+                                        LucideIcons.phone,
+                                        size: 16,
+                                      ),
+                                      keyboardType: TextInputType.phone,
+                                      onChanged: (v) {
+                                        _isUpdatingFromSource = true;
+                                        _billing.updateCustomerPhone(v);
+                                        _isUpdatingFromSource = false;
+                                      },
+                                      controller: _phoneCtrl,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
                         Row(
                           children: [
                             Expanded(
-                              child: TextField(
-                                onChanged: (v) {
-                                  // Live search for cart add?
-                                  // For now, it searches from inventory only
-                                },
-                                decoration: InputDecoration(
-                                  hintText: "Enter SKU Code or Search Item...",
-                                  prefixIcon: const Icon(
-                                    LucideIcons.search,
-                                    size: 20,
-                                  ),
-                                  fillColor: theme.cardTheme.color,
+                              child: KField(
+                                hintText: "Enter SKU Code to add directly...",
+                                prefix: const Icon(
+                                  LucideIcons.search,
+                                  size: 20,
                                 ),
+                                textCapitalization:
+                                    TextCapitalization.characters,
+                                controller: _searchCtrl,
+                                onFieldSubmitted: (v) {
+                                  _searchCtrl.clear();
+                                  final matches = _inventory.searchItems(v);
+                                  if (matches.length == 1) {
+                                    _showAddItemToCartDialog(
+                                      preloadedItem: matches.first,
+                                    );
+                                  } else {
+                                    _showAddItemToCartDialog(initialSearch: v);
+                                  }
+                                },
                               ),
                             ),
                             const SizedBox(width: 16),
-                            ElevatedButton.icon(
-                              onPressed: _showAddItemToCartDialog,
+                            KButton(
+                              onPressed: () => _showAddItemToCartDialog(),
                               icon: const Icon(
                                 LucideIcons.circlePlus,
                                 size: 18,
                               ),
-                              label: const Text("ADD ITEM"),
-                              style: ElevatedButton.styleFrom(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 24,
-                                  vertical: 16,
-                                ),
+                              label: "ADD ITEM",
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 24,
+                                vertical: 15,
                               ),
                             ),
                           ],
@@ -380,85 +515,149 @@ class _POSBillingUIState extends State<POSBillingUI> {
                       ),
                     ),
                   ),
-                  padding: const EdgeInsets.all(32),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        "Billing Summary",
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: theme.colorScheme.onSurface,
-                        ),
-                      ),
-                      const SizedBox(height: 32),
 
-                      _priceRow(
-                        "Subtotal (Items)",
-                        "₹${_billing.currentTab.subTotal.toStringAsFixed(2)}",
-                      ),
-                      _priceRow(
-                        "Metal Value",
-                        "₹${_billing.currentTab.totalMetal.toStringAsFixed(2)}",
-                      ),
-                      _priceRow(
-                        "Total Making Charge",
-                        "₹${_billing.currentTab.totalMaking.toStringAsFixed(2)}",
-                      ),
-                      _priceRow(
-                        "GST (3%)",
-                        "₹${_billing.currentTab.tax.toStringAsFixed(2)}",
-                      ),
-
-                      const Spacer(),
-
-                      const Divider(height: 48),
-
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            "Grand Total",
-                            style: TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                          ),
-                          Text(
-                            "₹${_billing.currentTab.grandTotal.toStringAsFixed(2)}",
-                            style: const TextStyle(
-                              fontSize: 24,
-                              fontWeight: FontWeight.w900,
-                              color: JewelleryTheme.gold,
-                            ),
-                          ),
-                        ],
-                      ),
-
-                      const SizedBox(height: 48),
-
-                      SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            if (_billing.currentTab.cartItems.isNotEmpty) {
-                              _billing.completeCurrentBill(_inventory);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    "Bill successfully generated & stock adjusted!",
-                                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(15),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Label(
+                          "Billing Summary",
+                          weight: 800,
+                          fontSize: 20,
+                        ).regular,
+                        height20,
+                        JewelleryCard(
+                          padding: const EdgeInsets.all(16),
+                          color: theme.scaffoldBackgroundColor,
+                          child: Column(
+                            children: [
+                              _priceRow(
+                                "Items Count",
+                                "${_billing.currentTab.cartItems.length}",
+                              ),
+                              _priceRow(
+                                "Total Weight",
+                                "${_billing.currentTab.cartItems.fold(0.0, (s, i) => s + i.weight).toStringAsFixed(3)}g",
+                              ),
+                              const Divider(height: 24),
+                              _priceRow(
+                                "Metal Value",
+                                kCurrencyFormat(
+                                  _billing.currentTab.totalMetal,
+                                  symbol: "₹",
                                 ),
-                              );
+                              ),
+                              _priceRow(
+                                "Making Charges",
+                                kCurrencyFormat(
+                                  _billing.currentTab.totalMaking,
+                                  symbol: "₹",
+                                ),
+                              ),
+                              _priceRow(
+                                "Subtotal",
+                                kCurrencyFormat(
+                                  _billing.currentTab.subTotal,
+                                  symbol: "₹",
+                                ),
+                              ),
+                              _priceRow(
+                                "GST (3%)",
+                                kCurrencyFormat(
+                                  _billing.currentTab.tax,
+                                  symbol: "₹",
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        KField(
+                          label: "TODAY'S METAL RATE",
+                          prefixText: "₹",
+                          keyboardType: TextInputType.number,
+                          controller: _metalRateCtrl,
+                          onChanged: (v) {
+                            double? val = double.tryParse(v);
+                            if (val != null) {
+                              _isUpdatingFromSource = true;
+                              _billing.updateDefaultMetalRate(val);
+                              _isUpdatingFromSource = false;
                             }
                           },
-                          child: const Text("GENERATE INVOICE"),
                         ),
-                      ),
-                    ],
+                        height20,
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: JewelleryTheme.gold.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(
+                              color: JewelleryTheme.gold.withValues(alpha: 0.3),
+                            ),
+                          ),
+                          child: Column(
+                            children: [
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Label(
+                                    "Grand Total",
+                                    weight: 600,
+                                    fontSize: 14,
+                                  ).regular,
+                                  Label(
+                                    kCurrencyFormat(
+                                      _billing.currentTab.grandTotal,
+                                      symbol: "₹",
+                                    ),
+                                    weight: 900,
+                                    fontSize: 24,
+                                    color: JewelleryTheme.gold,
+                                  ).regular,
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 32),
+                        KButton(
+                          onPressed: () async {
+                            if (_billing.currentTab.cartItems.isNotEmpty) {
+                              final invoice = await _billing
+                                  .completeCurrentBill(_inventory);
+                              if (invoice != null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      "Bill successfully generated & stock adjusted!",
+                                    ),
+                                  ),
+                                );
+                                // Automatically open PDF preview
+                                await PdfHelper.generateInvoice(invoice);
+                              }
+                            }
+                          },
+                          label: "GENERATE INVOICE",
+                          style: KButtonStyle.expanded,
+                          backgroundColor: JewelleryTheme.gold,
+                          icon: const Icon(LucideIcons.fileCheck2, size: 20),
+                        ),
+                        const SizedBox(height: 12),
+                        KButton(
+                          onPressed: () {},
+                          label: "PRINT ESTIMATE",
+                          style: KButtonStyle.expanded,
+                          backgroundColor: isDark
+                              ? Colors.white10
+                              : Colors.black87,
+                          icon: const Icon(LucideIcons.printer, size: 18),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -491,6 +690,7 @@ class _POSBillingUIState extends State<POSBillingUI> {
   Widget _buildTabsHeader() {
     final theme = Theme.of(context);
     return Container(
+      width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
@@ -500,20 +700,22 @@ class _POSBillingUIState extends State<POSBillingUI> {
           ),
         ),
       ),
-      child: Row(
-        children: [
-          ..._billing.tabs.asMap().entries.map((entry) {
-            int idx = entry.key;
-            BillingTab tab = entry.value;
-            bool isActive = _billing.currentTabIndex == idx;
-            return _tabItem(tab.customerName, isActive, idx);
-          }),
-
-          IconButton(
-            onPressed: () => _billing.addNewTab(),
-            icon: const Icon(LucideIcons.plus, color: JewelleryTheme.gold),
-          ),
-        ],
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(
+          children: [
+            ..._billing.tabs.asMap().entries.map((entry) {
+              int idx = entry.key;
+              BillingTab tab = entry.value;
+              bool isActive = _billing.currentTabIndex == idx;
+              return _tabItem(tab.customerName, isActive, idx);
+            }),
+            IconButton(
+              onPressed: () => _billing.addNewTab(),
+              icon: const Icon(LucideIcons.plus, color: JewelleryTheme.gold),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -567,7 +769,10 @@ class _POSBillingUIState extends State<POSBillingUI> {
     final theme = Theme.of(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-      color: theme.scaffoldBackgroundColor,
+      decoration: BoxDecoration(
+        borderRadius: .vertical(top: Radius.circular(15)),
+        color: theme.scaffoldBackgroundColor,
+      ),
       child: Row(
         children: [
           _cartHeaderText("ITEM DESCRIPTION", 3),
@@ -615,7 +820,7 @@ class _POSBillingUIState extends State<POSBillingUI> {
                   ),
                 ),
                 Text(
-                  "SKU: ${item.sku} | Metal Value: ₹${item.metalValue.toStringAsFixed(2)}",
+                  "SKU: ${item.sku} | Metal Value: ${kCurrencyFormat(item.metalValue, symbol: "₹")}",
                   style: TextStyle(
                     fontSize: 11,
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
@@ -632,7 +837,7 @@ class _POSBillingUIState extends State<POSBillingUI> {
           ),
           Expanded(
             child: Text(
-              "₹${item.metalRate.toStringAsFixed(0)}",
+              kCurrencyFormat(item.metalRate, symbol: "₹"),
               style: TextStyle(color: theme.colorScheme.onSurface),
             ),
           ),
@@ -640,13 +845,13 @@ class _POSBillingUIState extends State<POSBillingUI> {
             child: Text(
               item.makingType == MakingChargeType.percentage
                   ? "${item.makingValue}%"
-                  : "₹${item.makingValue.toStringAsFixed(0)}",
+                  : kCurrencyFormat(item.makingValue, symbol: "₹"),
               style: TextStyle(color: theme.colorScheme.onSurface),
             ),
           ),
           Expanded(
             child: Text(
-              "₹${item.total.toStringAsFixed(2)}",
+              kCurrencyFormat(item.total, symbol: "₹"),
               style: const TextStyle(
                 fontWeight: FontWeight.w800,
                 color: JewelleryTheme.gold,
@@ -689,22 +894,6 @@ class _POSBillingUIState extends State<POSBillingUI> {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _formLabel(String label) {
-    final theme = Theme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8.0, left: 4),
-      child: Text(
-        label.toUpperCase(),
-        style: TextStyle(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-          letterSpacing: 1,
-        ),
       ),
     );
   }

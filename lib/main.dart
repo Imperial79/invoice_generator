@@ -3,6 +3,7 @@ import 'package:prime_invoice/Helper/route_config.dart';
 import 'package:prime_invoice/JewelleryApp/Theme.dart';
 import 'package:prime_invoice/Helper/theme_service.dart';
 import 'package:dynamic_color/dynamic_color.dart';
+import 'package:prime_invoice/Resources/theme.dart';
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 import 'dart:io';
 import 'dart:ui';
@@ -67,10 +68,11 @@ class _MyAppState extends State<MyApp> with WidgetsBindingObserver {
                 mode,
               ), // Force reset structure on mode change if needed
               debugShowCheckedModeBanner: false,
-              themeMode: mode,
+              themeMode: ThemeMode.dark,
               title: 'Aurora Jewellers',
-              theme: JewelleryTheme.lightTheme(context),
-              darkTheme: JewelleryTheme.darkTheme(context),
+              // theme: JewelleryTheme.lightTheme(context),
+              // darkTheme: JewelleryTheme.darkTheme(context),
+              darkTheme: kDarkTheme(context),
               routerConfig: routerConfig,
               scrollBehavior: const MyScrollBehavior(),
               builder: (context, child) => ConnectionGuard(child: child!),
