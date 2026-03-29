@@ -107,7 +107,7 @@ class _InventoryUIState extends State<InventoryUI> {
                           children: [
                             _formLabel("Category", isRequired: true),
                             DropdownButtonFormField<String>(
-                              value: cat,
+                              initialValue: cat,
                               decoration: const InputDecoration(
                                 contentPadding: EdgeInsets.symmetric(
                                   horizontal: 16,

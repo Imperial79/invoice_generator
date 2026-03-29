@@ -12,7 +12,6 @@ import '../../Essentials/kField.dart';
 import '../../Essentials/kButton.dart';
 import '../../Essentials/Label.dart';
 import '../../Helper/pdf_helper.dart';
-import '../../Models/Invoice_Model.dart';
 
 class POSBillingUI extends StatefulWidget {
   const POSBillingUI({super.key});

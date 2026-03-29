@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:prime_invoice/Helper/route_config.dart';
-import 'package:prime_invoice/JewelleryApp/Theme.dart';
 import 'package:prime_invoice/Helper/theme_service.dart';
 import 'package:dynamic_color/dynamic_color.dart';
 import 'package:prime_invoice/Resources/theme.dart';
