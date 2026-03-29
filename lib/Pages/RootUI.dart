@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:prime_invoice/Helper/responsive.dart';
 import 'package:prime_invoice/Resources/colors.dart';
 import 'package:prime_invoice/Essentials/Label.dart';
+import 'package:prime_invoice/Resources/constants.dart';
 
 class RootUI extends StatefulWidget {
   final Widget child;
@@ -65,6 +66,7 @@ class _RootUIState extends State<RootUI> {
 
   Widget _buildSidebar(BuildContext context, int selectedIndex) {
     return Container(
+      padding: .all(kPadding),
       width: 280,
       height: double.infinity,
       decoration: BoxDecoration(
@@ -76,10 +78,9 @@ class _RootUIState extends State<RootUI> {
       child: Column(
         children: [
           _buildSidebarHeader(context),
-          const SizedBox(height: 20),
+          const SizedBox(height: 40),
           Expanded(
             child: ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16),
               children: [
                 _sidebarItem(
                   context,
@@ -127,8 +128,7 @@ class _RootUIState extends State<RootUI> {
   }
 
   Widget _buildSidebarHeader(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(24, 60, 24, 20),
+    return SizedBox(
       child: Row(
         children: [
           Container(
@@ -217,46 +217,43 @@ class _RootUIState extends State<RootUI> {
 
   Widget _buildSidebarFooter(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(24),
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: kColor(context).surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Row(
-          children: [
-            CircleAvatar(
-              radius: 16,
-              backgroundColor: kColor(context).primary,
-              child: Label(
-                "SV",
-                fontSize: 10,
-                color: kColor(context).onPrimary,
-              ).title,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: kColor(context).surfaceContainerHigh,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: kColor(context).primary,
+            child: Label(
+              "JD",
+              fontSize: 10,
+              color: kColor(context).onPrimary,
+            ).title,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Label("John Doe", fontSize: 12, weight: 600).regular,
+                Label(
+                  "Administrator",
+                  fontSize: 10,
+                  color: kColor(context).onSurfaceVariant,
+                ).regular,
+              ],
             ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Label("Sujit Verma", fontSize: 12, weight: 600).regular,
-                  Label(
-                    "Administrator",
-                    fontSize: 10,
-                    color: kColor(context).onSurfaceVariant,
-                  ).regular,
-                ],
-              ),
-            ),
-            Icon(
-              LucideIcons.ellipsis,
-              size: 16,
-              color: kColor(context).onSurfaceVariant,
-            ),
-          ],
-        ),
+          ),
+          Icon(
+            LucideIcons.ellipsis,
+            size: 16,
+            color: kColor(context).onSurfaceVariant,
+          ),
+        ],
       ),
     );
   }
