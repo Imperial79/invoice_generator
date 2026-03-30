@@ -8,10 +8,11 @@ import 'package:prime_invoice/Pages/SetupUI.dart';
 import 'package:prime_invoice/Pages/RootUI.dart';
 import 'package:prime_invoice/Pages/LoginUI.dart';
 import 'package:prime_invoice/Pages/InventoryUI.dart';
+import 'package:prime_invoice/Pages/MetalRatesUI.dart';
 import '../Pages/HomeUI.dart';
 
 final routerConfig = GoRouter(
-  initialLocation: '/login',
+  initialLocation: '/',
   routes: [
     GoRoute(path: "/login", builder: (context, state) => const LoginUI()),
     ShellRoute(
@@ -35,13 +36,19 @@ final routerConfig = GoRouter(
           path: "/company-profile",
           builder: (context, state) => const CompanyProfileUI(),
         ),
+        GoRoute(
+          path: "/metal-rates",
+          builder: (context, state) => const MetalRatesUI(),
+        ),
+        GoRoute(
+          path: "/create-invoice",
+          builder: (context, state) => CreateInvoiceUI(
+            invoice: state.extra is InvoiceModel
+                ? state.extra as InvoiceModel
+                : null,
+          ),
+        ),
       ],
-    ),
-    GoRoute(
-      path: "/create-invoice",
-      builder: (context, state) => CreateInvoiceUI(
-        invoice: state.extra is InvoiceModel ? state.extra as InvoiceModel : null,
-      ),
     ),
   ],
 );

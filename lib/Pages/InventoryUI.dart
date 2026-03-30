@@ -67,9 +67,18 @@ class _InventoryUIState extends State<InventoryUI> {
     required String weight,
     required String purity,
     required String charges,
+    required String chargesType,
     required String stock,
   }) async {
     try {
+      String finalSku = sku.trim();
+      if (finalSku.isEmpty) {
+        final datePart = DateTime.now().millisecondsSinceEpoch
+            .toString()
+            .substring(7);
+        finalSku = "${category.substring(0, 1).toUpperCase()}$datePart";
+      }
+
       final newItem =
           (item ??
                   InventoryModel(
@@ -78,15 +87,17 @@ class _InventoryUIState extends State<InventoryUI> {
                     weight: 0,
                     purity: "",
                     makingCharges: 0,
+                    makingChargesType: "Fixed",
                     stock: 0,
                   ))
               .copyWith(
                 category: category,
                 name: name,
-                sku: sku,
+                sku: finalSku,
                 weight: double.tryParse(weight) ?? 0,
                 purity: purity,
                 makingCharges: double.tryParse(charges) ?? 0,
+                makingChargesType: chargesType,
                 stock: double.tryParse(stock) ?? 0,
               );
       await DatabaseService.instance.saveInventoryItem(newItem);
@@ -103,14 +114,17 @@ class _InventoryUIState extends State<InventoryUI> {
     final nameController = TextEditingController(text: item?.name);
     final skuController = TextEditingController(text: item?.sku);
     final weightController = TextEditingController(
-      text: item?.weight.toString(),
+      text: item?.weight == 0 ? "" : item?.weight.toString(),
     );
     final purityController = TextEditingController(text: item?.purity);
     final chargesController = TextEditingController(
-      text: item?.makingCharges.toString(),
+      text: item?.makingCharges == 0 ? "" : item?.makingCharges.toString(),
     );
-    final stockController = TextEditingController(text: item?.stock.toString());
+    final stockController = TextEditingController(
+      text: item?.stock == 0 ? "" : item?.stock.toString(),
+    );
     String category = item?.category ?? "Gold";
+    String chargesType = item?.makingChargesType ?? "Fixed";
 
     await showDialog<bool>(
       context: context,
@@ -127,8 +141,11 @@ class _InventoryUIState extends State<InventoryUI> {
             key: formKey,
             child: Column(
               mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
               spacing: 20,
               children: [
+                // SECTION: Basic Details
+                _buildSectionHeader("Basic Details"),
                 KDropdown<String>(
                   label: "Category",
                   value: category,
@@ -144,6 +161,14 @@ class _InventoryUIState extends State<InventoryUI> {
                   hintText: "e.g. Gold Ring, Silver Chain",
                   validator: KValidation.required,
                 ),
+                KField(
+                  controller: skuController,
+                  label: "Barcode / SKU",
+                  hintText: "Auto-generated if left empty",
+                ),
+
+                // SECTION: Product Specs
+                _buildSectionHeader("Product Specs"),
                 Row(
                   spacing: 16,
                   children: [
@@ -169,40 +194,52 @@ class _InventoryUIState extends State<InventoryUI> {
                                     DropdownMenuItem(value: e, child: Text(e)),
                               )
                               .toList(),
-                          onChanged: (v) => purityController.text = v!,
+                          onChanged: (v) =>
+                              setDialogState(() => purityController.text = v!),
                         ),
                       )
                     else
                       const Spacer(),
                   ],
                 ),
+
+                // SECTION: Inventory & Pricing
+                _buildSectionHeader("Inventory & Pricing"),
                 Row(
                   spacing: 16,
                   children: [
                     Expanded(
+                      flex: 2,
                       child: KField(
                         controller: chargesController,
                         label: "Making Charges",
-                        hintText: "Per gram or flat",
+                        hintText: "0.00",
                         keyboardType: TextInputType.number,
                         validator: KValidation.required,
                       ),
                     ),
                     Expanded(
-                      child: KField(
-                        controller: stockController,
-                        label: "Initial Stock",
-                        hintText: "Quantity",
-                        keyboardType: TextInputType.number,
-                        validator: KValidation.required,
+                      flex: 1,
+                      child: KDropdown<String>(
+                        label: "Type",
+                        value: chargesType,
+                        items: ["Fixed", "Percent"]
+                            .map(
+                              (e) => DropdownMenuItem(value: e, child: Text(e)),
+                            )
+                            .toList(),
+                        onChanged: (v) =>
+                            setDialogState(() => chargesType = v!),
                       ),
                     ),
                   ],
                 ),
                 KField(
-                  controller: skuController,
-                  label: "Barcode / SKU",
-                  hintText: "Optional identifier",
+                  controller: stockController,
+                  label: "Initial Stock",
+                  hintText: "Quantity",
+                  keyboardType: TextInputType.number,
+                  validator: KValidation.required,
                 ),
               ],
             ),
@@ -224,8 +261,11 @@ class _InventoryUIState extends State<InventoryUI> {
                     name: nameController.text,
                     sku: skuController.text,
                     weight: weightController.text,
-                    purity: purityController.text,
+                    purity: purityController.text.isEmpty && category == "Gold"
+                        ? "22K"
+                        : purityController.text,
                     charges: chargesController.text,
+                    chargesType: chargesType,
                     stock: stockController.text,
                   );
                   if (context.mounted) Navigator.pop(context, true);
@@ -247,6 +287,25 @@ class _InventoryUIState extends State<InventoryUI> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Label(
+          title,
+          fontSize: 14,
+          weight: 700,
+          color: kColor(context).primary,
+        ).regular,
+        const SizedBox(height: 4),
+        Divider(
+          color: kColor(context).outlineVariant.withAlpha(100),
+          thickness: 1,
+        ),
+      ],
     );
   }
 
@@ -391,7 +450,7 @@ class _InventoryUIState extends State<InventoryUI> {
                 ),
                 const SizedBox(height: 4),
                 Label(
-                  "${item.purity} • ${item.weight}g",
+                  "${item.purity} • ${item.weight}g • MC: ${item.makingChargesType == 'Percent' ? "${item.makingCharges}%" : "₹${item.makingCharges}"}",
                   fontSize: 13,
                   color: kColor(context).onSurfaceVariant,
                 ).regular,

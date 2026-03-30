@@ -87,122 +87,124 @@ class _LoginUIState extends State<LoginUI> {
           }
         },
         child: Center(
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 850),
-            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                // Left Side: Branding
-                Expanded(
-                  flex: 2,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: kColor(context).primary.withAlpha(20),
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: kColor(context).primary.withAlpha(50),
-                            width: 2,
+          child: SingleChildScrollView(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 850),
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 40),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // Left Side: Branding
+                  Expanded(
+                    flex: 2,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                            color: kColor(context).primary.withAlpha(20),
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: kColor(context).primary.withAlpha(50),
+                              width: 2,
+                            ),
+                          ),
+                          child: Icon(
+                            LucideIcons.gem,
+                            color: kColor(context).primary,
+                            size: 50,
                           ),
                         ),
-                        child: Icon(
-                          LucideIcons.gem,
-                          color: kColor(context).primary,
-                          size: 50,
-                        ),
-                      ),
-                      const SizedBox(height: 32),
-                      Label(
-                        "Jewellery Store",
-                        fontSize: 28,
-                        weight: 800,
-                        textAlign: TextAlign.center,
-                      ).title,
-                      const SizedBox(height: 8),
-                      Label(
-                        "Management System",
-                        fontSize: 16,
-                        color: kColor(context).onSurfaceVariant,
-                        textAlign: TextAlign.center,
-                      ).regular,
-                      const SizedBox(height: 40),
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 8,
-                        ),
-                        decoration: BoxDecoration(
-                          color: kColor(context).surfaceContainerHigh,
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              LucideIcons.shieldCheck,
-                              size: 16,
-                              color: StatusText.success,
-                            ),
-                            const SizedBox(width: 8),
-                            Label(
-                              "Secure Access Points",
-                              fontSize: 12,
-                              color: kColor(context).onSurface,
-                            ).regular,
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Vertical Divider/Space
-                const SizedBox(width: 60),
-
-                // Right Side: PIN & NumPad
-                Expanded(
-                  flex: 3,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    children: [
-                      Label(
-                        "Enter Security PIN",
-                        fontSize: 18,
-                        weight: 600,
-                        color: kColor(context).onSurface,
-                      ).regular,
-                      const SizedBox(height: 32),
-                      _buildPinDisplay(),
-                      if (_error.isNotEmpty) ...[
-                        const SizedBox(height: 16),
+                        const SizedBox(height: 32),
                         Label(
-                          _error,
-                          color: kColor(context).error,
-                          fontSize: 14,
+                          "Jewellery Store",
+                          fontSize: 28,
+                          weight: 800,
+                          textAlign: TextAlign.center,
+                        ).title,
+                        const SizedBox(height: 8),
+                        Label(
+                          "Management System",
+                          fontSize: 16,
+                          color: kColor(context).onSurfaceVariant,
+                          textAlign: TextAlign.center,
                         ).regular,
+                        const SizedBox(height: 40),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 8,
+                          ),
+                          decoration: BoxDecoration(
+                            color: kColor(context).surfaceContainerHigh,
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(
+                                LucideIcons.shieldCheck,
+                                size: 16,
+                                color: StatusText.success,
+                              ),
+                              const SizedBox(width: 8),
+                              Label(
+                                "Secure Access Points",
+                                fontSize: 12,
+                                color: kColor(context).onSurface,
+                              ).regular,
+                            ],
+                          ),
+                        ),
                       ],
-                      const SizedBox(height: 40),
-                      _buildNumPad(),
-                      const SizedBox(height: 32),
-                      KButton(
-                        onPressed: () {
-                          // Help or alternative login?
-                        },
-                        label: "Forgot PIN?",
-                        style: KButtonStyle.outlined,
-                        foregroundColor: kColor(context).onSurfaceVariant,
-                        fontSize: 13,
-                        radius: 30,
-                      ),
-                    ],
+                    ),
                   ),
-                ),
-              ],
+
+                  // Vertical Divider/Space
+                  const SizedBox(width: 60),
+
+                  // Right Side: PIN & NumPad
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Label(
+                          "Enter Security PIN",
+                          fontSize: 18,
+                          weight: 600,
+                          color: kColor(context).onSurface,
+                        ).regular,
+                        const SizedBox(height: 32),
+                        _buildPinDisplay(),
+                        if (_error.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          Label(
+                            _error,
+                            color: kColor(context).error,
+                            fontSize: 14,
+                          ).regular,
+                        ],
+                        const SizedBox(height: 40),
+                        _buildNumPad(),
+                        const SizedBox(height: 32),
+                        KButton(
+                          onPressed: () {
+                            // Help or alternative login?
+                          },
+                          label: "Forgot PIN?",
+                          style: KButtonStyle.outlined,
+                          foregroundColor: kColor(context).onSurfaceVariant,
+                          fontSize: 13,
+                          radius: 30,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),

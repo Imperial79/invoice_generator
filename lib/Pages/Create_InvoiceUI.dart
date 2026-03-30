@@ -13,6 +13,8 @@ import 'package:prime_invoice/Helper/pdf_helper.dart';
 import 'package:prime_invoice/Models/Customer_Model.dart';
 import 'package:prime_invoice/Models/Invoice_Model.dart';
 import 'package:prime_invoice/Models/Item_Model.dart';
+import 'package:prime_invoice/Models/Inventory_Model.dart';
+import 'package:prime_invoice/Models/Metal_Rate_Model.dart';
 import 'package:prime_invoice/Resources/app-data.dart';
 import 'package:prime_invoice/Resources/colors.dart';
 import 'package:prime_invoice/Resources/commons.dart';
@@ -39,7 +41,8 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   List<String> tableFields = [
     "Sl.",
     "Description",
-    "HSN/ASC",
+    "ITEM-SKU",
+    "Weight",
     "Qty.",
     "Unit",
     "Price",
@@ -51,7 +54,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   List<ItemModel> addedItems = [];
   final invoiceNo = TextEditingController();
   final itemName = TextEditingController();
-  final hsnCode = TextEditingController();
+  final skuController = TextEditingController();
   final qty = TextEditingController();
   String unit = "Gms";
   final price = TextEditingController();
@@ -148,8 +151,9 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
 
       // Auto-save customer
       if (customerName.text.isNotEmpty && customerPhone.text.length == 10) {
-        final existing = await DatabaseService.instance
-            .getCustomerByPhone(customerPhone.text);
+        final existing = await DatabaseService.instance.getCustomerByPhone(
+          customerPhone.text,
+        );
         final customer = CustomerModel(
           id: existing?.id,
           name: customerName.text,
@@ -164,7 +168,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
       await PdfHelper.generateInvoice(invoiceData);
       await DatabaseService.instance.saveInvoice(invoiceData);
       if (mounted) {
-        Navigator.pop(context, true);
+        // Navigator.pop(context, true);
         KSnackbar(
           context,
           message: "Invoice generated and saved successfully!",
@@ -184,7 +188,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
 
   clearFields() {
     itemName.clear();
-    hsnCode.clear();
+    skuController.clear();
     qty.clear();
     price.clear();
     gst.clear();
@@ -194,7 +198,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   void dispose() {
     invoiceNo.dispose();
     itemName.dispose();
-    hsnCode.dispose();
+    skuController.dispose();
     qty.dispose();
     price.dispose();
     tax.dispose();
@@ -214,6 +218,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
       appBar: KAppBar(
         context,
         title: "Create Invoice",
+        showBack: false,
         actions: [
           IconButton(
             onPressed: () async {
@@ -232,7 +237,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1000),
+            constraints: const BoxConstraints(maxWidth: 1400),
             child: SingleChildScrollView(
               primary: true,
               padding: const EdgeInsets.all(kPadding),
@@ -246,16 +251,35 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                       LucideIcons.fileText,
                     ),
                     _buildInvoiceInfo(),
+                    _buildSectionHeader("Party Details", LucideIcons.user),
+                    _buildPartyDetails(),
                     _buildSectionHeader("Items List", LucideIcons.package),
                     _buildItemsSection(),
                     _buildSummarySection(),
-                    _buildSectionHeader("Party Details", LucideIcons.user),
-                    _buildPartyDetails(),
+                    _buildSectionHeader("Other Details", LucideIcons.ellipsis),
+                    _buildOtherDetails(),
                   ] else ...[
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       spacing: 30,
                       children: [
+                        // LEFT SIDE: ITEMS LIST
+                        Expanded(
+                          flex: 2,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            spacing: 20,
+                            children: [
+                              _buildSectionHeader(
+                                "Items List",
+                                LucideIcons.package,
+                              ),
+                              _buildItemsSection(),
+                              _buildSummarySection(),
+                            ],
+                          ),
+                        ),
+                        // RIGHT SIDE: BILLING DETAILS
                         Expanded(
                           flex: 1,
                           child: Column(
@@ -272,36 +296,17 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                                 LucideIcons.user,
                               ),
                               _buildPartyDetails(),
-                            ],
-                          ),
-                        ),
-                        Expanded(
-                          flex: 1,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            spacing: 20,
-                            children: [
                               _buildSectionHeader(
-                                "Items List",
-                                LucideIcons.package,
+                                "Other Details",
+                                LucideIcons.ellipsis,
                               ),
-                              _buildItemsSection(),
-                              _buildSummarySection(),
+                              _buildOtherDetails(),
                             ],
                           ),
                         ),
                       ],
                     ),
                   ],
-                  _buildSectionHeader("Other Details", LucideIcons.ellipsis),
-                  KField(
-                    controller: billingAddress,
-                    maxLines: 4,
-                    minLines: 3,
-                    label: "Billing Address",
-                    hintText: "Enter complete billing address",
-                    validator: (val) => KValidation.required(val),
-                  ),
                   const SizedBox(height: 80),
                 ],
               ),
@@ -375,32 +380,162 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
 
   Widget _buildItemsSection() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       spacing: 15,
       children: [
         if (addedItems.isEmpty)
+          _emptyItemsPlaceholder()
+        else
           KCard(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 40),
-            color: kColor(context).surfaceContainerLow.withValues(alpha: .5),
+            padding: EdgeInsets.zero,
             borderWidth: 1,
             borderColor: kColor(context).outlineVariant,
-            child: Column(
-              spacing: 10,
-              children: [
-                Icon(
-                  LucideIcons.inbox,
-                  size: 40,
-                  color: kColor(context).onSurfaceVariant,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  minWidth:
+                      MediaQuery.sizeOf(context).width *
+                      0.6, // Approximate left column width
                 ),
-                Label(
-                  "No items added yet",
-                  color: kColor(context).onSurfaceVariant,
-                ).regular,
-              ],
+                child: ClipRRect(
+                  borderRadius: kRadius(15),
+                  child: DataTable(
+                    horizontalMargin: 15,
+                    columnSpacing: 0,
+                    headingRowColor: WidgetStateProperty.all(
+                      kColor(context).surfaceContainerLow,
+                    ),
+                    columns: [
+                      DataColumn(
+                        label: SizedBox(
+                          width: 40,
+                          child: Label("Sl.", weight: 700).regular,
+                        ),
+                      ),
+                      DataColumn(
+                        label: Expanded(
+                          child: Label("Description", weight: 700).regular,
+                        ),
+                      ),
+                      DataColumn(
+                        label: SizedBox(
+                          width: 100,
+                          child: Label("Weight", weight: 700).regular,
+                        ),
+                      ),
+                      DataColumn(
+                        label: SizedBox(
+                          width: 80,
+                          child: Label("Qty", weight: 700).regular,
+                        ),
+                      ),
+                      DataColumn(
+                        label: SizedBox(
+                          width: 120,
+                          child: Label("Net Payable", weight: 700).regular,
+                        ),
+                      ),
+                      DataColumn(
+                        label: SizedBox(
+                          width: 80,
+                          child: Label("Actions", weight: 700).regular,
+                        ),
+                      ),
+                    ],
+                    rows: addedItems.map((item) {
+                      int index = addedItems.indexOf(item) + 1;
+                      return DataRow(
+                        cells: [
+                          DataCell(
+                            SizedBox(width: 40, child: Label("$index").regular),
+                          ),
+                          DataCell(
+                            // Using a wider container for Description to push other columns
+                            Container(
+                              constraints: const BoxConstraints(minWidth: 100),
+                              child: Column(
+                                crossAxisAlignment: .start,
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Label(item.itemName, weight: 600).regular,
+                                  Label(
+                                    item.sku,
+                                    color: kColor(context).onSurfaceVariant,
+                                    fontSize: 10,
+                                    weight: 500,
+                                  ).regular,
+                                ],
+                              ),
+                            ),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: 100,
+                              child: Label(
+                                "${item.weight.toStringAsFixed(3)}g",
+                              ).regular,
+                            ),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: 80,
+                              child: Label(
+                                "${item.qty.toStringAsFixed(0)} Pcs",
+                              ).regular,
+                            ),
+                          ),
+
+                          DataCell(
+                            SizedBox(
+                              width: 120,
+                              child: Label(
+                                "₹${item.amount.toStringAsFixed(2)}",
+                                weight: 700,
+                                color: kColor(context).primary,
+                              ).regular,
+                            ),
+                          ),
+                          DataCell(
+                            SizedBox(
+                              width: 80,
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  IconButton(
+                                    onPressed: () => _editItem(item),
+                                    icon: Icon(
+                                      LucideIcons.pencil,
+                                      size: 16,
+                                      color: kColor(context).primary,
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  IconButton(
+                                    onPressed: () =>
+                                        setState(() => addedItems.remove(item)),
+                                    icon: Icon(
+                                      LucideIcons.trash2,
+                                      size: 16,
+                                      color: kColor(context).error,
+                                    ),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ),
             ),
-          )
-        else
-          ...addedItems.map((item) => _buildItemCard(item)),
+          ),
         KButton(
           onPressed: () {
             clearFields();
@@ -418,81 +553,51 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
     );
   }
 
-  Widget _buildItemCard(ItemModel item) {
+  Widget _emptyItemsPlaceholder() {
     return KCard(
-      padding: const EdgeInsets.all(15),
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      color: kColor(context).surfaceContainerLow.withValues(alpha: .5),
       borderWidth: 1,
-      borderColor: kColor(context).primary.withValues(alpha: .2),
-      color: kColor(context).surface,
+      borderColor: kColor(context).outlineVariant,
       child: Column(
         spacing: 10,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Label(item.itemName, fontSize: 16, weight: 700).title,
-              Row(
-                spacing: 10,
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      itemName.text = item.itemName;
-                      hsnCode.text = item.hsnCode;
-                      qty.text = item.qty.toString();
-                      unit = item.unit;
-                      price.text = item.price.toString();
-                      amount = item.amount;
-                      gst.text = item.gst.toString();
-                      showDialog(
-                        context: context,
-                        builder: (context) =>
-                            addItemDialog(setState, id: item.id),
-                      );
-                    },
-                    icon: Icon(
-                      LucideIcons.pencil,
-                      size: 18,
-                      color: kColor(context).primary,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => setState(() => addedItems.remove(item)),
-                    icon: Icon(
-                      LucideIcons.trash2,
-                      size: 18,
-                      color: kColor(context).error,
-                    ),
-                  ),
-                ],
-              ),
-            ],
+          Icon(
+            LucideIcons.inbox,
+            size: 40,
+            color: kColor(context).onSurfaceVariant,
           ),
-          kDiv(context),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _itemStat("Qty", "${item.qty} ${item.unit}"),
-              _itemStat("Rate", kCurrencyFormat(item.price)),
-              _itemStat("GST", "${item.gst}%"),
-              _itemStat("Total", kCurrencyFormat(item.amount), isBold: true),
-            ],
-          ),
+          Label(
+            "No items added yet",
+            color: kColor(context).onSurfaceVariant,
+          ).regular,
         ],
       ),
     );
   }
 
-  Widget _itemStat(String label, String value, {bool isBold = false}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Label(
-          label,
-          fontSize: 10,
-          color: kColor(context).onSurfaceVariant,
-        ).regular,
-        Label(value, fontSize: 13, weight: isBold ? 700 : 500).regular,
-      ],
+  void _editItem(ItemModel item) {
+    showDialog(
+      context: context,
+      builder: (context) =>
+          addItemDialog(setState, id: item.id, existingItem: item),
+    );
+  }
+
+  Widget _buildOtherDetails() {
+    return KCard(
+      padding: const EdgeInsets.all(15),
+      borderWidth: 1,
+      borderColor: kColor(context).outlineVariant,
+      child: KField(
+        controller: billingAddress,
+        maxLines: 4,
+        minLines: 3,
+        label: "Billing Address",
+        hintText: "Enter complete billing address",
+        validator: (val) => KValidation.required(val),
+      ),
     );
   }
 
@@ -603,8 +708,8 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                                     .replaceAll(RegExp(r'[^0-9]'), '');
                                 if (customerPhone.text.length > 10 &&
                                     customerPhone.text.startsWith('91')) {
-                                  customerPhone.text =
-                                      customerPhone.text.substring(2);
+                                  customerPhone.text = customerPhone.text
+                                      .substring(2);
                                 }
                               }
                             });
@@ -787,222 +892,425 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
     );
   }
 
-  Widget addItemDialog(StateSetter setMainState, {required int id}) {
+  Widget addItemDialog(
+    StateSetter setMainState, {
+    required int id,
+    ItemModel? existingItem,
+  }) {
+    InventoryModel? selectedInventory;
+    List<InventoryModel> allInventory = [];
+    String searchQuery = "";
+
+    // Initialize controllers with existing data if editing
+    final weightC = TextEditingController(
+      text: existingItem != null
+          ? (existingItem.weight / existingItem.qty).toStringAsFixed(3)
+          : "",
+    );
+    final qtyC = TextEditingController(
+      text: existingItem != null ? existingItem.qty.toString() : "1",
+    );
+
+    // Local controller for item name if needed, or use parent's if consistent
+    final localItemName = TextEditingController(
+      text: existingItem?.itemName ?? "",
+    );
+
     return StatefulBuilder(
       builder: (context, setState) {
         return _dialog(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              spacing: 15,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Label("Item Details #$id", fontSize: 20, weight: 700).title,
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: Icon(LucideIcons.x, size: 20),
+          child: FutureBuilder<List<InventoryModel>>(
+            future: allInventory.isEmpty
+                ? DatabaseService.instance.getAllInventory()
+                : Future.value(allInventory),
+            builder: (context, snapshot) {
+              if (snapshot.hasData && allInventory.isEmpty) {
+                allInventory = snapshot.data!;
+                // If editing, find the corresponding inventory item
+                if (existingItem != null && selectedInventory == null) {
+                  final match = allInventory.firstWhere(
+                    (item) => item.sku == existingItem.sku,
+                    orElse: () => allInventory.firstWhere(
+                      (item) => item.name == existingItem.itemName,
                     ),
-                  ],
-                ),
-                kDiv(context),
-                KField(
-                  controller: itemName,
-                  label: "Item Name",
-                  hintText: "e.g. Graphic Design Services",
-                  validator: (val) => KValidation.required(val),
-                ),
-                KField(
-                  controller: hsnCode,
-                  label: "HSN/SAC Code",
-                  hintText: "e.g. 9983",
-                  textCapitalization: TextCapitalization.characters,
-                ),
-                if (Responsive.isMobile(context)) ...[
-                  KField(
-                    controller: qty,
-                    label: "Qty",
-                    keyboardType: TextInputType.number,
-                    validator: (val) => KValidation.required(val),
-                    onChanged: (v) => setState(() {
-                      amount = (parseToDouble(v) * parseToDouble(price.text));
-                    }),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    spacing: 5,
-                    children: [
-                      Label("Unit", fontSize: 13, weight: 600).regular,
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: unitList.map((e) {
-                          final isSelected = unit == e;
-                          return ChoiceChip(
-                            label: Label(e, fontSize: 12).regular,
-                            selected: isSelected,
-                            onSelected: (v) {
-                              if (v) setState(() => unit = e);
-                            },
-                            showCheckmark: false,
-                            selectedColor: kColor(context).primaryContainer,
-                            labelStyle: TextStyle(
-                              color: isSelected
-                                  ? kColor(context).onPrimaryContainer
-                                  : kColor(context).onSurface,
-                            ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: kRadius(10),
-                              side: BorderSide(
-                                color: isSelected
-                                    ? kColor(context).primary
-                                    : kColor(context).outlineVariant,
+                  );
+                  selectedInventory = match;
+                }
+              }
+
+              final searchResults = searchQuery.isEmpty
+                  ? []
+                  : allInventory
+                        .where(
+                          (item) =>
+                              item.name.toLowerCase().contains(
+                                searchQuery.toLowerCase(),
+                              ) ||
+                              item.sku.toLowerCase().contains(
+                                searchQuery.toLowerCase(),
                               ),
+                        )
+                        .toList();
+
+              return Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  spacing: 15,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Label(
+                          "Item Details #$id",
+                          fontSize: 20,
+                          weight: 700,
+                        ).title,
+                        IconButton(
+                          onPressed: () => Navigator.pop(context),
+                          icon: Icon(LucideIcons.x, size: 20),
+                        ),
+                      ],
+                    ),
+                    kDiv(context),
+
+                    // 1. SEARCH PRODUCT
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        KField(
+                          label: "Search Inventory",
+                          hintText: "Search by Name or SKU...",
+                          prefix: const Icon(LucideIcons.search, size: 18),
+                          onChanged: (v) => setState(() => searchQuery = v),
+                        ),
+                        if (searchResults.isNotEmpty &&
+                            selectedInventory == null)
+                          Container(
+                            margin: const EdgeInsets.only(top: 4),
+                            constraints: const BoxConstraints(maxHeight: 200),
+                            decoration: BoxDecoration(
+                              color: kColor(context).surfaceContainerHigh,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(
+                                color: kColor(context).outlineVariant,
+                              ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withAlpha(20),
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ListView.separated(
+                              shrinkWrap: true,
+                              itemCount: searchResults.length,
+                              separatorBuilder: (context, index) => Divider(
+                                height: 1,
+                                color: kColor(context).outlineVariant,
+                              ),
+                              itemBuilder: (context, index) {
+                                final item = searchResults[index];
+                                return ListTile(
+                                  onTap: () {
+                                    setState(() {
+                                      selectedInventory = item;
+                                      itemName.text = item.name;
+                                      // DO NOT auto-fill weight/qty as requested
+                                      searchQuery = ""; // hide list
+                                    });
+                                  },
+                                  leading: Icon(
+                                    LucideIcons.package2,
+                                    size: 18,
+                                    color: kColor(context).primary,
+                                  ),
+                                  title: Label(
+                                    item.name,
+                                    fontSize: 14,
+                                    weight: 600,
+                                  ).regular,
+                                  subtitle: Label(
+                                    "SKU: ${item.sku} • Stock: ${item.stock}",
+                                    fontSize: 12,
+                                  ).regular,
+                                  trailing: Label(
+                                    item.category,
+                                    fontSize: 11,
+                                    color: kColor(context).primary,
+                                  ).regular,
+                                );
+                              },
+                            ),
+                          ),
+                      ],
+                    ),
+
+                    // 2. INPUT FIELDS & CALCULATIONS
+                    FutureBuilder<List<MetalRateModel>>(
+                      future: DatabaseService.instance.getAllMetalRates(),
+                      builder: (context, snapshot) {
+                        double metalRatePerGram = 0;
+                        if (snapshot.hasData && selectedInventory != null) {
+                          final rates = snapshot.data!;
+                          final match = rates.firstWhere(
+                            (r) =>
+                                r.metalType.toLowerCase() ==
+                                    selectedInventory!.category.toLowerCase() &&
+                                (selectedInventory!.category != "Gold" ||
+                                    r.purity == selectedInventory!.purity),
+                            orElse: () => MetalRateModel(
+                              metalType: "",
+                              purity: "",
+                              ratePer10g: 0,
                             ),
                           );
-                        }).toList(),
-                      ),
-                    ],
-                  ),
-                ] else
-                  Row(
-                    spacing: 12,
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: KField(
-                          controller: qty,
-                          label: "Qty",
-                          keyboardType: TextInputType.number,
-                          validator: (val) => KValidation.required(val),
-                          onChanged: (v) => setState(() {
-                            amount =
-                                (parseToDouble(v) * parseToDouble(price.text));
-                          }),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 1,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          spacing: 5,
+                          metalRatePerGram = match.ratePer10g / 10;
+                        }
+
+                        // Calculations based on Inputs
+                        double w = parseToDouble(weightC.text);
+                        double q = parseToDouble(qtyC.text);
+                        double totalWeight = w * q;
+                        double metalPrice = totalWeight * metalRatePerGram;
+
+                        double makingCharge = 0;
+                        if (selectedInventory != null) {
+                          if (selectedInventory!.makingChargesType ==
+                              "Percent") {
+                            makingCharge =
+                                metalPrice *
+                                (selectedInventory!.makingCharges / 100);
+                          } else {
+                            makingCharge = selectedInventory!.makingCharges * q;
+                          }
+                        }
+
+                        double taxableAmt = metalPrice + makingCharge;
+                        double gstRate = parseToDouble(gst.text);
+                        double gstAmt = taxableAmt * (gstRate / 100);
+                        double totalPayable = taxableAmt + gstAmt;
+
+                        return Column(
+                          spacing: 15,
                           children: [
-                            Label("Unit", fontSize: 13, weight: 600).regular,
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: unitList.map((e) {
-                                final isSelected = unit == e;
-                                return ChoiceChip(
-                                  label: Label(e, fontSize: 12).regular,
-                                  selected: isSelected,
-                                  onSelected: (v) {
-                                    if (v) setState(() => unit = e);
-                                  },
-                                  showCheckmark: false,
-                                  selectedColor: kColor(
-                                    context,
-                                  ).primaryContainer,
-                                  labelStyle: TextStyle(
-                                    color: isSelected
-                                        ? kColor(context).onPrimaryContainer
-                                        : kColor(context).onSurface,
+                            // 2.1 SELECTED PRODUCT DETAILS (CARD)
+                            if (selectedInventory != null)
+                              KCard(
+                                padding: const EdgeInsets.all(12),
+                                color: kColor(context).surfaceContainer,
+                                borderColor: kColor(context).outlineVariant,
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          LucideIcons.info,
+                                          size: 16,
+                                          color: kColor(context).primary,
+                                        ),
+                                        width10,
+                                        Expanded(
+                                          child: Label(
+                                            "${selectedInventory!.name} • ${selectedInventory!.category} • ${selectedInventory!.purity}\nStock: ${selectedInventory!.stock} • Unit Wt: ${selectedInventory!.weight}g",
+                                            fontSize: 13,
+                                            weight: 600,
+                                          ).regular,
+                                        ),
+                                        IconButton(
+                                          onPressed: () => setState(
+                                            () => selectedInventory = null,
+                                          ),
+                                          icon: const Icon(
+                                            LucideIcons.circleX,
+                                            size: 18,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+
+                            // 2.2 QTY AND WEIGHT INPUTS
+                            Row(
+                              spacing: 12,
+                              children: [
+                                Expanded(
+                                  child: KField(
+                                    controller: qtyC,
+                                    label: "Qty (Pieces)",
+                                    hintText: "0",
+                                    keyboardType: TextInputType.number,
+                                    onChanged: (v) => setState(() {}),
                                   ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: kRadius(10),
-                                    side: BorderSide(
-                                      color: isSelected
-                                          ? kColor(context).primary
-                                          : kColor(context).outlineVariant,
+                                ),
+                                Expanded(
+                                  child: KField(
+                                    controller: weightC,
+                                    label: "Weight (per Piece)",
+                                    hintText: "0.000",
+                                    suffix: Padding(
+                                      padding: const EdgeInsets.only(right: 10),
+                                      child: Label("Gms", fontSize: 13).regular,
+                                    ),
+                                    keyboardType: TextInputType.number,
+                                    onChanged: (v) => setState(() {}),
+                                  ),
+                                ),
+                              ],
+                            ),
+
+                            // 2.3 CALCULATIONS SECTION (BREAKDOWN)
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: kColor(
+                                  context,
+                                ).primaryContainer.withAlpha(20),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: kColor(context).primary.withAlpha(100),
+                                ),
+                              ),
+                              child: Column(
+                                spacing: 8,
+                                children: [
+                                  _calcRow(
+                                    "Total Weight",
+                                    "${totalWeight.toStringAsFixed(3)} Gms",
+                                  ),
+                                  _calcRow(
+                                    "Metal Price ${selectedInventory != null ? "(${selectedInventory!.category})" : ""}",
+                                    selectedInventory != null
+                                        ? "₹${metalPrice.toStringAsFixed(2)}"
+                                        : "₹0.00",
+                                    subValue: selectedInventory != null
+                                        ? "(@₹${metalRatePerGram.toStringAsFixed(2)}/g)"
+                                        : null,
+                                  ),
+                                  _calcRow(
+                                    "Making Charge ${selectedInventory != null ? "(${selectedInventory!.makingChargesType == 'Percent' ? "${selectedInventory!.makingCharges}%" : "Fixed"})" : ""}",
+                                    selectedInventory != null
+                                        ? "₹${makingCharge.toStringAsFixed(2)}"
+                                        : "₹0.00",
+                                  ),
+                                  const Divider(),
+                                  _calcRow(
+                                    "Taxable Amount",
+                                    "₹${taxableAmt.toStringAsFixed(2)}",
+                                    isBold: true,
+                                  ),
+                                  _calcRow(
+                                    "GST ($gstRate%)",
+                                    "₹${gstAmt.toStringAsFixed(2)}",
+                                  ),
+                                  Container(
+                                    margin: const EdgeInsets.only(top: 8),
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: kColor(context).primary,
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        const Label(
+                                          "TOTAL PAYABLE",
+                                          color: Colors.white,
+                                          weight: 700,
+                                        ).regular,
+                                        Label(
+                                          "₹${totalPayable.toStringAsFixed(2)}",
+                                          color: Colors.white,
+                                          fontSize: 16,
+                                          weight: 900,
+                                        ).regular,
+                                      ],
                                     ),
                                   ),
-                                );
-                              }).toList(),
+                                ],
+                              ),
+                            ),
+
+                            KButton(
+                              onPressed: selectedInventory == null
+                                  ? null
+                                  : () {
+                                      if (_formKey.currentState!.validate()) {
+                                        ItemModel data = ItemModel(
+                                          id: id,
+                                          itemName:
+                                              localItemName.text.trim().isEmpty
+                                              ? selectedInventory!.name
+                                              : localItemName.text.trim(),
+                                          sku: selectedInventory!.sku,
+                                          weight: totalWeight,
+                                          qty: q,
+                                          unit: "Gms",
+                                          price: q > 0
+                                              ? taxableAmt / q
+                                              : 0, // Price per piece including MC but before GST
+                                          amount:
+                                              taxableAmt, // Total taxable amount
+                                          gst: gstRate,
+                                        );
+
+                                        setMainState(() {
+                                          int index = addedItems.indexWhere(
+                                            (item) => item.id == id,
+                                          );
+                                          if (index != -1) {
+                                            addedItems[index] = data;
+                                          } else {
+                                            addedItems.add(data);
+                                          }
+                                        });
+                                        Navigator.pop(context);
+                                      }
+                                    },
+                              label: id <= addedItems.length
+                                  ? "Update Item"
+                                  : "Add to Invoice",
+                              icon: const Icon(LucideIcons.shoppingCart),
+                              style: KButtonStyle.expanded,
                             ),
                           ],
-                        ),
-                      ),
-                    ],
-                  ),
-                Row(
-                  spacing: 12,
-                  children: [
-                    Expanded(
-                      child: KField(
-                        controller: price,
-                        label: "Rate/Price",
-                        prefixText: "₹",
-                        keyboardType: TextInputType.number,
-                        validator: (val) => KValidation.required(val),
-                        onChanged: (v) => setState(() {
-                          amount = (parseToDouble(v) * parseToDouble(qty.text));
-                        }),
-                      ),
-                    ),
-                    Expanded(
-                      child: KField(
-                        controller: gst,
-                        label: "GST (%)",
-                        suffix: Padding(
-                          padding: EdgeInsets.only(right: 10),
-                          child: Label("%", fontSize: 16).regular,
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (val) => KValidation.required(val),
-                      ),
-                    ),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Label("Total Amount", fontSize: 20, weight: 900).regular,
-                    Label(
-                      kCurrencyFormat(amount, symbol: "₹"),
-                      fontSize: 17,
-                      weight: 700,
-                    ).regular,
-                  ],
-                ),
-                KButton(
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      ItemModel data = ItemModel(
-                        id: id,
-                        itemName: itemName.text.trim(),
-                        hsnCode: hsnCode.text.trim(),
-                        gst: parseToDouble(gst.text),
-                        unit: unit,
-                        qty: parseToDouble(qty.text),
-                        price: parseToDouble(price.text),
-                        amount: parseToDouble(amount),
-                      );
-
-                      setMainState(() {
-                        int index = addedItems.indexWhere(
-                          (item) => item.id == id,
                         );
-                        if (index != -1) {
-                          addedItems[index] = data;
-                        } else {
-                          addedItems.add(data);
-                        }
-                      });
-                      Navigator.pop(context);
-                    }
-                  },
-                  label: id <= addedItems.length ? "Update Item" : "Add Item",
-                  icon: const Icon(LucideIcons.check),
-                  style: KButtonStyle.expanded,
+                      },
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           ),
         );
       },
+    );
+  }
+
+  Widget _calcRow(
+    String label,
+    String value, {
+    String? subValue,
+    bool isBold = false,
+  }) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Label(label, fontSize: 12, weight: isBold ? 700 : 400).regular,
+            if (subValue != null)
+              Label(subValue, fontSize: 10, color: Colors.grey).regular,
+          ],
+        ),
+        Label(value, fontSize: 13, weight: isBold ? 900 : 600).regular,
+      ],
     );
   }
 }

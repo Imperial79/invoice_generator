@@ -52,6 +52,12 @@ class _SetupUIState extends State<SetupUI> {
                 onTap: () => context.push("/company-profile"),
               ),
               _buildOption(
+                LucideIcons.coins,
+                "Metal Rates",
+                "Update Gold, Silver & Platinum rates",
+                onTap: () => context.push("/metal-rates"),
+              ),
+              _buildOption(
                 LucideIcons.palette,
                 "App Theme",
                 "Switch Light/Dark Mode",

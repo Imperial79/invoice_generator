@@ -71,6 +71,7 @@ class _ClientsUIState extends State<ClientsUI> {
     required String gst,
     required String pan,
     required String aadhaar,
+    required String clientType,
   }) async {
     try {
       final newCustomer = (customer ?? CustomerModel(name: "", phone: ""))
@@ -81,13 +82,14 @@ class _ClientsUIState extends State<ClientsUI> {
             gst: gst,
             pan: pan,
             aadhaar: aadhaar,
+            clientType: clientType,
           );
       await DatabaseService.instance.saveCustomer(newCustomer);
       _loadCustomers();
-      KSnackbar(context, message: "Customer saved successfully");
+      KSnackbar(context, message: "Client saved successfully");
     } catch (e) {
-      log("Save Customer: [Error] -> $e");
-      KSnackbar(context, message: "Unable to save customer", error: true);
+      log("Save Client: [Error] -> $e");
+      KSnackbar(context, message: "Unable to save client", error: true);
     }
   }
 
@@ -99,105 +101,176 @@ class _ClientsUIState extends State<ClientsUI> {
     final gstController = TextEditingController(text: customer?.gst);
     final panController = TextEditingController(text: customer?.pan);
     final aadhaarController = TextEditingController(text: customer?.aadhaar);
+    String clientType = customer?.clientType ?? "Customer";
 
     await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        scrollable: true,
-        constraints: const BoxConstraints(maxWidth: 600),
-        title: Label(
-          customer == null ? "Add Customer" : "Edit Customer",
-          fontSize: 20,
-          weight: 700,
-        ).title,
-        content: Form(
-          key: formKey,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            spacing: 20,
-            children: [
-              KField(
-                controller: nameController,
-                label: "Customer Name",
-                hintText: "Enter full name",
-                validator: KValidation.required,
-                prefix: const Icon(LucideIcons.user, size: 18),
-              ),
-              KField(
-                controller: phoneController,
-                label: "Phone Number",
-                hintText: "10-digit mobile number",
-                keyboardType: TextInputType.phone,
-                validator: KValidation.phone,
-                prefix: const Icon(LucideIcons.phone, size: 18),
-              ),
-              KField(
-                controller: addressController,
-                label: "Address",
-                hintText: "Optional shop/home address",
-                maxLines: 2,
-                prefix: const Icon(LucideIcons.mapPin, size: 18),
-              ),
-              KField(prefix: const Icon(LucideIcons.fingerprint, size: 18)),
-              Row(
-                spacing: 15,
-                children: [
-                  Expanded(
-                    child: KField(
-                      controller: panController,
-                      label: "PAN",
-                      hintText: "Optional",
-                      textCapitalization: TextCapitalization.characters,
-                    ),
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          scrollable: true,
+          constraints: const BoxConstraints(maxWidth: 600),
+          title: Label(
+            customer == null ? "Add New Client" : "Edit Client",
+            fontSize: 20,
+            weight: 700,
+          ).title,
+          content: Form(
+            key: formKey,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              spacing: 20,
+              children: [
+                Center(
+                  child: SegmentedButton<String>(
+                    segments: const [
+                      ButtonSegment(
+                        value: "Customer",
+                        label: Text("Customer"),
+                        icon: Icon(LucideIcons.user),
+                      ),
+                      ButtonSegment(
+                        value: "Company",
+                        label: Text("Company"),
+                        icon: Icon(LucideIcons.building),
+                      ),
+                    ],
+                    selected: {clientType},
+                    onSelectionChanged: (val) {
+                      setDialogState(() => clientType = val.first);
+                    },
                   ),
-                  Expanded(
-                    child: KField(
-                      controller: aadhaarController,
-                      label: "Aadhaar",
-                      hintText: "Optional",
-                      keyboardType: TextInputType.number,
-                    ),
+                ),
+
+                // SECTION: Client Details
+                _buildSectionHeader("Client Details"),
+                KField(
+                  controller: nameController,
+                  label: clientType == "Company"
+                      ? "Company Name"
+                      : "Customer Name",
+                  hintText: clientType == "Company"
+                      ? "e.g. Acme Gems Pvt Ltd"
+                      : "Enter full name",
+                  validator: KValidation.required,
+                  prefix: Icon(
+                    clientType == "Company"
+                        ? LucideIcons.building
+                        : LucideIcons.user,
+                    size: 18,
+                  ),
+                ),
+                KField(
+                  controller: phoneController,
+                  label: "Phone Number",
+                  hintText: "10-digit mobile number",
+                  keyboardType: TextInputType.phone,
+                  validator: KValidation.phone,
+                  prefix: const Icon(LucideIcons.phone, size: 18),
+                ),
+                KField(
+                  controller: addressController,
+                  label: "Address",
+                  hintText: "Full address for invoicing",
+                  maxLines: 2,
+                  prefix: const Icon(LucideIcons.mapPin, size: 18),
+                ),
+
+                // SECTION: Tax & Identity
+                _buildSectionHeader("Tax & Identity"),
+                if (clientType == "Company") ...[
+                  KField(
+                    controller: gstController,
+                    label: "GST Number",
+                    hintText: "Optional (e.g. 22AAAAA0000A1Z5)",
+                    textCapitalization: TextCapitalization.characters,
+                    prefix: const Icon(LucideIcons.fingerprint, size: 18),
                   ),
                 ],
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: Label(
-              "Cancel",
-              color: kColor(context).onSurfaceVariant,
-            ).regular,
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              if (formKey.currentState!.validate()) {
-                await _handleSaveCustomer(
-                  customer: customer,
-                  name: nameController.text,
-                  phone: phoneController.text,
-                  address: addressController.text,
-                  gst: gstController.text,
-                  pan: panController.text,
-                  aadhaar: aadhaarController.text,
-                );
-                if (context.mounted) Navigator.pop(context, true);
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: kColor(context).primary,
-              foregroundColor: kColor(context).onPrimary,
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
+                Row(
+                  spacing: 15,
+                  children: [
+                    Expanded(
+                      child: KField(
+                        controller: panController,
+                        label: "PAN",
+                        hintText: "Optional",
+                        textCapitalization: TextCapitalization.characters,
+                      ),
+                    ),
+                    if (clientType == "Customer")
+                      Expanded(
+                        child: KField(
+                          controller: aadhaarController,
+                          label: "Aadhaar",
+                          hintText: "Optional",
+                          keyboardType: TextInputType.number,
+                        ),
+                      ),
+                  ],
+                ),
+              ],
             ),
-            child: Label("Save Customer").regular,
           ),
-        ],
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: Label(
+                "Cancel",
+                color: kColor(context).onSurfaceVariant,
+              ).regular,
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (formKey.currentState!.validate()) {
+                  await _handleSaveCustomer(
+                    customer: customer,
+                    name: nameController.text,
+                    phone: phoneController.text,
+                    address: addressController.text,
+                    gst: gstController.text,
+                    pan: panController.text,
+                    aadhaar: aadhaarController.text,
+                    clientType: clientType,
+                  );
+                  if (context.mounted) Navigator.pop(context, true);
+                }
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kColor(context).primary,
+                foregroundColor: kColor(context).onPrimary,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              child: Label("Save Client").regular,
+            ),
+          ],
+        ),
       ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Label(
+          title,
+          fontSize: 13,
+          weight: 700,
+          color: kColor(context).primary,
+        ).regular,
+        const SizedBox(height: 4),
+        Divider(
+          color: kColor(context).outlineVariant.withAlpha(100),
+          thickness: 1,
+        ),
+      ],
     );
   }
 
@@ -205,7 +278,7 @@ class _ClientsUIState extends State<ClientsUI> {
   Widget build(BuildContext context) {
     return KScaffold(
       isLoading: isLoading,
-      appBar: KAppBar(context, title: "Customer Management", showBack: false),
+      appBar: KAppBar(context, title: "Client Management", showBack: false),
       body: Column(
         children: [
           _buildSearchBar(),
@@ -308,6 +381,8 @@ class _ClientsUIState extends State<ClientsUI> {
   }
 
   Widget _buildCustomerCard(CustomerModel customer) {
+    final isCompany = customer.clientType == "Company";
+
     return KCard(
       onTap: () async {
         await Navigator.push(
@@ -328,13 +403,17 @@ class _ClientsUIState extends State<ClientsUI> {
             height: 50,
             width: 50,
             decoration: BoxDecoration(
-              color: kColor(context).primaryContainer,
+              color: isCompany
+                  ? kColor(context).secondaryContainer
+                  : kColor(context).primaryContainer,
               shape: BoxShape.circle,
             ),
             child: Center(
               child: Icon(
-                LucideIcons.user,
-                color: kColor(context).onPrimaryContainer,
+                isCompany ? LucideIcons.building : LucideIcons.user,
+                color: isCompany
+                    ? kColor(context).onSecondaryContainer
+                    : kColor(context).onPrimaryContainer,
                 size: 24,
               ),
             ),
@@ -345,7 +424,38 @@ class _ClientsUIState extends State<ClientsUI> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Label(customer.name, fontSize: 16, weight: 700).regular,
+                Row(
+                  children: [
+                    Flexible(
+                      child: Label(
+                        customer.name,
+                        fontSize: 16,
+                        weight: 700,
+                      ).regular,
+                    ),
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: isCompany
+                            ? kColor(context).secondaryContainer.withAlpha(100)
+                            : kColor(context).primaryContainer.withAlpha(100),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Label(
+                        customer.clientType,
+                        fontSize: 10,
+                        weight: 600,
+                        color: isCompany
+                            ? kColor(context).secondary
+                            : kColor(context).primary,
+                      ).regular,
+                    ),
+                  ],
+                ),
                 const SizedBox(height: 4),
                 Row(
                   children: [

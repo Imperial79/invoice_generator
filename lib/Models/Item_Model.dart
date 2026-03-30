@@ -5,17 +5,20 @@ import 'package:prime_invoice/Resources/constants.dart';
 class ItemModel {
   int id = 0;
   String itemName = "";
-  String hsnCode = "";
+  String sku = "";
   double qty = 0;
+  double weight = 0;
   String unit = "";
   double price = 0;
   double amount = 0;
   double gst = 0;
+
   ItemModel({
     required this.id,
     required this.itemName,
-    required this.hsnCode,
+    required this.sku,
     required this.qty,
+    required this.weight,
     required this.unit,
     required this.price,
     required this.amount,
@@ -25,8 +28,9 @@ class ItemModel {
   ItemModel copyWith({
     int? id,
     String? itemName,
-    String? hsnCode,
+    String? sku,
     double? qty,
+    double? weight,
     String? unit,
     double? price,
     double? amount,
@@ -35,8 +39,9 @@ class ItemModel {
     return ItemModel(
       id: id ?? this.id,
       itemName: itemName ?? this.itemName,
-      hsnCode: hsnCode ?? this.hsnCode,
+      sku: sku ?? this.sku,
       qty: qty ?? this.qty,
+      weight: weight ?? this.weight,
       unit: unit ?? this.unit,
       price: price ?? this.price,
       amount: amount ?? this.amount,
@@ -48,8 +53,9 @@ class ItemModel {
     return {
       'id': id,
       'itemName': itemName,
-      'hsnCode': hsnCode,
+      'sku': sku,
       'qty': qty,
+      'weight': weight,
       'unit': unit,
       'price': price,
       'amount': amount,
@@ -61,8 +67,9 @@ class ItemModel {
     return ItemModel(
       id: int.parse("${map['id']}"),
       itemName: map['itemName'] ?? '',
-      hsnCode: map['hsnCode'] ?? '',
+      sku: map['sku'] ?? map['hsnCode'] ?? '',
       qty: parseToDouble(map['qty']),
+      weight: parseToDouble(map['weight']),
       unit: map['unit'] ?? '',
       price: parseToDouble(map['price']),
       amount: parseToDouble(map['amount']),
@@ -77,7 +84,7 @@ class ItemModel {
 
   @override
   String toString() {
-    return 'ItemModel(id: $id, itemName: $itemName, hsnCode: $hsnCode, qty: $qty, unit: $unit, price: $price, amount: $amount, gst: $gst)';
+    return 'ItemModel(id: $id, itemName: $itemName, sku: $sku, qty: $qty, weight: $weight, unit: $unit, price: $price, amount: $amount, gst: $gst)';
   }
 
   @override
@@ -87,8 +94,9 @@ class ItemModel {
     return other is ItemModel &&
         other.id == id &&
         other.itemName == itemName &&
-        other.hsnCode == hsnCode &&
+        other.sku == sku &&
         other.qty == qty &&
+        other.weight == weight &&
         other.unit == unit &&
         other.price == price &&
         other.amount == amount &&
@@ -99,8 +107,9 @@ class ItemModel {
   int get hashCode {
     return id.hashCode ^
         itemName.hashCode ^
-        hsnCode.hashCode ^
+        sku.hashCode ^
         qty.hashCode ^
+        weight.hashCode ^
         unit.hashCode ^
         price.hashCode ^
         amount.hashCode ^

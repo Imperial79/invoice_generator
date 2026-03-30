@@ -67,7 +67,7 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
         context.go('/invoices');
         break;
       case 2:
-        context.push('/create-invoice');
+        context.go('/create-invoice');
         break;
       case 3:
         context.go('/clients');

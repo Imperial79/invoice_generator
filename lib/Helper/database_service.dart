@@ -7,6 +7,7 @@ import 'package:sqflite/sqflite.dart';
 import 'package:prime_invoice/Models/Customer_Model.dart';
 
 import 'package:prime_invoice/Models/Inventory_Model.dart';
+import 'package:prime_invoice/Models/Metal_Rate_Model.dart';
 
 class DatabaseService {
   // CONFIG: The name of your portable USB volume
@@ -70,10 +71,10 @@ class DatabaseService {
       }
     }
 
-    // 7. Open Database with version 7
+    // 7. Open Database with version 10
     return await openDatabase(
       path,
-      version: 7,
+      version: 10,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -95,7 +96,8 @@ class DatabaseService {
         address TEXT,
         gst TEXT,
         pan TEXT,
-        aadhaar TEXT
+        aadhaar TEXT,
+        clientType TEXT NOT NULL DEFAULT 'Customer'
       )
     ''');
     await db.execute('''
@@ -107,8 +109,17 @@ class DatabaseService {
         weight REAL NOT NULL,
         purity TEXT NOT NULL,
         makingCharges REAL NOT NULL,
+        makingChargesType TEXT NOT NULL DEFAULT 'Fixed',
         stock REAL NOT NULL,
         minStockAlert REAL NOT NULL DEFAULT 2
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS metal_rates (
+        metalType TEXT NOT NULL,
+        purity TEXT NOT NULL,
+        ratePer10g REAL NOT NULL,
+        PRIMARY KEY (metalType, purity)
       )
     ''');
   }
@@ -142,7 +153,7 @@ class DatabaseService {
     }
 
     // Schema Repair Logic
-    if (oldVersion < 7) {
+    if (oldVersion < 8) {
       // 1. Repair Customers
       final customerCols = ["pan", "aadhaar"];
       for (var col in customerCols) {
@@ -159,6 +170,7 @@ class DatabaseService {
         "weight": "REAL NOT NULL DEFAULT 0",
         "purity": "TEXT NOT NULL DEFAULT ''",
         "makingCharges": "REAL NOT NULL DEFAULT 0",
+        "makingChargesType": "TEXT NOT NULL DEFAULT 'Fixed'",
         "stock": "REAL NOT NULL DEFAULT 0",
         "minStockAlert": "REAL NOT NULL DEFAULT 2",
       };
@@ -170,6 +182,25 @@ class DatabaseService {
           );
         } catch (_) {}
       }
+    }
+
+    if (oldVersion < 9) {
+      await db.execute('''
+        CREATE TABLE IF NOT EXISTS metal_rates (
+          metalType TEXT NOT NULL,
+          purity TEXT NOT NULL,
+          ratePer10g REAL NOT NULL,
+          PRIMARY KEY (metalType, purity)
+        )
+      ''');
+    }
+
+    if (oldVersion < 10) {
+      try {
+        await db.execute(
+          "ALTER TABLE customers ADD COLUMN clientType TEXT NOT NULL DEFAULT 'Customer'",
+        );
+      } catch (_) {}
     }
   }
 
@@ -304,5 +335,36 @@ class DatabaseService {
     await db.delete('invoices');
     await db.delete('customers');
     await db.delete('inventory');
+    await db.delete('metal_rates');
+  }
+
+  // METAL RATES
+
+  Future<int> saveMetalRate(String metal, String purity, double rate) async {
+    final db = await instance.database;
+    return await db.insert(
+      'metal_rates',
+      {'metalType': metal, 'purity': purity, 'ratePer10g': rate},
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+  }
+
+  Future<List<MetalRateModel>> getAllMetalRates() async {
+    final db = await instance.database;
+    final res = await db.query('metal_rates');
+    return res.map((m) => MetalRateModel.fromMap(m)).toList();
+  }
+
+  Future<double?> getMetalRate(String metal, String purity) async {
+    final db = await instance.database;
+    final result = await db.query(
+      'metal_rates',
+      where: 'metalType = ? AND purity = ?',
+      whereArgs: [metal, purity],
+    );
+    if (result.isNotEmpty) {
+      return (result.first['ratePer10g'] as num).toDouble();
+    }
+    return null;
   }
 }

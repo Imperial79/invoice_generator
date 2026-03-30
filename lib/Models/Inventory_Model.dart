@@ -8,6 +8,7 @@ class InventoryModel {
   final double weight; // In grams
   final String purity; // 22K, 18K etc
   final double makingCharges;
+  final String makingChargesType; // Fixed, Percent
   final double stock; // Quantity in hand
   final double minStockAlert; // Threshold for low stock
 
@@ -19,6 +20,7 @@ class InventoryModel {
     required this.weight,
     required this.purity,
     required this.makingCharges,
+    this.makingChargesType = 'Fixed',
     required this.stock,
     this.minStockAlert = 2,
   });
@@ -32,6 +34,7 @@ class InventoryModel {
       'weight': weight,
       'purity': purity,
       'makingCharges': makingCharges,
+      'makingChargesType': makingChargesType,
       'stock': stock,
       'minStockAlert': minStockAlert,
     };
@@ -46,6 +49,7 @@ class InventoryModel {
       weight: (map['weight'] ?? 0.0).toDouble(),
       purity: map['purity'] ?? '',
       makingCharges: (map['makingCharges'] ?? 0.0).toDouble(),
+      makingChargesType: map['makingChargesType'] ?? 'Fixed',
       stock: (map['stock'] ?? 0.0).toDouble(),
       minStockAlert: (map['minStockAlert'] ?? 2.0).toDouble(),
     );
@@ -64,6 +68,7 @@ class InventoryModel {
     double? weight,
     String? purity,
     double? makingCharges,
+    String? makingChargesType,
     double? stock,
     double? minStockAlert,
   }) {
@@ -75,6 +80,7 @@ class InventoryModel {
       weight: weight ?? this.weight,
       purity: purity ?? this.purity,
       makingCharges: makingCharges ?? this.makingCharges,
+      makingChargesType: makingChargesType ?? this.makingChargesType,
       stock: stock ?? this.stock,
       minStockAlert: minStockAlert ?? this.minStockAlert,
     );

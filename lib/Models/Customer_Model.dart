@@ -8,6 +8,7 @@ class CustomerModel {
   final String gst;
   final String pan;
   final String aadhaar;
+  final String clientType; // Customer or Company
 
   CustomerModel({
     this.id,
@@ -17,6 +18,7 @@ class CustomerModel {
     this.gst = "",
     this.pan = "",
     this.aadhaar = "",
+    this.clientType = "Customer",
   });
 
   Map<String, dynamic> toMap() {
@@ -28,6 +30,7 @@ class CustomerModel {
       'gst': gst,
       'pan': pan,
       'aadhaar': aadhaar,
+      'clientType': clientType,
     };
   }
 
@@ -40,6 +43,7 @@ class CustomerModel {
       gst: map['gst'] ?? '',
       pan: map['pan'] ?? '',
       aadhaar: map['aadhaar'] ?? '',
+      clientType: map['clientType'] ?? 'Customer',
     );
   }
 
@@ -56,6 +60,7 @@ class CustomerModel {
     String? gst,
     String? pan,
     String? aadhaar,
+    String? clientType,
   }) {
     return CustomerModel(
       id: id ?? this.id,
@@ -65,6 +70,7 @@ class CustomerModel {
       gst: gst ?? this.gst,
       pan: pan ?? this.pan,
       aadhaar: aadhaar ?? this.aadhaar,
+      clientType: clientType ?? this.clientType,
     );
   }
 }
