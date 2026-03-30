@@ -33,7 +33,7 @@ class KDropdown<T> extends StatelessWidget {
           child: Label(label, weight: 600, fontSize: 13).regular,
         ),
         DropdownButtonFormField<T>(
-          value: value,
+          initialValue: value,
           onChanged: onChanged,
           validator: validator,
           decoration: InputDecoration(
@@ -51,7 +51,10 @@ class KDropdown<T> extends StatelessWidget {
               kColor(context).primary,
               width: 1.5,
             ),
-            enabledBorder: _borderStyle(context, kColor(context).outlineVariant),
+            enabledBorder: _borderStyle(
+              context,
+              kColor(context).outlineVariant,
+            ),
             errorStyle: TextStyle(
               color: kColor(context).error,
               fontVariations: const [FontVariation.weight(500)],
