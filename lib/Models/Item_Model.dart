@@ -11,7 +11,11 @@ class ItemModel {
   String unit = "";
   double price = 0;
   double amount = 0;
-  double gst = 0;
+  double gst = 0; // Effective GST percentage
+  double metalGst = 0;
+  double serviceGst = 0;
+  double metalAmount = 0;
+  double serviceAmount = 0;
 
   ItemModel({
     required this.id,
@@ -23,6 +27,10 @@ class ItemModel {
     required this.price,
     required this.amount,
     required this.gst,
+    this.metalGst = 0,
+    this.serviceGst = 0,
+    this.metalAmount = 0,
+    this.serviceAmount = 0,
   });
 
   ItemModel copyWith({
@@ -35,6 +43,10 @@ class ItemModel {
     double? price,
     double? amount,
     double? gst,
+    double? metalGst,
+    double? serviceGst,
+    double? metalAmount,
+    double? serviceAmount,
   }) {
     return ItemModel(
       id: id ?? this.id,
@@ -46,6 +58,10 @@ class ItemModel {
       price: price ?? this.price,
       amount: amount ?? this.amount,
       gst: gst ?? this.gst,
+      metalGst: metalGst ?? this.metalGst,
+      serviceGst: serviceGst ?? this.serviceGst,
+      metalAmount: metalAmount ?? this.metalAmount,
+      serviceAmount: serviceAmount ?? this.serviceAmount,
     );
   }
 
@@ -60,6 +76,10 @@ class ItemModel {
       'price': price,
       'amount': amount,
       'gst': gst,
+      'metalGst': metalGst,
+      'serviceGst': serviceGst,
+      'metalAmount': metalAmount,
+      'serviceAmount': serviceAmount,
     };
   }
 
@@ -74,6 +94,10 @@ class ItemModel {
       price: parseToDouble(map['price']),
       amount: parseToDouble(map['amount']),
       gst: parseToDouble(map['gst']),
+      metalGst: parseToDouble(map['metalGst']),
+      serviceGst: parseToDouble(map['serviceGst']),
+      metalAmount: parseToDouble(map['metalAmount']),
+      serviceAmount: parseToDouble(map['serviceAmount']),
     );
   }
 
@@ -84,7 +108,7 @@ class ItemModel {
 
   @override
   String toString() {
-    return 'ItemModel(id: $id, itemName: $itemName, sku: $sku, qty: $qty, weight: $weight, unit: $unit, price: $price, amount: $amount, gst: $gst)';
+    return 'ItemModel(id: $id, itemName: $itemName, sku: $sku, qty: $qty, weight: $weight, unit: $unit, price: $price, amount: $amount, gst: $gst, metalGst: $metalGst, serviceGst: $serviceGst, metalAmount: $metalAmount, serviceAmount: $serviceAmount)';
   }
 
   @override
@@ -100,7 +124,11 @@ class ItemModel {
         other.unit == unit &&
         other.price == price &&
         other.amount == amount &&
-        other.gst == gst;
+        other.gst == gst &&
+        other.metalGst == metalGst &&
+        other.serviceGst == serviceGst &&
+        other.metalAmount == metalAmount &&
+        other.serviceAmount == serviceAmount;
   }
 
   @override
@@ -113,6 +141,10 @@ class ItemModel {
         unit.hashCode ^
         price.hashCode ^
         amount.hashCode ^
-        gst.hashCode;
+        gst.hashCode ^
+        metalGst.hashCode ^
+        serviceGst.hashCode ^
+        metalAmount.hashCode ^
+        serviceAmount.hashCode;
   }
 }

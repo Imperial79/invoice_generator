@@ -58,6 +58,12 @@ class _SetupUIState extends State<SetupUI> {
                 onTap: () => context.push("/metal-rates"),
               ),
               _buildOption(
+                LucideIcons.percent,
+                "GST Settings",
+                "Set Metal & Service GST rates",
+                onTap: () => context.push("/gst-settings"),
+              ),
+              _buildOption(
                 LucideIcons.palette,
                 "App Theme",
                 "Switch Light/Dark Mode",
@@ -221,6 +227,7 @@ class _SetupUIState extends State<SetupUI> {
                 Label(
                   sub,
                   fontSize: 12,
+                  weight: 400,
                   color: kColor(context).onSurfaceVariant,
                 ).regular,
               ],

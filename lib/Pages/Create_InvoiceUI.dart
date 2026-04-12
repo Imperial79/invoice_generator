@@ -37,6 +37,8 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   final _customerFormKey = GlobalKey<FormState>();
   final tax = TextEditingController();
   final gst = TextEditingController();
+  double metalGstRate = 3.0;
+  double serviceGstRate = 18.0;
 
   List<String> tableFields = [
     "Sl.",
@@ -65,6 +67,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   final customerName = TextEditingController();
   final customerPhone = TextEditingController();
   final customerPan = TextEditingController();
+  final customerGst = TextEditingController();
   final customerAadhaar = TextEditingController();
   final isLoading = ValueNotifier(false);
 
@@ -80,6 +83,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
       customerName.text = inv.customerName;
       customerPhone.text = inv.customerPhone;
       customerPan.text = inv.customerPan;
+      customerGst.text = inv.customerGst;
       customerAadhaar.text = inv.customerAadhaar;
       billingAddress.text = inv.billingAddress;
       addedItems = List.from(inv.items);
@@ -88,6 +92,15 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
       invoiceNo.text =
           "INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}";
     }
+    _loadGstSettings();
+  }
+
+  Future<void> _loadGstSettings() async {
+    final pref = await SharedPreferences.getInstance();
+    setState(() {
+      metalGstRate = pref.getDouble("metal_gst") ?? 3.0;
+      serviceGstRate = pref.getDouble("service_gst") ?? 18.0;
+    });
   }
 
   Future<void> _loadProfile() async {
@@ -144,6 +157,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
         customerPhone: customerPhone.text,
         customerAadhaar: customerAadhaar.text,
         customerPan: customerPan.text,
+        customerGst: customerGst.text,
         billingAddress: billingAddress.text,
         grandTotal: total,
         invoiceDate: invoiceDate,
@@ -159,6 +173,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
           name: customerName.text,
           phone: customerPhone.text,
           address: billingAddress.text,
+          gst: customerGst.text,
           pan: customerPan.text,
           aadhaar: customerAadhaar.text,
         );
@@ -207,6 +222,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
     customerName.dispose();
     customerPhone.dispose();
     customerPan.dispose();
+    customerGst.dispose();
     customerAadhaar.dispose();
     super.dispose();
   }
@@ -490,7 +506,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                             SizedBox(
                               width: 120,
                               child: Label(
-                                "₹${item.amount.toStringAsFixed(2)}",
+                                "Rs.${item.amount.toStringAsFixed(2)}",
                                 weight: 700,
                                 color: kColor(context).primary,
                               ).regular,
@@ -773,6 +789,13 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                 ),
               ],
             ),
+            KField(
+              controller: customerGst,
+              label: "GSTIN",
+              hintText: "Optional",
+              showRequired: false,
+              textCapitalization: TextCapitalization.characters,
+            ),
           ],
         ),
       ),
@@ -858,6 +881,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                               customerName.text = client.name;
                               customerPhone.text = client.phone;
                               customerPan.text = client.pan;
+                              customerGst.text = client.gst;
                               customerAadhaar.text = client.aadhaar;
                               // Optionally update address if customer has one
                               if (client.address.isNotEmpty) {
@@ -1089,9 +1113,18 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                         }
 
                         double taxableAmt = metalPrice + makingCharge;
-                        double gstRate = parseToDouble(gst.text);
-                        double gstAmt = taxableAmt * (gstRate / 100);
-                        double totalPayable = taxableAmt + gstAmt;
+
+                        // Use settings-based GST rates
+                        double metalGstAmt = metalPrice * (metalGstRate / 100);
+                        double serviceGstAmt =
+                            makingCharge * (serviceGstRate / 100);
+                        double totalGstAmt = metalGstAmt + serviceGstAmt;
+
+                        double effectiveGstRate = taxableAmt > 0
+                            ? (totalGstAmt / taxableAmt) * 100
+                            : 0;
+
+                        double totalPayable = taxableAmt + totalGstAmt;
 
                         return Column(
                           spacing: 15,
@@ -1185,27 +1218,31 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                                   _calcRow(
                                     "Metal Price ${selectedInventory != null ? "(${selectedInventory!.category})" : ""}",
                                     selectedInventory != null
-                                        ? "₹${metalPrice.toStringAsFixed(2)}"
-                                        : "₹0.00",
+                                        ? "Rs.${metalPrice.toStringAsFixed(2)}"
+                                        : "Rs.0.00",
                                     subValue: selectedInventory != null
-                                        ? "(@₹${metalRatePerGram.toStringAsFixed(2)}/g)"
+                                        ? "(@Rs.${metalRatePerGram.toStringAsFixed(2)}/g)"
                                         : null,
                                   ),
                                   _calcRow(
                                     "Making Charge ${selectedInventory != null ? "(${selectedInventory!.makingChargesType == 'Percent' ? "${selectedInventory!.makingCharges}%" : "Fixed"})" : ""}",
                                     selectedInventory != null
-                                        ? "₹${makingCharge.toStringAsFixed(2)}"
-                                        : "₹0.00",
+                                        ? "Rs.${makingCharge.toStringAsFixed(2)}"
+                                        : "Rs.0.00",
                                   ),
                                   const Divider(),
                                   _calcRow(
                                     "Taxable Amount",
-                                    "₹${taxableAmt.toStringAsFixed(2)}",
+                                    "Rs.${taxableAmt.toStringAsFixed(2)}",
                                     isBold: true,
                                   ),
                                   _calcRow(
-                                    "GST ($gstRate%)",
-                                    "₹${gstAmt.toStringAsFixed(2)}",
+                                    "Metal GST ($metalGstRate%)",
+                                    "Rs.${metalGstAmt.toStringAsFixed(2)}",
+                                  ),
+                                  _calcRow(
+                                    "Service GST ($serviceGstRate%)",
+                                    "Rs.${serviceGstAmt.toStringAsFixed(2)}",
                                   ),
                                   Container(
                                     margin: const EdgeInsets.only(top: 8),
@@ -1224,7 +1261,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                                           weight: 700,
                                         ).regular,
                                         Label(
-                                          "₹${totalPayable.toStringAsFixed(2)}",
+                                          "Rs.${totalPayable.toStringAsFixed(2)}",
                                           color: Colors.white,
                                           fontSize: 16,
                                           weight: 900,
@@ -1256,7 +1293,11 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                                               : 0, // Price per piece including MC but before GST
                                           amount:
                                               taxableAmt, // Total taxable amount
-                                          gst: gstRate,
+                                          gst: effectiveGstRate,
+                                          metalGst: metalGstRate,
+                                          serviceGst: serviceGstRate,
+                                          metalAmount: metalPrice,
+                                          serviceAmount: makingCharge,
                                         );
 
                                         setMainState(() {

@@ -8,7 +8,7 @@
 PRODUCT_NAME = Prime Invoice
 
 // The application's bundle identifier
-PRODUCT_BUNDLE_IDENTIFIER = com.appkraft.prime_invoice
+PRODUCT_BUNDLE_IDENTIFIER = com.appkraft.primeInvoice
 
 // The copyright displayed in application information
-PRODUCT_COPYRIGHT = Copyright © 2026 com.appkraft.prime_invoice. All rights reserved.
+PRODUCT_COPYRIGHT = Copyright © 2026 com.appkraft. All rights reserved.

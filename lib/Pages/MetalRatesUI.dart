@@ -70,11 +70,13 @@ class _MetalRatesUIState extends State<MetalRatesUI> {
           await DatabaseService.instance.saveMetalRate(metal, purity, rate);
         }
       }
-      if (mounted)
+      if (mounted) {
         KSnackbar(context, message: "Metal rates updated successfully");
+      }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         KSnackbar(context, message: "Error saving rates", error: true);
+      }
     } finally {
       isLoading.value = false;
     }

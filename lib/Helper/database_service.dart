@@ -11,7 +11,7 @@ import 'package:prime_invoice/Models/Metal_Rate_Model.dart';
 
 class DatabaseService {
   // CONFIG: The name of your portable USB volume
-  static const String driveName = "VB";
+  static const String driveName = "VIVEK";
   static const String dbName = "invoice_data.db";
 
   static final DatabaseService instance = DatabaseService._init();
@@ -342,11 +342,11 @@ class DatabaseService {
 
   Future<int> saveMetalRate(String metal, String purity, double rate) async {
     final db = await instance.database;
-    return await db.insert(
-      'metal_rates',
-      {'metalType': metal, 'purity': purity, 'ratePer10g': rate},
-      conflictAlgorithm: ConflictAlgorithm.replace,
-    );
+    return await db.insert('metal_rates', {
+      'metalType': metal,
+      'purity': purity,
+      'ratePer10g': rate,
+    }, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<List<MetalRateModel>> getAllMetalRates() async {

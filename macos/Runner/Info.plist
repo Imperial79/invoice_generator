@@ -28,7 +28,5 @@
 	<string>MainMenu</string>
 	<key>NSPrincipalClass</key>
 	<string>NSApplication</string>
-	<key>NSContactsUsageDescription</key>
-	<string>This app requires contacts access to quickly add client information to invoices.</string>
 </dict>
 </plist>

@@ -25,6 +25,7 @@ class KField extends StatelessWidget {
   final int? maxLines;
   final FocusNode? focusNode;
   final String? label;
+  final String? subLabel;
   final double? fontSize;
   final Widget? labelIcon;
   final TextCapitalization textCapitalization;
@@ -56,6 +57,7 @@ class KField extends StatelessWidget {
     this.maxLines = 1,
     this.focusNode,
     this.label,
+    this.subLabel,
     this.fontSize,
     this.labelIcon,
     this.textCapitalization = TextCapitalization.words,
@@ -79,6 +81,16 @@ class KField extends StatelessWidget {
               children: [
                 if (labelIcon != null) labelIcon!,
                 kLabel,
+                if (subLabel != null)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6.0),
+                    child: Label(
+                      subLabel!,
+                      color: kColor(context).onSurfaceVariant,
+                      fontSize: 11,
+                      height: 1,
+                    ).regular,
+                  ),
                 if (validator != null && showRequired)
                   Padding(
                     padding: EdgeInsets.only(left: 3.0),

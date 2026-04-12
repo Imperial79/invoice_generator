@@ -72,7 +72,7 @@ ${data.billingAddress}
 Party PAN : ${data.customerPan}
 Party Aadhaar No. : ${data.customerAadhaar}
 Party Mobile No. : ${data.customerPhone}
-GSTIN / UIN : -
+GSTIN / UIN : ${data.customerGst.isNotEmpty ? data.customerGst : '-'}
 ''',
                 '''
 Shipped to:
@@ -81,7 +81,7 @@ ${data.billingAddress}
 Party PAN : ${data.customerPan}
 Party Aadhaar No. : ${data.customerAadhaar}
 Party Mobile No. : ${data.customerPhone}
-GSTIN / UIN : -
+GSTIN / UIN : ${data.customerGst.isNotEmpty ? data.customerGst : '-'}
 ''',
               ]
             : [
@@ -92,7 +92,7 @@ ${data.billingAddress}
 Party PAN : ${data.customerPan}
 Party Aadhaar No. : ${data.customerAadhaar}
 Party Mobile No. : ${data.customerPhone}
-GSTIN / UIN : -
+GSTIN / UIN : ${data.customerGst.isNotEmpty ? data.customerGst : '-'}
 ''',
               ],
       ],
@@ -137,17 +137,33 @@ GSTIN / UIN : -
       data: [
         [
           '''
-${data.items.map((e) => '''
-Add : CGST @ ${(e.gst / 2).toStringAsFixed(2)}%
-Add : SGST @ ${(e.gst / 2).toStringAsFixed(2)}%
-''').join("")}
+${data.items.map((e) {
+            String res = "";
+            if (e.metalAmount > 0) {
+              res += "Add : CGST (Metal) @ ${(e.metalGst / 2).toStringAsFixed(2)}% on Rs.${e.metalAmount.toStringAsFixed(2)}\n";
+              res += "Add : SGST (Metal) @ ${(e.metalGst / 2).toStringAsFixed(2)}% on Rs.${e.metalAmount.toStringAsFixed(2)}\n";
+            }
+            if (e.serviceAmount > 0) {
+              res += "Add : CGST (Service) @ ${(e.serviceGst / 2).toStringAsFixed(2)}% on Rs.${e.serviceAmount.toStringAsFixed(2)}\n";
+              res += "Add : SGST (Service) @ ${(e.serviceGst / 2).toStringAsFixed(2)}% on Rs.${e.serviceAmount.toStringAsFixed(2)}\n";
+            }
+            return res;
+          }).join("")}
 Less: Round Off (-)
 ''',
           '''
-${data.items.map((e) => '''
-${((e.amount * (e.gst / 2)) / 100).toStringAsFixed(2)}
-${((e.amount * (e.gst / 2)) / 100).toStringAsFixed(2)}
-''').join("")}
+${data.items.map((e) {
+            String res = "";
+            if (e.metalAmount > 0) {
+              double mGst = (e.metalAmount * (e.metalGst / 2)) / 100;
+              res += "${mGst.toStringAsFixed(2)}\n${mGst.toStringAsFixed(2)}\n";
+            }
+            if (e.serviceAmount > 0) {
+              double sGst = (e.serviceAmount * (e.serviceGst / 2)) / 100;
+              res += "${sGst.toStringAsFixed(2)}\n${sGst.toStringAsFixed(2)}\n";
+            }
+            return res;
+          }).join("")}
 ${(data.grandTotal.round() - data.grandTotal).toStringAsFixed(2)}
 ''',
         ],
@@ -187,17 +203,29 @@ ${kCurrencyFormat(data.grandTotal.round())}
                 'SGST Amt.',
                 'Total Tax',
               ],
-              ...data.items.map((e) {
-                double tax = e.gst;
-                double taxableAmount = e.amount;
-                double cgstAmt = (taxableAmount * (tax / 2)) / 100;
-                return [
-                  '$tax%',
-                  kCurrencyFormat(taxableAmount),
-                  kCurrencyFormat(cgstAmt),
-                  kCurrencyFormat(cgstAmt),
-                  kCurrencyFormat(cgstAmt * 2),
-                ];
+              ...data.items.expand((e) {
+                List<List<String>> rows = [];
+                if (e.metalAmount > 0) {
+                  double mGst = (e.metalAmount * e.metalGst) / 100;
+                  rows.add([
+                    '${e.metalGst}% (Metal)',
+                    kCurrencyFormat(e.metalAmount),
+                    kCurrencyFormat(mGst / 2),
+                    kCurrencyFormat(mGst / 2),
+                    kCurrencyFormat(mGst),
+                  ]);
+                }
+                if (e.serviceAmount > 0) {
+                  double sGst = (e.serviceAmount * e.serviceGst) / 100;
+                  rows.add([
+                    '${e.serviceGst}% (Service)',
+                    kCurrencyFormat(e.serviceAmount),
+                    kCurrencyFormat(sGst / 2),
+                    kCurrencyFormat(sGst / 2),
+                    kCurrencyFormat(sGst),
+                  ]);
+                }
+                return rows;
               }),
             ],
           ),
