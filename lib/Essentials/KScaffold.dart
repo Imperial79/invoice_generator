@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../Resources/colors.dart';
 import '../Resources/commons.dart';
 import '../Resources/constants.dart';
@@ -133,7 +134,7 @@ AppBar KAppBar(
             alignment: Alignment.centerRight,
             child: IconButton(
               onPressed: () => context.pop(),
-              icon: const Icon(Icons.arrow_back_ios_new, size: 20),
+              icon: const Icon(LucideIcons.chevronLeft, size: 20),
             ),
           )
         : null,

@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:prime_invoice/Resources/constants.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:prime_invoice/Essentials/Label.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'colors.dart';
 
 const SizedBox width5 = SizedBox(width: 5);
@@ -82,7 +83,7 @@ KSnackbar(
         spacing: 11,
         children: [
           Icon(
-            error ? Icons.dangerous : Icons.check_circle_outline,
+            error ? LucideIcons.circleAlert : LucideIcons.circleCheck,
             color: error ? kColor(context).onError : kColor(context).onPrimary,
           ),
           Flexible(
@@ -107,7 +108,7 @@ KErrorAlert(context, {required dynamic message}) {
     builder: (context) => AlertDialog(
       backgroundColor: kColor(context).surface,
       title: Label("An Error Occurred!", color: kColor(context).error).title,
-      icon: Icon(Icons.dangerous, color: kColor(context).error, size: 50),
+      icon: Icon(LucideIcons.circleAlert, color: kColor(context).error, size: 50),
       content: Label("$message", textAlign: TextAlign.center).regular,
       actions: [
         TextButton(

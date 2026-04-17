@@ -76,7 +76,7 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
       appBar: KAppBar(context, title: "Company Profile"),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1000),
+          constraints: const BoxConstraints(maxWidth: 1200),
           child: SingleChildScrollView(
             primary: true,
             padding: const EdgeInsets.all(kPadding),

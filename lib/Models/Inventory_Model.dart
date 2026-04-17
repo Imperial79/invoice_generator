@@ -5,11 +5,11 @@ class InventoryModel {
   final String sku;
   final String name;
   final String category; // Gold, Silver, Diamond
-  final double weight; // In grams
+  final double weightStock; // Total Weight in grams in inventory
   final String purity; // 22K, 18K etc
   final double makingCharges;
   final String makingChargesType; // Fixed, Percent
-  final double stock; // Quantity in hand
+  final double pieceStock; // Total Quantity/Pieces in hand
   final double minStockAlert; // Threshold for low stock
 
   InventoryModel({
@@ -17,11 +17,11 @@ class InventoryModel {
     this.sku = "",
     required this.name,
     required this.category,
-    required this.weight,
+    required this.weightStock,
     required this.purity,
     required this.makingCharges,
     this.makingChargesType = 'Fixed',
-    required this.stock,
+    required this.pieceStock,
     this.minStockAlert = 2,
   });
 
@@ -31,11 +31,11 @@ class InventoryModel {
       'sku': sku,
       'name': name,
       'category': category,
-      'weight': weight,
+      'weight': weightStock,
       'purity': purity,
       'makingCharges': makingCharges,
       'makingChargesType': makingChargesType,
-      'stock': stock,
+      'stock': pieceStock,
       'minStockAlert': minStockAlert,
     };
   }
@@ -46,11 +46,11 @@ class InventoryModel {
       sku: map['sku'] ?? '',
       name: map['name'] ?? '',
       category: map['category'] ?? 'Gold',
-      weight: (map['weight'] ?? 0.0).toDouble(),
+      weightStock: (map['weight'] ?? 0.0).toDouble(),
       purity: map['purity'] ?? '',
       makingCharges: (map['makingCharges'] ?? 0.0).toDouble(),
       makingChargesType: map['makingChargesType'] ?? 'Fixed',
-      stock: (map['stock'] ?? 0.0).toDouble(),
+      pieceStock: (map['stock'] ?? 0.0).toDouble(),
       minStockAlert: (map['minStockAlert'] ?? 2.0).toDouble(),
     );
   }
@@ -65,11 +65,11 @@ class InventoryModel {
     String? sku,
     String? name,
     String? category,
-    double? weight,
+    double? weightStock,
     String? purity,
     double? makingCharges,
     String? makingChargesType,
-    double? stock,
+    double? pieceStock,
     double? minStockAlert,
   }) {
     return InventoryModel(
@@ -77,11 +77,11 @@ class InventoryModel {
       sku: sku ?? this.sku,
       name: name ?? this.name,
       category: category ?? this.category,
-      weight: weight ?? this.weight,
+      weightStock: weightStock ?? this.weightStock,
       purity: purity ?? this.purity,
       makingCharges: makingCharges ?? this.makingCharges,
       makingChargesType: makingChargesType ?? this.makingChargesType,
-      stock: stock ?? this.stock,
+      pieceStock: pieceStock ?? this.pieceStock,
       minStockAlert: minStockAlert ?? this.minStockAlert,
     );
   }

@@ -17,7 +17,7 @@ class KCard extends StatelessWidget {
   const KCard({
     super.key,
     this.onTap,
-    this.radius = 15,
+    this.radius = 20,
     this.child,
     this.padding,
     this.margin,
@@ -25,7 +25,7 @@ class KCard extends StatelessWidget {
     this.height,
     this.color,
     this.borderColor,
-    this.borderWidth = 0,
+    this.borderWidth = 1,
   });
 
   @override
@@ -40,12 +40,10 @@ class KCard extends StatelessWidget {
         decoration: BoxDecoration(
             borderRadius: kRadius(radius),
             color: color ?? kColor(context).surfaceContainerLow,
-            border: borderWidth > 0
-                ? Border.all(
-                    color: borderColor ?? kColor(context).outlineVariant,
-                    width: borderWidth,
-                  )
-                : null),
+            border: Border.all(
+              color: borderColor ?? kColor(context).outlineVariant.withAlpha(80),
+              width: borderWidth,
+            )),
         child: child,
       ),
     );

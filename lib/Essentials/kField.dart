@@ -207,7 +207,7 @@ class KField extends StatelessWidget {
     Color? customBorder, {
     double width = 1.0,
   }) => OutlineInputBorder(
-    borderRadius: BorderRadius.circular(10),
+    borderRadius: BorderRadius.circular(15),
     borderSide: BorderSide(
       color: borderColor ?? customBorder ?? kColor(context).outlineVariant,
       width: width,

@@ -80,18 +80,19 @@ class _HomeUIState extends State<HomeUI> {
           padding: const EdgeInsets.all(kPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 24,
             children: [
               _buildNTFSNotice(),
+              const SizedBox(height: 24),
               Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1200),
+                  constraints: const BoxConstraints(maxWidth: 1400),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    spacing: 24,
                     children: [
                       _buildHeader(),
+                      const SizedBox(height: 24),
                       _buildSummaryCards(),
+                      const SizedBox(height: 24),
                       if (Responsive.isMobile(context)) ...[
                         _buildQuickActions(),
                         _buildRecentInvoicesHeader(),
@@ -99,9 +100,9 @@ class _HomeUIState extends State<HomeUI> {
                       ] else
                         Row(
                           crossAxisAlignment: CrossAxisAlignment.start,
-                          spacing: 30,
                           children: [
                             Expanded(flex: 2, child: _buildQuickActions()),
+                            const SizedBox(width: 30),
                             Expanded(
                               flex: 3,
                               child: Column(
@@ -136,18 +137,18 @@ class _HomeUIState extends State<HomeUI> {
           margin: const EdgeInsets.only(bottom: 10),
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
-            color: Colors.red.withValues(alpha: .1),
+            color: Colors.red.withAlpha(25),
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.red.withValues(alpha: .3)),
+            border: Border.all(color: Colors.red.withAlpha(80)),
           ),
           child: Row(
-            spacing: 12,
             children: [
               const Icon(
-                Icons.warning_amber_rounded,
+                LucideIcons.triangleAlert,
                 color: Colors.red,
                 size: 20,
               ),
+              const SizedBox(width: 12),
               Expanded(
                 child: Label(
                   "Drive '${DatabaseService.driveName}' is Read-Only (NTFS). Data is being saved to Local Storage instead.",
@@ -227,22 +228,22 @@ class _HomeUIState extends State<HomeUI> {
                   ),
                   decoration: BoxDecoration(
                     color: (isPortable ? Colors.green : Colors.orange)
-                        .withValues(alpha: .15),
+                        .withAlpha(40),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                       color: (isPortable ? Colors.green : Colors.orange)
-                          .withValues(alpha: .3),
+                          .withAlpha(80),
                     ),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    spacing: 6,
                     children: [
                       Icon(
                         isPortable ? LucideIcons.usb : LucideIcons.hardDrive,
                         size: 12,
                         color: isPortable ? Colors.green : Colors.orange,
                       ),
+                      const SizedBox(width: 6),
                       Label(
                         type,
                         fontSize: 10,
@@ -273,45 +274,36 @@ class _HomeUIState extends State<HomeUI> {
 
   Widget _summaryCard(String title, String value, IconData icon, Color color) {
     return KCard(
-      padding: const EdgeInsets.all(20),
-      color: color.withValues(alpha: .08),
-      borderColor: color.withValues(alpha: .2),
-      borderWidth: 1,
+      padding: const EdgeInsets.all(24),
+      color: kColor(context).surfaceContainerLow,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: BoxDecoration(
-                  color: color.withValues(alpha: .1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(icon, color: color, size: 20),
-              ),
-              Icon(
-                LucideIcons.chevronRight,
-                size: 16,
-                color: kColor(context).onSurfaceVariant,
-              ),
-            ],
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withAlpha(20),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: color.withAlpha(40)),
+            ),
+            child: Icon(icon, color: color, size: 24),
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 20),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Label(
                 value,
-                fontSize: 24,
-                weight: 800,
+                fontSize: 26,
+                weight: 900,
                 color: kColor(context).onSurface,
               ).title,
+              const SizedBox(height: 4),
               Label(
                 title,
-                fontSize: 12,
+                fontSize: 13,
+                weight: 500,
                 color: kColor(context).onSurfaceVariant,
               ).regular,
             ],
@@ -324,9 +316,9 @@ class _HomeUIState extends State<HomeUI> {
   Widget _buildQuickActions() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
-      spacing: 16,
       children: [
         Label("Quick Actions", fontSize: 18, weight: 600).title,
+        const SizedBox(height: 16),
         GridView(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
@@ -367,26 +359,25 @@ class _HomeUIState extends State<HomeUI> {
   }) {
     return KCard(
       onTap: onTap,
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(20),
       color: kColor(context).surfaceContainerLow,
-      borderWidth: 1,
-      borderColor: kColor(context).outlineVariant,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
-        spacing: 10,
         children: [
           Container(
-            padding: const EdgeInsets.all(10),
+            padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: .1),
+              color: color.withAlpha(15),
               shape: BoxShape.circle,
+              border: Border.all(color: color.withAlpha(30)),
             ),
             child: Icon(icon, color: color, size: 24),
           ),
+          const SizedBox(height: 12),
           Label(
             label,
             fontSize: 13,
-            weight: 600,
+            weight: 700,
             textAlign: TextAlign.center,
           ).regular,
         ],
@@ -420,8 +411,8 @@ class _HomeUIState extends State<HomeUI> {
         borderWidth: 1,
         borderColor: kColor(context).outlineVariant,
         child: Column(
-          spacing: 10,
           children: [
+            const SizedBox(height: 10),
             Icon(
               LucideIcons.inbox,
               size: 40,
@@ -437,128 +428,111 @@ class _HomeUIState extends State<HomeUI> {
     }
     return ListView.separated(
       shrinkWrap: true,
-      padding: .only(top: 10),
+      padding: const EdgeInsets.only(top: 10),
       physics: const NeverScrollableScrollPhysics(),
       itemCount: recentInvoices.length,
       separatorBuilder: (context, index) => height15,
       itemBuilder: (context, index) {
         final invoice = recentInvoices[index];
         return KCard(
-          padding: const EdgeInsets.all(15),
-          borderWidth: 1,
-          radius: 15,
+          padding: const EdgeInsets.all(18),
+          margin: const EdgeInsets.only(bottom: 12),
+          color: kColor(context).surfaceContainerLow,
           child: Row(
-            spacing: 15,
             children: [
-              KCard(
-                radius: 10,
-                height: 50,
-                width: 50,
-                padding: EdgeInsets.zero,
-                color: kColor(context).primaryContainer,
+              Container(
+                height: 54,
+                width: 54,
+                decoration: BoxDecoration(
+                  color: kColor(context).primary.withAlpha(15),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: kColor(context).primary.withAlpha(30)),
+                ),
                 child: Center(
-                  child: Label(
-                    "PDF",
-                    fontSize: 10,
-                    color: kColor(context).onPrimaryContainer,
-                  ).title,
+                  child: Icon(
+                    LucideIcons.fileText,
+                    size: 20,
+                    color: kColor(context).primary,
+                  ),
                 ),
               ),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  spacing: 4,
                   children: [
-                    Label(invoice.invoiceId, fontSize: 16, weight: 600).regular,
+                    Label(invoice.invoiceId, fontSize: 16, weight: 700).regular,
+                    const SizedBox(height: 4),
                     Label(
-                      "${invoice.customerName} - ${DateFormat('dd MMM yyyy').format(invoice.invoiceDate ?? DateTime.now())}",
+                      "${invoice.customerName} • ${DateFormat('dd MMM yyyy').format(invoice.invoiceDate ?? DateTime.now())}",
                       fontSize: 12,
                       color: kColor(context).onSurfaceVariant,
                     ).regular,
                   ],
                 ),
               ),
+              const SizedBox(width: 16),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
-                spacing: 8,
                 children: [
                   Label(
                     kCurrencyFormat(invoice.grandTotal),
-                    fontSize: 16,
-                    weight: 700,
+                    fontSize: 18,
+                    weight: 900,
+                    color: kColor(context).primary,
                   ).title,
+                  const SizedBox(height: 10),
                   if (!loadingInvoiceIds.contains(invoice.invoiceId))
                     Row(
                       mainAxisSize: MainAxisSize.min,
-                      spacing: 8,
                       children: [
                         _actionIcon(
                           LucideIcons.eye,
                           kColor(context).primary,
                           () async {
-                            setState(
-                              () => loadingInvoiceIds.add(invoice.invoiceId),
-                            );
+                            setState(() => loadingInvoiceIds.add(invoice.invoiceId));
                             try {
                               await PdfHelper.generateInvoice(invoice);
-                            } catch (e) {
-                              KSnackbar(
-                                context,
-                                message: "Unable to generate PDF!",
-                                error: true,
-                              );
                             } finally {
                               if (mounted) {
-                                setState(
-                                  () => loadingInvoiceIds.remove(
-                                    invoice.invoiceId,
-                                  ),
-                                );
+                                setState(() => loadingInvoiceIds.remove(invoice.invoiceId));
                               }
                             }
                           },
-                          isLoading: loadingInvoiceIds.contains(
-                            invoice.invoiceId,
-                          ),
+                          isLoading: loadingInvoiceIds.contains(invoice.invoiceId),
                         ),
+                        const SizedBox(width: 8),
                         _actionIcon(
                           LucideIcons.pencil,
                           kColor(context).secondary,
                           () async {
-                            final res = await context.push(
-                              "/create-invoice",
-                              extra: invoice,
-                            );
+                            final res = await context.push("/create-invoice", extra: invoice);
                             if (res == true) _loadData();
                           },
                         ),
+                        const SizedBox(width: 8),
                         _actionIcon(
                           LucideIcons.share2,
                           kColor(context).tertiary,
                           () async {
-                            setState(
-                              () => loadingInvoiceIds.add(invoice.invoiceId),
-                            );
+                            setState(() => loadingInvoiceIds.add(invoice.invoiceId));
                             try {
                               await PdfHelper.shareInvoice(invoice);
                             } finally {
                               if (mounted) {
-                                setState(
-                                  () => loadingInvoiceIds.remove(
-                                    invoice.invoiceId,
-                                  ),
-                                );
+                                setState(() => loadingInvoiceIds.remove(invoice.invoiceId));
                               }
                             }
                           },
-                          isLoading: loadingInvoiceIds.contains(
-                            invoice.invoiceId,
-                          ),
+                          isLoading: loadingInvoiceIds.contains(invoice.invoiceId),
                         ),
                       ],
                     )
                   else
-                    SizedBox(width: 50, child: LinearProgressIndicator()),
+                    const SizedBox(
+                      width: 60,
+                      child: LinearProgressIndicator(minHeight: 2),
+                    ),
                 ],
               ),
             ],
@@ -579,7 +553,7 @@ class _HomeUIState extends State<HomeUI> {
       child: Container(
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: .1),
+          color: color.withAlpha(25),
           borderRadius: BorderRadius.circular(8),
         ),
         child: isLoading

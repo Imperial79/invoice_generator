@@ -29,7 +29,7 @@ class KButton extends StatelessWidget {
     this.fontSize = 15,
     this.weight = 600,
     this.icon,
-    this.radius = 10,
+    this.radius = 15,
     this.padding,
     this.customStyle,
     this.isLoading = false,
