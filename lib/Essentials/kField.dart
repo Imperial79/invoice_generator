@@ -34,6 +34,7 @@ class KField extends StatelessWidget {
   final String? Function(String? val)? validator;
   final void Function(String val)? onFieldSubmitted;
   final Iterable<String>? autofillHints;
+  final String? initialValue;
   const KField({
     super.key,
     this.showRequired = true,
@@ -66,6 +67,7 @@ class KField extends StatelessWidget {
     this.validator,
     this.onFieldSubmitted,
     this.autofillHints,
+    this.initialValue,
   });
 
   @override
@@ -110,6 +112,7 @@ class KField extends StatelessWidget {
           focusNode: focusNode,
           autofillHints: autofillHints,
           controller: controller,
+          initialValue: initialValue,
           textCapitalization: textCapitalization,
           style: kFieldTextstyle.copyWith(fontSize: fontSize, color: textColor),
           cursorColor: cursorColor,

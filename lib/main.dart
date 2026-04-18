@@ -20,7 +20,7 @@ void main() async {
   final index = pref.getInt("theme_mode") ?? 0; // 0: system, 1: light, 2: dark
   themeModeNotifier.value = ThemeMode.values[index];
 
-  // 🛑 Initialize Database on External Drive
+  // Initialize Database on External Drive
   await DatabaseService.instance.checkDriveAvailability();
 
   runApp(const MyApp());

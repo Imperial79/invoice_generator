@@ -6,7 +6,7 @@ class KDropdown<T> extends StatelessWidget {
   final String label;
   final T? value;
   final List<DropdownMenuItem<T>> items;
-  final void Function(T?) onChanged;
+  final void Function(T?)? onChanged;
   final String? Function(T?)? validator;
   final Color? fieldColor;
   final Color? borderColor;
@@ -16,7 +16,7 @@ class KDropdown<T> extends StatelessWidget {
     required this.label,
     required this.value,
     required this.items,
-    required this.onChanged,
+    this.onChanged,
     this.validator,
     this.fieldColor,
     this.borderColor,

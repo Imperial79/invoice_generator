@@ -1,7 +1,4 @@
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_contacts/flutter_contacts.dart';
 import 'package:prime_invoice/Essentials/KScaffold.dart';
 import 'package:prime_invoice/Essentials/Label.dart';
 import 'package:prime_invoice/Essentials/kButton.dart';
@@ -22,6 +19,7 @@ import 'package:prime_invoice/Resources/constants.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:prime_invoice/Helper/responsive.dart';
+import 'package:prime_invoice/Essentials/KTable.dart';
 
 class CreateInvoiceUI extends StatefulWidget {
   final InvoiceModel? invoice;
@@ -33,7 +31,6 @@ class CreateInvoiceUI extends StatefulWidget {
 
 class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   DateTime invoiceDate = DateTime.now();
-  final _formKey = GlobalKey<FormState>();
   final _customerFormKey = GlobalKey<FormState>();
   final tax = TextEditingController();
   final gst = TextEditingController();
@@ -157,34 +154,32 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
       await PdfHelper.generateInvoice(invoiceData);
       await DatabaseService.instance.saveInvoice(invoiceData);
 
-      // Deduct Stock
+      // Deduct Stock and record logs
       final allInventory = await DatabaseService.instance.getAllInventory();
       for (var item in addedItems) {
         final invItem = allInventory.firstWhere(
           (inv) => inv.sku == item.sku,
-          orElse: () =>
-              allInventory.firstWhere((inv) => inv.name == item.itemName),
+          orElse: () => allInventory.firstWhere((inv) => inv.name == item.itemName),
         );
+        
         if (invItem.id != null) {
-          final updatedInv = invItem.copyWith(
-            weightStock: (invItem.weightStock - item.weight).clamp(
-              0,
-              double.infinity,
-            ),
-            pieceStock: (invItem.pieceStock - item.qty).clamp(
-              0,
-              double.infinity,
-            ),
+          await DatabaseService.instance.recordStockAdjustment(
+            item: invItem,
+            weightDelta: -item.weight,
+            pieceDelta: -item.qty,
+            action: 'Debit',
+            type: 'Sale',
+            notes: 'Invoice Generated: ${invoiceData.invoiceId}',
           );
-          await DatabaseService.instance.saveInventoryItem(updatedInv);
         }
       }
 
-      if (mounted)
+      if (mounted) {
         KSnackbar(
           context,
           message: "Invoice generated and saved successfully!",
         );
+      }
     } catch (e) {
       KSnackbar(context, message: e.toString(), error: true);
     } finally {
@@ -456,83 +451,68 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
         if (addedItems.isEmpty)
           _emptyItemsPlaceholder()
         else
-          KCard(
-            padding: EdgeInsets.zero,
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                headingRowColor: WidgetStateProperty.all(
-                  kColor(context).surfaceContainerLow,
-                ),
-                columns: [
-                  const DataColumn(label: Label("Sl.", weight: 700)),
-                  const DataColumn(label: Label("Description", weight: 700)),
-                  const DataColumn(label: Label("Weight", weight: 700)),
-                  const DataColumn(label: Label("Qty", weight: 700)),
-                  const DataColumn(label: Label("Total Price", weight: 700)),
-                  const DataColumn(label: Label("Actions", weight: 700)),
-                ],
-                rows: addedItems.map((item) {
-                  int idx = addedItems.indexOf(item) + 1;
-                  return DataRow(
-                    cells: [
-                      DataCell(Label("$idx").regular),
-                      DataCell(
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Label(item.itemName, weight: 600).regular,
-                            Label(
-                              item.sku,
-                              fontSize: 10,
-                              color: kColor(context).onSurfaceVariant,
-                            ).regular,
-                          ],
+          KTable(
+            showCheckboxColumn: false,
+            columns: [
+              KTableColumn(label: Label("Sl.", weight: 700).regular),
+              KTableColumn(label: Label("Description", weight: 700).regular),
+              KTableColumn(label: Label("Weight", weight: 700).regular),
+              KTableColumn(label: Label("Qty", weight: 700).regular),
+              KTableColumn(label: Label("Total Price", weight: 700).regular),
+              KTableColumn(label: Label("Actions", weight: 700).regular),
+            ],
+            rows: addedItems.asMap().entries.map((entry) {
+              final idx = entry.key + 1;
+              final item = entry.value;
+              return KTableRow(
+                cells: [
+                  Label("$idx").regular,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Label(item.itemName, weight: 600).regular,
+                      Label(
+                        item.sku,
+                        fontSize: 10,
+                        color: kColor(context).onSurfaceVariant,
+                      ).regular,
+                    ],
+                  ),
+                  Label("${item.weight.toStringAsFixed(3)}g").regular,
+                  Label("${item.qty.toInt()} Pcs").regular,
+                  Label(
+                    "Rs.${item.amount.toStringAsFixed(2)}",
+                    weight: 800,
+                    color: kColor(context).primary,
+                  ).regular,
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => _showAddItemSidebar(
+                          id: item.id,
+                          existingItem: item,
+                        ),
+                        icon: Icon(
+                          LucideIcons.pencil,
+                          size: 16,
+                          color: kColor(context).primary,
                         ),
                       ),
-                      DataCell(
-                        Label("${item.weight.toStringAsFixed(3)}g").regular,
-                      ),
-                      DataCell(Label("${item.qty.toInt()} Pcs").regular),
-                      DataCell(
-                        Label(
-                          "Rs.${item.amount.toStringAsFixed(2)}",
-                          weight: 800,
-                          color: kColor(context).primary,
-                        ).regular,
-                      ),
-                      DataCell(
-                        Row(
-                          children: [
-                            IconButton(
-                              onPressed: () => _showAddItemSidebar(
-                                id: item.id,
-                                existingItem: item,
-                              ),
-                              icon: Icon(
-                                LucideIcons.pencil,
-                                size: 16,
-                                color: kColor(context).primary,
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () =>
-                                  setState(() => addedItems.remove(item)),
-                              icon: const Icon(
-                                LucideIcons.trash2,
-                                size: 16,
-                                color: Colors.red,
-                              ),
-                            ),
-                          ],
+                      IconButton(
+                        onPressed: () =>
+                            setState(() => addedItems.remove(item)),
+                        icon: const Icon(
+                          LucideIcons.trash2,
+                          size: 16,
+                          color: Colors.red,
                         ),
                       ),
                     ],
-                  );
-                }).toList(),
-              ),
-            ),
+                  ),
+                ],
+              );
+            }).toList(),
           ),
         KButton(
           onPressed: () => _showAddItemSidebar(id: addedItems.length + 1),
@@ -627,8 +607,9 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
     final customers = await DatabaseService.instance.getAllCustomers();
     isLoading.value = false;
     if (customers.isEmpty) {
-      if (mounted)
+      if (mounted) {
         KSnackbar(context, message: "No clients found!", error: true);
+      }
       return;
     }
 
@@ -747,9 +728,9 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                         all = snap.data!;
                         if (existingItem != null) {
                           sel = all.firstWhere(
-                            (it) => it.sku == existingItem!.sku,
+                            (it) => it.sku == existingItem.sku,
                             orElse: () => all.firstWhere(
-                              (it) => it.name == existingItem!.itemName,
+                              (it) => it.name == existingItem.itemName,
                             ),
                           );
                         }
@@ -955,7 +936,9 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                   CircleAvatar(
                     backgroundColor: kColor(context).primaryContainer,
                     child: Icon(
-                      it.category == "Gold" ? LucideIcons.gem : LucideIcons.disc,
+                      it.category == "Gold"
+                          ? LucideIcons.gem
+                          : LucideIcons.disc,
                       color: kColor(context).primary,
                     ),
                   ),
@@ -965,15 +948,20 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Label(it.name, weight: 800, fontSize: 18).regular,
-                        Label("${it.category} • ${it.purity}",
-                                color: kColor(context).onSurfaceVariant)
-                            .regular,
+                        Label(
+                          "${it.category} • ${it.purity}",
+                          color: kColor(context).onSurfaceVariant,
+                        ).regular,
                       ],
                     ),
                   ),
                   IconButton(
                     onPressed: onClear,
-                    icon: const Icon(LucideIcons.x, size: 20, color: Colors.red),
+                    icon: const Icon(
+                      LucideIcons.x,
+                      size: 20,
+                      color: Colors.red,
+                    ),
                   ),
                 ],
               ),
@@ -984,13 +972,18 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                 children: [
                   _detailItem("SKU", it.sku),
                   _detailItem("Stock (Pieces)", "${it.pieceStock.toInt()} Pcs"),
-                  _detailItem("Stock (Weight)",
-                      "${it.weightStock.toStringAsFixed(3)}g"),
-                  _detailItem("Current Rate",
-                      "Rs.${currentRate.toStringAsFixed(2)}/g"),
                   _detailItem(
-                      "Making Charge",
-                      "${it.makingCharges}${it.makingChargesType == 'Percent' ? '%' : ' Fixed'}"),
+                    "Stock (Weight)",
+                    "${it.weightStock.toStringAsFixed(3)}g",
+                  ),
+                  _detailItem(
+                    "Current Rate",
+                    "Rs.${currentRate.toStringAsFixed(2)}/g",
+                  ),
+                  _detailItem(
+                    "Making Charge",
+                    "${it.makingCharges}${it.makingChargesType == 'Percent' ? '%' : ' Fixed'}",
+                  ),
                 ],
               ),
             ],
@@ -1005,11 +998,12 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
       crossAxisAlignment: CrossAxisAlignment.start,
       spacing: 4,
       children: [
-        Label(label,
-                fontSize: 11,
-                color: kColor(context).onSurfaceVariant,
-                weight: 600)
-            .regular,
+        Label(
+          label,
+          fontSize: 11,
+          color: kColor(context).onSurfaceVariant,
+          weight: 600,
+        ).regular,
         Label(value, fontSize: 14, weight: 700).regular,
       ],
     );
@@ -1116,10 +1110,11 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
       );
       setState(() {
         int idx = addedItems.indexWhere((i) => i.id == id);
-        if (idx != -1)
+        if (idx != -1) {
           addedItems[idx] = data;
-        else
+        } else {
           addedItems.add(data);
+        }
       });
       Navigator.pop(context);
     });

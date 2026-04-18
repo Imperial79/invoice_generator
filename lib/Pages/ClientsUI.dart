@@ -5,13 +5,16 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:prime_invoice/Essentials/KScaffold.dart';
 import 'package:prime_invoice/Essentials/Label.dart';
 import 'package:prime_invoice/Essentials/kCard.dart';
+import 'package:prime_invoice/Essentials/kField.dart';
 import 'package:prime_invoice/Helper/database_service.dart';
+import 'package:prime_invoice/Helper/responsive.dart';
 import 'package:prime_invoice/Models/Customer_Model.dart';
 import 'package:prime_invoice/Pages/CustomerDetailUI.dart';
 import 'package:prime_invoice/Resources/colors.dart';
 import 'package:prime_invoice/Resources/commons.dart';
 import 'package:prime_invoice/Resources/constants.dart';
-import 'package:prime_invoice/Essentials/KField.dart';
+import 'package:prime_invoice/Essentials/KFilterBar.dart';
+import 'package:prime_invoice/Essentials/KTable.dart';
 
 class ClientsUI extends StatefulWidget {
   const ClientsUI({super.key});
@@ -26,11 +29,16 @@ class _ClientsUIState extends State<ClientsUI> {
   final TextEditingController _searchController = TextEditingController();
   final isLoading = ValueNotifier(false);
 
+  String selectedType = "All";
+  final List<String> clientTypes = ["All", "Customer", "Company"];
+  int currentPage = 0;
+  static const int itemsPerPage = 8;
+  String searchQuery = "";
+
   @override
   void initState() {
     super.initState();
     _loadCustomers();
-    _searchController.addListener(_filterCustomers);
   }
 
   @override
@@ -46,7 +54,7 @@ class _ClientsUIState extends State<ClientsUI> {
       if (mounted) {
         setState(() {
           allCustomers = customers;
-          filteredCustomers = customers;
+          _applyFilter();
         });
       }
     } finally {
@@ -54,12 +62,22 @@ class _ClientsUIState extends State<ClientsUI> {
     }
   }
 
-  void _filterCustomers() {
-    final query = _searchController.text.toLowerCase();
+  void _applyFilter() {
     setState(() {
       filteredCustomers = allCustomers.where((c) {
-        return c.name.toLowerCase().contains(query) || c.phone.contains(query);
+        final matchesSearch =
+            c.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
+            c.phone.contains(searchQuery);
+        final matchesType =
+            selectedType == "All" || c.clientType == selectedType;
+        return matchesSearch && matchesType;
       }).toList();
+
+      // Reset to first page when filtering
+      if (currentPage >= (filteredCustomers.length / itemsPerPage).ceil() &&
+          filteredCustomers.isNotEmpty) {
+        currentPage = 0;
+      }
     });
   }
 
@@ -120,7 +138,9 @@ class _ClientsUIState extends State<ClientsUI> {
             child: Material(
               color: Colors.transparent,
               child: Container(
-                width: MediaQuery.of(context).size.width > 600 ? 500 : MediaQuery.of(context).size.width * 0.9,
+                width: MediaQuery.of(context).size.width > 600
+                    ? 500
+                    : MediaQuery.of(context).size.width * 0.9,
                 height: double.infinity,
                 decoration: BoxDecoration(
                   color: kColor(context).surface,
@@ -137,11 +157,16 @@ class _ClientsUIState extends State<ClientsUI> {
                     children: [
                       // Sidebar Header
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 24,
+                        ),
                         decoration: BoxDecoration(
                           border: Border(
                             bottom: BorderSide(
-                              color: kColor(context).outlineVariant.withAlpha(50),
+                              color: kColor(
+                                context,
+                              ).outlineVariant.withAlpha(50),
                             ),
                           ),
                         ),
@@ -154,7 +179,9 @@ class _ClientsUIState extends State<ClientsUI> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Icon(
-                                customer == null ? LucideIcons.userPlus : LucideIcons.userCheck,
+                                customer == null
+                                    ? LucideIcons.userPlus
+                                    : LucideIcons.userCheck,
                                 color: kColor(context).primary,
                                 size: 24,
                               ),
@@ -165,12 +192,16 @@ class _ClientsUIState extends State<ClientsUI> {
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
                                   Label(
-                                    customer == null ? "Add New Client" : "Edit Client Details",
+                                    customer == null
+                                        ? "Add New Client"
+                                        : "Edit Client Details",
                                     fontSize: 20,
                                     weight: 800,
                                   ).title,
                                   Label(
-                                    customer == null ? "Register a new business contact" : "Update existing contact information",
+                                    customer == null
+                                        ? "Register a new business contact"
+                                        : "Update existing contact information",
                                     fontSize: 12,
                                     color: kColor(context).onSurfaceVariant,
                                   ).regular,
@@ -205,12 +236,17 @@ class _ClientsUIState extends State<ClientsUI> {
                                       ButtonSegment(
                                         value: "Company",
                                         label: Text("Business"),
-                                        icon: Icon(LucideIcons.building, size: 16),
+                                        icon: Icon(
+                                          LucideIcons.building,
+                                          size: 16,
+                                        ),
                                       ),
                                     ],
                                     selected: {clientType},
                                     onSelectionChanged: (val) {
-                                      setDialogState(() => clientType = val.first);
+                                      setDialogState(
+                                        () => clientType = val.first,
+                                      );
                                     },
                                   ),
                                 ),
@@ -219,11 +255,17 @@ class _ClientsUIState extends State<ClientsUI> {
                                 const SizedBox(height: 20),
                                 KField(
                                   controller: nameController,
-                                  label: clientType == "Company" ? "Company Legal Name" : "Client Full Name",
-                                  hintText: clientType == "Company" ? "e.g. Acme Gems Pvt Ltd" : "Enter legal name",
+                                  label: clientType == "Company"
+                                      ? "Company Legal Name"
+                                      : "Client Full Name",
+                                  hintText: clientType == "Company"
+                                      ? "e.g. Acme Gems Pvt Ltd"
+                                      : "Enter legal name",
                                   validator: KValidation.required,
                                   prefix: Icon(
-                                    clientType == "Company" ? LucideIcons.building : LucideIcons.user,
+                                    clientType == "Company"
+                                        ? LucideIcons.building
+                                        : LucideIcons.user,
                                     size: 18,
                                   ),
                                 ),
@@ -234,7 +276,10 @@ class _ClientsUIState extends State<ClientsUI> {
                                   hintText: "10-digit mobile number",
                                   keyboardType: TextInputType.phone,
                                   validator: KValidation.phone,
-                                  prefix: const Icon(LucideIcons.phone, size: 18),
+                                  prefix: const Icon(
+                                    LucideIcons.phone,
+                                    size: 18,
+                                  ),
                                 ),
                                 const SizedBox(height: 40),
                                 _buildSectionHeader("TAX & IDENTITY"),
@@ -244,8 +289,12 @@ class _ClientsUIState extends State<ClientsUI> {
                                     controller: gstController,
                                     label: "GSTIN Number",
                                     hintText: "Optional (e.g. 22AAAAA0000A1Z5)",
-                                    textCapitalization: TextCapitalization.characters,
-                                    prefix: const Icon(LucideIcons.fingerprint, size: 18),
+                                    textCapitalization:
+                                        TextCapitalization.characters,
+                                    prefix: const Icon(
+                                      LucideIcons.fingerprint,
+                                      size: 18,
+                                    ),
                                   ),
                                   const SizedBox(height: 24),
                                 ],
@@ -256,7 +305,8 @@ class _ClientsUIState extends State<ClientsUI> {
                                         controller: panController,
                                         label: "PAN Card",
                                         hintText: "Optional",
-                                        textCapitalization: TextCapitalization.characters,
+                                        textCapitalization:
+                                            TextCapitalization.characters,
                                       ),
                                     ),
                                     if (clientType == "Customer") ...[
@@ -280,7 +330,10 @@ class _ClientsUIState extends State<ClientsUI> {
                                   label: "Billing Address",
                                   hintText: "Complete address for tax invoices",
                                   maxLines: 4,
-                                  prefix: const Icon(LucideIcons.mapPin, size: 18),
+                                  prefix: const Icon(
+                                    LucideIcons.mapPin,
+                                    size: 18,
+                                  ),
                                 ),
                               ],
                             ),
@@ -295,7 +348,9 @@ class _ClientsUIState extends State<ClientsUI> {
                           color: kColor(context).surfaceContainerLow,
                           border: Border(
                             top: BorderSide(
-                              color: kColor(context).outlineVariant.withAlpha(50),
+                              color: kColor(
+                                context,
+                              ).outlineVariant.withAlpha(50),
                             ),
                           ),
                         ),
@@ -305,7 +360,9 @@ class _ClientsUIState extends State<ClientsUI> {
                               child: OutlinedButton(
                                 onPressed: () => Navigator.pop(context),
                                 style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 18),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 18,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(15),
                                   ),
@@ -328,19 +385,26 @@ class _ClientsUIState extends State<ClientsUI> {
                                       aadhaar: aadhaarController.text,
                                       clientType: clientType,
                                     );
-                                    if (context.mounted) Navigator.pop(context, true);
+                                    if (context.mounted) {
+                                      Navigator.pop(context, true);
+                                    }
                                   }
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: kColor(context).primary,
                                   foregroundColor: kColor(context).onPrimary,
                                   elevation: 0,
-                                  padding: const EdgeInsets.symmetric(vertical: 18),
+                                  padding: const EdgeInsets.symmetric(
+                                    vertical: 18,
+                                  ),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(15),
                                   ),
                                 ),
-                                child: Label("Save Client", weight: 700).regular,
+                                child: Label(
+                                  "Save Client",
+                                  weight: 700,
+                                ).regular,
                               ),
                             ),
                           ],
@@ -356,7 +420,6 @@ class _ClientsUIState extends State<ClientsUI> {
       },
     );
   }
-
 
   Widget _buildSectionHeader(String title) {
     return Column(
@@ -377,331 +440,231 @@ class _ClientsUIState extends State<ClientsUI> {
     );
   }
 
-  int currentPage = 1;
-  static const int itemsPerPage = 10;
-
   @override
   Widget build(BuildContext context) {
-    final filtered = filteredCustomers;
-    final totalPages = (filtered.length / itemsPerPage).ceil();
-    final paginated = filtered
-        .skip((currentPage - 1) * itemsPerPage)
-        .take(itemsPerPage)
-        .toList();
-
     return KScaffold(
       isLoading: isLoading,
       appBar: KAppBar(context, title: "Client Management", showBack: false),
       body: Column(
         children: [
-          _buildFilterRow(),
-          _buildAppliedFilters(),
-          Expanded(
-            child: filtered.isEmpty
-                ? _buildEmptyState()
-                : Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1400),
-                      child: MediaQuery.of(context).size.width < 900
-                          ? ListView.separated(
-                              padding: const EdgeInsets.all(kPadding),
-                              itemCount: paginated.length,
-                              separatorBuilder: (context, index) => height15,
-                              itemBuilder: (context, index) =>
-                                  _buildCustomerCard(paginated[index]),
-                            )
-                          : _buildTable(paginated),
-                    ),
-                  ),
-          ),
-          if (totalPages > 1) _buildPagination(totalPages),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddEditCustomerSidebar(),
-        backgroundColor: kColor(context).primary,
-        foregroundColor: kColor(context).onPrimary,
-        icon: const Icon(LucideIcons.userPlus),
-        label: Label("Add Client").regular,
-      ),
-    );
-  }
-
-  Widget _buildFilterRow() {
-    return Container(
-      padding: const EdgeInsets.all(kPadding),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 800),
-          child: Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _searchController,
-                  onChanged: (v) => setState(() => currentPage = 1),
-                  decoration: InputDecoration(
-                    hintText: "Search by name or phone...",
-                    prefixIcon: const Icon(LucideIcons.search, size: 20),
-                    filled: true,
-                    fillColor: kColor(context).surfaceContainerLow,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(15),
-                      borderSide: BorderSide.none,
-                    ),
-                  ),
-                ),
+          KFilterBar(
+            configs: [
+              FilterConfig(
+                id: "search",
+                label: "Search by name or phone...",
+                isSearch: true,
+                initialValue: searchQuery,
               ),
-              if (_searchController.text.isNotEmpty) ...[
-                const SizedBox(width: 10),
-                _filterButton(
-                  icon: LucideIcons.filterX,
-                  color: kColor(context).error,
-                  onTap: () => setState(() {
-                    _searchController.clear();
-                    currentPage = 1;
-                  }),
-                ),
-              ],
+              FilterConfig(
+                id: "type",
+                label: "Client Type",
+                options: clientTypes,
+                initialValue: selectedType,
+              ),
             ],
+            selectedFilters: {"search": searchQuery, "type": selectedType},
+            onFilterChanged: (id, value) {
+              setState(() {
+                if (id == "search") {
+                  searchQuery = value;
+                  _searchController.text = value;
+                } else {
+                  selectedType = value;
+                }
+                _applyFilter();
+              });
+            },
+            onClearAll: () {
+              setState(() {
+                searchQuery = "";
+                _searchController.clear();
+                selectedType = "All";
+                _applyFilter();
+              });
+            },
+            action: ElevatedButton.icon(
+              onPressed: () => _showAddEditCustomerSidebar(),
+              icon: const Icon(LucideIcons.userPlus, size: 18),
+              label: Label("Add Client", weight: 700).regular,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 20,
+                ),
+                backgroundColor: kColor(context).primary,
+                foregroundColor: kColor(context).onPrimary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildAppliedFilters() {
-    if (_searchController.text.isEmpty) return const SizedBox.shrink();
-    return Padding(
-      padding: const EdgeInsets.only(left: 24, right: 24, bottom: 15),
-      child: Row(
-        children: [
-          Label(
-            "Applied Filters:",
-            fontSize: 12,
-            weight: 700,
-            color: kColor(context).onSurfaceVariant,
-          ).regular,
-          const SizedBox(width: 10),
-          _filterChip(
-            "Search: ${_searchController.text}",
-            onDelete: () => setState(() {
-              _searchController.clear();
-              currentPage = 1;
-            }),
-          ),
+          Expanded(child: _buildMainContent()),
+          if (filteredCustomers.isNotEmpty && !Responsive.isMobile(context))
+            _buildPaginationFooter(),
         ],
       ),
     );
   }
 
-  Widget _buildTable(List<CustomerModel> customers) {
-    return Container(
-      margin: const EdgeInsets.all(kPadding),
-      decoration: BoxDecoration(
-        color: kColor(context).surfaceContainerLow,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: kColor(context).outlineVariant.withAlpha(50)),
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
+  Widget _buildMainContent() {
+    if (filteredCustomers.isEmpty) {
+      return Center(
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Table Header
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
-              decoration: BoxDecoration(
-                color: kColor(context).surfaceContainerHigh,
-                border: Border(
-                  bottom: BorderSide(
-                    color: kColor(context).outlineVariant.withAlpha(50),
-                  ),
-                ),
-              ),
-              child: Row(
-                children: [
-                  Expanded(flex: 1, child: _headerLabel("TYPE")),
-                  Expanded(flex: 3, child: _headerLabel("CLIENT NAME")),
-                  Expanded(flex: 2, child: _headerLabel("PHONE")),
-                  Expanded(flex: 2, child: _headerLabel("GST/PAN")),
-                  Expanded(flex: 1, child: _headerLabel("ACTIONS")),
-                ],
-              ),
+            Icon(
+              LucideIcons.users,
+              size: 64,
+              color: kColor(context).outlineVariant,
             ),
-            // Table Rows
-            Expanded(
-              child: ListView.separated(
-                itemCount: customers.length,
-                separatorBuilder: (context, index) => Divider(
-                  height: 1,
-                  color: kColor(context).outlineVariant.withAlpha(50),
-                ),
-                itemBuilder: (context, index) {
-                  final customer = customers[index];
-                  final isCompany = customer.clientType == "Company";
-                  return InkWell(
-                    onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => CustomerDetailUI(customer: customer),
-                      ),
-                    ).then((_) => _loadCustomers()),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 18,
-                      ),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            flex: 1,
-                            child: _buildClientTypeChip(customer.clientType, isCompany),
-                          ),
-                          Expanded(
-                            flex: 3,
-                            child: Label(
-                              customer.name,
-                              fontSize: 14,
-                              weight: 700,
-                            ).regular,
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Label(
-                              customer.phone,
-                              fontSize: 14,
-                              weight: 500,
-                            ).regular,
-                          ),
-                          Expanded(
-                            flex: 2,
-                            child: Label(
-                              isCompany
-                                  ? (customer.gst.isNotEmpty
-                                      ? "GST: ${customer.gst}"
-                                      : "PAN: ${customer.pan}")
-                                  : (customer.pan.isNotEmpty
-                                      ? "PAN: ${customer.pan}"
-                                      : "N/A"),
-                              fontSize: 12,
-                              color: kColor(context).onSurfaceVariant,
-                            ).regular,
-                          ),
-                          Expanded(
-                            flex: 1,
-                            child: Row(
-                              children: [
-                                _actionIconButton(
-                                  LucideIcons.pencil,
-                                  kColor(context).secondary,
-                                  () => _showAddEditCustomerSidebar(customer),
-                                ),
-                                const SizedBox(width: 8),
-                                _actionIconButton(
-                                  LucideIcons.chevronRight,
-                                  kColor(context).primary,
-                                  () => Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => CustomerDetailUI(customer: customer),
-                                    ),
-                                  ).then((_) => _loadCustomers()),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ),
+            const SizedBox(height: 16),
+            Label("No Clients Found", weight: 700).title,
+            Label(
+              "Try adjusting your search or filters",
+              color: kColor(context).onSurfaceVariant,
+            ).regular,
           ],
         ),
-      ),
+      );
+    }
+
+    if (Responsive.isMobile(context)) {
+      return ListView.separated(
+        padding: const EdgeInsets.all(kPadding),
+        itemCount: filteredCustomers.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemBuilder: (context, index) =>
+            _buildCustomerCard(filteredCustomers[index]),
+      );
+    }
+
+    final startIndex = currentPage * itemsPerPage;
+    final endIndex = (startIndex + itemsPerPage) > filteredCustomers.length
+        ? filteredCustomers.length
+        : startIndex + itemsPerPage;
+    final pageItems = filteredCustomers.sublist(startIndex, endIndex);
+
+    return KTable(
+      showCheckboxColumn: false,
+      columns: [
+        KTableColumn(label: Label("SL", weight: 800).regular),
+        KTableColumn(label: Label("TYPE", weight: 800).regular),
+        KTableColumn(label: Label("CLIENT NAME", weight: 800).regular),
+        KTableColumn(label: Label("PHONE", weight: 800).regular),
+        KTableColumn(label: Label("TAX / ID DETAILS", weight: 800).regular),
+        KTableColumn(label: Label("ACTIONS", weight: 800).regular),
+      ],
+      rows: pageItems.map((customer) {
+        final index =
+            (currentPage * itemsPerPage) + pageItems.indexOf(customer) + 1;
+        final isCompany = customer.clientType == "Company";
+        return KTableRow(
+          onTap: () => Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => CustomerDetailUI(customer: customer),
+            ),
+          ).then((_) => _loadCustomers()),
+          cells: [
+            Label(index.toString().padLeft(2, '0')).regular,
+            _buildClientTypeChip(customer.clientType, isCompany),
+            Label(customer.name, weight: 700).regular,
+            Label(customer.phone, weight: 500).regular,
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (isCompany && customer.gst.isNotEmpty)
+                  Label("GST: ${customer.gst}", fontSize: 11).regular,
+                if (customer.pan.isNotEmpty)
+                  Label("PAN: ${customer.pan}", fontSize: 11).regular,
+                if (!isCompany && customer.aadhaar.isNotEmpty)
+                  Label("AADHAAR: ${customer.aadhaar}", fontSize: 11).regular,
+                if (customer.gst.isEmpty &&
+                    customer.pan.isEmpty &&
+                    customer.aadhaar.isEmpty)
+                  Label(
+                    "Not Provided",
+                    fontSize: 11,
+                    color: kColor(context).onSurfaceVariant,
+                  ).regular,
+              ],
+            ),
+            Row(
+              children: [
+                _actionIconButton(
+                  LucideIcons.pencil,
+                  kColor(context).secondary,
+                  () => _showAddEditCustomerSidebar(customer),
+                ),
+                const SizedBox(width: 8),
+                _actionIconButton(
+                  LucideIcons.chevronRight,
+                  kColor(context).primary,
+                  () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          CustomerDetailUI(customer: customer),
+                    ),
+                  ).then((_) => _loadCustomers()),
+                ),
+              ],
+            ),
+          ],
+        );
+      }).toList(),
     );
   }
 
-  Widget _headerLabel(String text) {
-    return Label(
-      text,
-      fontSize: 11,
-      weight: 800,
-      color: kColor(context).onSurfaceVariant,
-    ).regular;
-  }
-
-  Widget _buildPagination(int totalPages) {
+  Widget _buildPaginationFooter() {
+    final totalPages = (filteredCustomers.length / itemsPerPage).ceil();
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 20),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _pageButton(
-            LucideIcons.chevronLeft,
-            currentPage > 1 ? () => setState(() => currentPage--) : null,
-          ),
-          const SizedBox(width: 20),
-          Label("Page $currentPage of $totalPages", fontSize: 13, weight: 600).regular,
-          const SizedBox(width: 20),
-          _pageButton(
-            LucideIcons.chevronRight,
-            currentPage < totalPages ? () => setState(() => currentPage++) : null,
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _pageButton(IconData icon, VoidCallback? onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.all(8),
-        decoration: BoxDecoration(
-          color: onTap == null ? kColor(context).outlineVariant.withAlpha(20) : kColor(context).primary.withAlpha(20),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: onTap == null ? kColor(context).outlineVariant.withAlpha(30) : kColor(context).primary.withAlpha(40)),
-        ),
-        child: Icon(icon, size: 16, color: onTap == null ? kColor(context).onSurfaceVariant.withAlpha(100) : kColor(context).primary),
-      ),
-    );
-  }
-
-  Widget _filterButton({required IconData icon, required Color color, required VoidCallback onTap}) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        height: 54,
-        width: 54,
-        decoration: BoxDecoration(
-          color: kColor(context).surfaceContainerLow,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: kColor(context).outlineVariant.withAlpha(50)),
-        ),
-        child: Icon(icon, color: color, size: 20),
-      ),
-    );
-  }
-
-  Widget _filterChip(String text, {required VoidCallback onDelete}) {
-    return Container(
-      padding: const EdgeInsets.only(left: 12, right: 6, top: 6, bottom: 6),
+      padding: const EdgeInsets.symmetric(horizontal: kPadding, vertical: 16),
       decoration: BoxDecoration(
-        color: kColor(context).primary.withAlpha(15),
-        borderRadius: BorderRadius.circular(50),
-        border: Border.all(color: kColor(context).primary.withAlpha(30)),
+        color: kColor(context).surface,
+        border: Border(
+          top: BorderSide(color: kColor(context).outlineVariant.withAlpha(50)),
+        ),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Label(text, fontSize: 11, weight: 600, color: kColor(context).primary).regular,
-          const SizedBox(width: 4),
-          InkWell(
-            onTap: onDelete,
-            child: Icon(LucideIcons.x, size: 12, color: kColor(context).primary),
+          Label(
+            "Showing ${currentPage * itemsPerPage + 1} to ${((currentPage + 1) * itemsPerPage).clamp(0, filteredCustomers.length)} of ${filteredCustomers.length} entries",
+            fontSize: 12,
+          ).regular,
+          Row(
+            children: [
+              IconButton(
+                onPressed: currentPage > 0
+                    ? () => setState(() => currentPage--)
+                    : null,
+                icon: const Icon(LucideIcons.chevronLeft),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: kColor(context).primaryContainer,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Label(
+                  "Page ${currentPage + 1} of $totalPages",
+                  weight: 700,
+                  color: kColor(context).primary,
+                ).regular,
+              ),
+              IconButton(
+                onPressed: (currentPage + 1) < totalPages
+                    ? () => setState(() => currentPage++)
+                    : null,
+                icon: const Icon(LucideIcons.chevronRight),
+              ),
+            ],
           ),
         ],
       ),
@@ -718,29 +681,6 @@ class _ClientsUIState extends State<ClientsUI> {
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(icon, size: 16, color: color),
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            LucideIcons.users,
-            size: 60,
-            color: kColor(context).onSurfaceVariant.withAlpha(50),
-          ),
-          height20,
-          Label(
-            _searchController.text.isEmpty
-                ? "No customers yet"
-                : "No customers match your search",
-            color: kColor(context).onSurfaceVariant,
-            fontSize: 16,
-          ).regular,
-        ],
       ),
     );
   }
@@ -807,27 +747,45 @@ class _ClientsUIState extends State<ClientsUI> {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    Icon(LucideIcons.phone, size: 13, color: kColor(context).onSurfaceVariant),
+                    Icon(
+                      LucideIcons.phone,
+                      size: 13,
+                      color: kColor(context).onSurfaceVariant,
+                    ),
                     const SizedBox(width: 8),
-                    Label(customer.phone, fontSize: 13, color: kColor(context).onSurfaceVariant).regular,
+                    Label(
+                      customer.phone,
+                      fontSize: 13,
+                      color: kColor(context).onSurfaceVariant,
+                    ).regular,
                   ],
                 ),
               ],
             ),
           ),
           IconButton(
-            icon: Icon(LucideIcons.pencil, size: 18, color: kColor(context).onSurfaceVariant),
+            icon: Icon(
+              LucideIcons.pencil,
+              size: 18,
+              color: kColor(context).onSurfaceVariant,
+            ),
             onPressed: () => _showAddEditCustomerSidebar(customer),
             visualDensity: VisualDensity.compact,
           ),
-          Icon(LucideIcons.chevronRight, size: 20, color: kColor(context).outlineVariant),
+          Icon(
+            LucideIcons.chevronRight,
+            size: 20,
+            color: kColor(context).outlineVariant,
+          ),
         ],
       ),
     );
   }
 
   Widget _buildClientTypeChip(String type, bool isCompany) {
-    final color = isCompany ? kColor(context).secondary : kColor(context).primary;
+    final color = isCompany
+        ? kColor(context).secondary
+        : kColor(context).primary;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
@@ -844,4 +802,3 @@ class _ClientsUIState extends State<ClientsUI> {
     );
   }
 }
-

@@ -11,6 +11,8 @@ import 'package:prime_invoice/Resources/colors.dart';
 import 'package:prime_invoice/Resources/commons.dart';
 import 'package:prime_invoice/Resources/constants.dart';
 import 'package:prime_invoice/Helper/pdf_helper.dart';
+import 'package:prime_invoice/Helper/responsive.dart';
+import 'package:prime_invoice/Essentials/KTable.dart';
 
 class CustomerDetailUI extends StatefulWidget {
   final CustomerModel customer;
@@ -198,62 +200,96 @@ class _CustomerDetailUIState extends State<CustomerDetailUI> {
           padding: const EdgeInsets.symmetric(vertical: 60),
           child: Column(
             children: [
-              Icon(LucideIcons.shoppingCart, size: 48, color: kColor(context).outlineVariant),
+              Icon(LucideIcons.shoppingCart,
+                  size: 48, color: kColor(context).outlineVariant),
               height15,
-              Label("No purchases yet", color: kColor(context).onSurfaceVariant).regular,
+              Label("No purchases yet", color: kColor(context).onSurfaceVariant)
+                  .regular,
             ],
           ),
         ),
       );
     }
 
-    return ListView.separated(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: purchaseHistory.length,
-      separatorBuilder: (context, index) => height15,
-      itemBuilder: (context, index) {
-        final inv = purchaseHistory[index];
-        return KCard(
-          padding: const EdgeInsets.all(16),
-          borderWidth: 1,
-          borderColor: kColor(context).outlineVariant,
-          onTap: () => PdfHelper.generateInvoice(inv),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: kColor(context).surfaceContainerHigh,
-                  borderRadius: BorderRadius.circular(10),
+    if (Responsive.isMobile(context)) {
+      return ListView.separated(
+        shrinkWrap: true,
+        physics: const NeverScrollableScrollPhysics(),
+        itemCount: purchaseHistory.length,
+        separatorBuilder: (context, index) => height15,
+        itemBuilder: (context, index) {
+          final inv = purchaseHistory[index];
+          return KCard(
+            padding: const EdgeInsets.all(16),
+            borderWidth: 1,
+            borderColor: kColor(context).outlineVariant,
+            onTap: () => PdfHelper.generateInvoice(inv),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: kColor(context).surfaceContainerHigh,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(LucideIcons.fileText,
+                      size: 20, color: kColor(context).primary),
                 ),
-                child: Icon(LucideIcons.fileText, size: 20, color: kColor(context).primary),
-              ),
-              width15,
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Label(inv.invoiceId, fontSize: 15, weight: 600).regular,
-                    Label(
-                      DateFormat('dd MMM yyyy').format(inv.invoiceDate ?? DateTime.now()),
-                      fontSize: 12,
-                      color: kColor(context).onSurfaceVariant,
-                    ).regular,
-                  ],
+                width15,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Label(inv.invoiceId, fontSize: 15, weight: 600).regular,
+                      Label(
+                        DateFormat('dd MMM yyyy')
+                            .format(inv.invoiceDate ?? DateTime.now()),
+                        fontSize: 12,
+                        color: kColor(context).onSurfaceVariant,
+                      ).regular,
+                    ],
+                  ),
                 ),
-              ),
-              Label(
-                kCurrencyFormat(inv.grandTotal),
-                fontSize: 16,
-                weight: 800,
-              ).title,
-              width15,
-              Icon(LucideIcons.eye, size: 16, color: kColor(context).onSurfaceVariant),
-            ],
-          ),
+                Label(
+                  kCurrencyFormat(inv.grandTotal),
+                  fontSize: 16,
+                  weight: 800,
+                ).title,
+                width15,
+                Icon(LucideIcons.eye,
+                    size: 16, color: kColor(context).onSurfaceVariant),
+              ],
+            ),
+          );
+        },
+      );
+    }
+
+    return KTable(
+      showCheckboxColumn: false,
+      columns: [
+        KTableColumn(label: Label("DATE", weight: 700).regular),
+        KTableColumn(label: Label("INVOICE ID", weight: 700).regular),
+        KTableColumn(label: Label("TOTAL AMOUNT", weight: 700).regular),
+        KTableColumn(label: Label("ACTION", weight: 700).regular),
+      ],
+      rows: purchaseHistory.map((inv) {
+        return KTableRow(
+          cells: [
+            Label(DateFormat('dd MMM yyyy')
+                    .format(inv.invoiceDate ?? DateTime.now()))
+                .regular,
+            Label(inv.invoiceId, weight: 700, color: kColor(context).primary)
+                .regular,
+            Label(kCurrencyFormat(inv.grandTotal), weight: 800).regular,
+            IconButton(
+              onPressed: () => PdfHelper.generateInvoice(inv),
+              icon: Icon(LucideIcons.eye,
+                  size: 18, color: kColor(context).primary),
+            ),
+          ],
         );
-      },
+      }).toList(),
     );
   }
 }

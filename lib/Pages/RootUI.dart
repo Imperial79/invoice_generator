@@ -4,7 +4,6 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:prime_invoice/Helper/responsive.dart';
 import 'package:prime_invoice/Resources/colors.dart';
 import 'package:prime_invoice/Essentials/Label.dart';
-import 'package:prime_invoice/Resources/constants.dart';
 
 class RootUI extends StatefulWidget {
   final Widget child;
@@ -54,7 +53,8 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
     if (location == '/create-invoice') return 2;
     if (location == '/clients') return 3;
     if (location == '/inventory') return 4;
-    if (location == '/setup' || location == '/company-profile') return 5;
+    if (location == '/reports') return 5;
+    if (location == '/setup' || location == '/company-profile') return 6;
     return 0;
   }
 
@@ -76,6 +76,9 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
         context.go('/inventory');
         break;
       case 5:
+        context.go('/reports');
+        break;
+      case 6:
         context.go('/setup');
         break;
     }
@@ -127,9 +130,7 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
                           bottomLeft: Radius.circular(32),
                         ),
                   child: Container(
-                    decoration: BoxDecoration(
-                      color: kColor(context).surface,
-                    ),
+                    decoration: BoxDecoration(color: kColor(context).surface),
                     child: widget.child,
                   ),
                 ),
@@ -138,7 +139,9 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
           ),
         ],
       ),
-      bottomNavigationBar: isMobile ? _buildBottomNav(context, selectedIndex) : null,
+      bottomNavigationBar: isMobile
+          ? _buildBottomNav(context, selectedIndex)
+          : null,
       drawer: isMobile ? _buildDrawer(context, selectedIndex) : null,
     );
   }
@@ -192,15 +195,24 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
                   index: 4,
                   selectedIndex: selectedIndex,
                 ),
+                _sidebarItem(
+                  context,
+                  icon: LucideIcons.chartPie,
+                  label: "Reports",
+                  index: 5,
+                  selectedIndex: selectedIndex,
+                ),
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 20),
-                  child: Divider(color: kColor(context).outlineVariant.withAlpha(30)),
+                  child: Divider(
+                    color: kColor(context).outlineVariant.withAlpha(30),
+                  ),
                 ),
                 _sidebarItem(
                   context,
                   icon: LucideIcons.settings,
                   label: "Settings",
-                  index: 5,
+                  index: 6,
                   selectedIndex: selectedIndex,
                 ),
               ],
@@ -219,7 +231,10 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [kColor(context).primary, kColor(context).primary.withAlpha(180)],
+              colors: [
+                kColor(context).primary,
+                kColor(context).primary.withAlpha(180),
+              ],
             ),
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
@@ -227,14 +242,10 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
                 color: kColor(context).primary.withAlpha(50),
                 blurRadius: 10,
                 offset: const Offset(0, 4),
-              )
+              ),
             ],
           ),
-          child: const Icon(
-            LucideIcons.gem,
-            color: Colors.white,
-            size: 20,
-          ),
+          child: const Icon(LucideIcons.gem, color: Colors.white, size: 20),
         ),
         const SizedBox(width: 14),
         Column(
@@ -311,7 +322,7 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
                       BoxShadow(
                         color: kColor(context).primary.withAlpha(100),
                         blurRadius: 4,
-                      )
+                      ),
                     ],
                   ),
                 ),
@@ -392,6 +403,10 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
         ),
         NavigationDestination(icon: Icon(LucideIcons.plus), label: "New"),
         NavigationDestination(icon: Icon(LucideIcons.users), label: "Clients"),
+        NavigationDestination(
+          icon: Icon(LucideIcons.chartPie),
+          label: "Reports",
+        ),
         NavigationDestination(
           icon: Icon(LucideIcons.settings),
           label: "Settings",

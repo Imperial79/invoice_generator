@@ -10,6 +10,7 @@ import 'package:prime_invoice/Pages/LoginUI.dart';
 import 'package:prime_invoice/Pages/InventoryUI.dart';
 import 'package:prime_invoice/Pages/MetalRatesUI.dart';
 import 'package:prime_invoice/Pages/GstSettingsUI.dart';
+import 'package:prime_invoice/Pages/ReportsUI.dart';
 import '../Pages/HomeUI.dart';
 
 final routerConfig = GoRouter(
@@ -52,6 +53,10 @@ final routerConfig = GoRouter(
                 ? state.extra as InvoiceModel
                 : null,
           ),
+        ),
+        GoRoute(
+          path: "/reports",
+          builder: (context, state) => const ReportsUI(),
         ),
       ],
     ),

@@ -343,7 +343,7 @@ class _HomeUIState extends State<HomeUI> {
               context.push("/inventory");
             }, color: Colors.brown),
             _actionButton(LucideIcons.layoutPanelTop, "Reports", () {
-              // REPORTS View
+              context.go("/reports");
             }, color: Colors.indigo),
           ],
         ),

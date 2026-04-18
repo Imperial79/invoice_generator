@@ -13,7 +13,10 @@ import 'package:prime_invoice/Essentials/KField.dart';
 import 'package:prime_invoice/Essentials/KDropdown.dart';
 import 'package:prime_invoice/Helper/responsive.dart';
 import 'package:prime_invoice/Resources/constants.dart';
-import 'package:flutter_staggered_grid_view/flutter_staggered_grid_view.dart';
+import 'package:prime_invoice/Essentials/KFilterBar.dart';
+import 'package:prime_invoice/Essentials/KTable.dart';
+import 'package:intl/intl.dart';
+import 'package:prime_invoice/Models/Stock_Log_Model.dart';
 
 class InventoryUI extends StatefulWidget {
   const InventoryUI({super.key});
@@ -52,7 +55,8 @@ class _InventoryUIState extends State<InventoryUI> {
       filteredItems = allItems.where((item) {
         final matchesCategory =
             selectedCategory == "All" || item.category == selectedCategory;
-        final matchesSearch = item.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
+        final matchesSearch =
+            item.name.toLowerCase().contains(searchQuery.toLowerCase()) ||
             item.sku.toLowerCase().contains(searchQuery.toLowerCase());
         return matchesCategory && matchesSearch;
       }).toList();
@@ -65,9 +69,14 @@ class _InventoryUIState extends State<InventoryUI> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Label("Delete Item", weight: 700).title,
-        content: Label("Are you sure you want to delete ${item.name}? This action cannot be undone.").regular,
+        content: Label(
+          "Are you sure you want to delete ${item.name}? This action cannot be undone.",
+        ).regular,
         actions: [
-          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text("Cancel")),
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const Text("Cancel"),
+          ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: kColor(context).error),
@@ -168,7 +177,9 @@ class _InventoryUIState extends State<InventoryUI> {
             child: Material(
               color: Colors.transparent,
               child: Container(
-                width: MediaQuery.of(context).size.width > 600 ? 550 : MediaQuery.of(context).size.width * 0.95,
+                width: MediaQuery.of(context).size.width > 600
+                    ? 550
+                    : MediaQuery.of(context).size.width * 0.95,
                 height: double.infinity,
                 decoration: BoxDecoration(
                   color: kColor(context).surface,
@@ -183,60 +194,23 @@ class _InventoryUIState extends State<InventoryUI> {
                 child: StatefulBuilder(
                   builder: (context, setSidebarState) => Column(
                     children: [
-                      // Sidebar Header
-                      Container(
-                        padding: const EdgeInsets.all(28),
-                        decoration: BoxDecoration(
-                          border: Border(
-                            bottom: BorderSide(
-                              color: kColor(context).outlineVariant.withAlpha(50),
-                            ),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(12),
-                              decoration: BoxDecoration(
-                                color: kColor(context).primary.withAlpha(15),
-                                borderRadius: BorderRadius.circular(15),
-                              ),
-                              child: Icon(
-                                item == null ? LucideIcons.packagePlus : LucideIcons.packageCheck,
-                                color: kColor(context).primary,
-                                size: 28,
-                              ),
-                            ),
-                            const SizedBox(width: 20),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Label(
-                                    item == null ? "Add Inventory" : "Modify Inventory Item",
-                                    fontSize: 22,
-                                    weight: 800,
-                                  ).title,
-                                  Label(
-                                    item == null ? "Create a new entry in your stock" : "Update the current item specifications",
-                                    fontSize: 12,
-                                    color: kColor(context).onSurfaceVariant,
-                                  ).regular,
-                                ],
-                              ),
-                            ),
-                            IconButton(
-                              onPressed: () => Navigator.pop(context),
-                              icon: const Icon(LucideIcons.x),
-                            ),
-                          ],
-                        ),
+                      _sidebarHeader(
+                        item == null
+                            ? "Add Inventory"
+                            : "Modify Inventory Item",
+                        item == null
+                            ? LucideIcons.packagePlus
+                            : LucideIcons.packageCheck,
+                        onClose: () => Navigator.pop(context),
                       ),
 
                       // Sidebar Content
                       Expanded(
                         child: SingleChildScrollView(
-                          padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 32,
+                            vertical: 40,
+                          ),
                           child: Form(
                             key: formKey,
                             child: Column(
@@ -246,28 +220,36 @@ class _InventoryUIState extends State<InventoryUI> {
                                 _buildSectionHeader("PRODUCT IDENTITY"),
                                 const SizedBox(height: 20),
                                 Center(
-                                  child: SegmentedButton<String>(
-                                    segments: categories
-                                        .where((c) => c != "All")
-                                        .map(
-                                          (c) => ButtonSegment(
-                                            value: c,
-                                            label: Text(c),
-                                            icon: Icon(
-                                              c == "Gold"
-                                                  ? LucideIcons.gem
-                                                  : c == "Silver"
-                                                      ? LucideIcons.disc
-                                                      : LucideIcons.sparkles,
-                                              size: 16,
-                                            ),
-                                          ),
-                                        )
-                                        .toList(),
-                                    selected: {category},
-                                    onSelectionChanged: (val) {
-                                      setSidebarState(() => category = val.first);
-                                    },
+                                  child: IgnorePointer(
+                                    ignoring: item != null,
+                                    child: Opacity(
+                                      opacity: item != null ? 0.6 : 1.0,
+                                      child: SegmentedButton<String>(
+                                        segments: categories
+                                            .where((c) => c != "All")
+                                            .map(
+                                              (c) => ButtonSegment(
+                                                value: c,
+                                                label: Text(c),
+                                                icon: Icon(
+                                                  c == "Gold"
+                                                      ? LucideIcons.gem
+                                                      : c == "Silver"
+                                                          ? LucideIcons.disc
+                                                          : LucideIcons.sparkles,
+                                                  size: 16,
+                                                ),
+                                              ),
+                                            )
+                                            .toList(),
+                                        selected: {category},
+                                        onSelectionChanged: (val) {
+                                          setSidebarState(
+                                            () => category = val.first,
+                                          );
+                                        },
+                                      ),
+                                    ),
                                   ),
                                 ),
                                 const SizedBox(height: 24),
@@ -281,9 +263,14 @@ class _InventoryUIState extends State<InventoryUI> {
                                 const SizedBox(height: 24),
                                 KField(
                                   controller: skuController,
+                                  readOnly: item != null,
                                   label: "SKU / Barcode",
-                                  hintText: "System will generate if left blank",
-                                  prefix: const Icon(LucideIcons.barcode, size: 18),
+                                  hintText:
+                                      "System will generate if left blank",
+                                  prefix: const Icon(
+                                    LucideIcons.barcode,
+                                    size: 18,
+                                  ),
                                 ),
                                 const SizedBox(height: 40),
 
@@ -295,22 +282,33 @@ class _InventoryUIState extends State<InventoryUI> {
                                     Expanded(
                                       child: KField(
                                         controller: weightController,
+                                        readOnly: item != null,
                                         label: "Total Weight stock (Gms)",
                                         hintText: "0.000",
-                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                        keyboardType:
+                                            const TextInputType.numberWithOptions(
+                                              decimal: true,
+                                            ),
                                         validator: KValidation.required,
-                                        prefix: const Icon(LucideIcons.scale, size: 18),
+                                        prefix: const Icon(
+                                          LucideIcons.scale,
+                                          size: 18,
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(width: 16),
                                     Expanded(
                                       child: KField(
                                         controller: stockController,
+                                        readOnly: item != null,
                                         label: "Total Pieces stock",
                                         hintText: "0",
                                         keyboardType: TextInputType.number,
                                         validator: KValidation.required,
-                                        prefix: const Icon(LucideIcons.layers, size: 18),
+                                        prefix: const Icon(
+                                          LucideIcons.layers,
+                                          size: 18,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -323,11 +321,22 @@ class _InventoryUIState extends State<InventoryUI> {
                                   const SizedBox(height: 20),
                                   KDropdown<String>(
                                     label: "Gold Purity",
-                                    value: purityController.text.isEmpty ? "22K" : purityController.text,
+                                    value: purityController.text.isEmpty
+                                        ? "22K"
+                                        : purityController.text,
                                     items: ["24K", "22K", "18K", "14K"]
-                                        .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                                        .map(
+                                          (e) => DropdownMenuItem(
+                                            value: e,
+                                            child: Text(e),
+                                          ),
+                                        )
                                         .toList(),
-                                    onChanged: (v) => setSidebarState(() => purityController.text = v!),
+                                    onChanged: item != null
+                                        ? null
+                                        : (v) => setSidebarState(
+                                              () => purityController.text = v!,
+                                            ),
                                   ),
                                   const SizedBox(height: 40),
                                 ],
@@ -343,9 +352,15 @@ class _InventoryUIState extends State<InventoryUI> {
                                         controller: chargesController,
                                         label: "Making Charges",
                                         hintText: "0.00",
-                                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                        keyboardType:
+                                            const TextInputType.numberWithOptions(
+                                              decimal: true,
+                                            ),
                                         validator: KValidation.required,
-                                        prefix: const Icon(LucideIcons.hammer, size: 18),
+                                        prefix: const Icon(
+                                          LucideIcons.hammer,
+                                          size: 18,
+                                        ),
                                       ),
                                     ),
                                     const SizedBox(width: 12),
@@ -355,9 +370,16 @@ class _InventoryUIState extends State<InventoryUI> {
                                         label: "Basis",
                                         value: chargesType,
                                         items: ["Fixed", "Percent"]
-                                            .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                                            .map(
+                                              (e) => DropdownMenuItem(
+                                                value: e,
+                                                child: Text(e),
+                                              ),
+                                            )
                                             .toList(),
-                                        onChanged: (v) => setSidebarState(() => chargesType = v!),
+                                        onChanged: (v) => setSidebarState(
+                                          () => chargesType = v!,
+                                        ),
                                       ),
                                     ),
                                   ],
@@ -369,63 +391,31 @@ class _InventoryUIState extends State<InventoryUI> {
                       ),
 
                       // Sidebar Footer
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
-                        decoration: BoxDecoration(
-                          color: kColor(context).surfaceContainerLow,
-                          border: Border(
-                            top: BorderSide(
-                              color: kColor(context).outlineVariant.withAlpha(50),
-                            ),
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: OutlinedButton(
-                                onPressed: () => Navigator.pop(context),
-                                style: OutlinedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(vertical: 20),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                ),
-                                child: Label("Discard Changes", weight: 700).regular,
-                              ),
-                            ),
-                            const SizedBox(width: 16),
-                            Expanded(
-                              child: ElevatedButton(
-                                onPressed: () async {
-                                  if (formKey.currentState!.validate()) {
-                                    await _handleSaveItem(
-                                      item: item,
-                                      category: category,
-                                      name: nameController.text,
-                                      sku: skuController.text,
-                                      weightStock: weightController.text,
-                                      purity: purityController.text.isEmpty && category == "Gold" ? "22K" : purityController.text,
-                                      charges: chargesController.text,
-                                      chargesType: chargesType,
-                                      pieceStock: stockController.text,
-                                    );
-                                    if (context.mounted) Navigator.pop(context, true);
-                                  }
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: kColor(context).primary,
-                                  foregroundColor: kColor(context).onPrimary,
-                                  elevation: 0,
-                                  padding: const EdgeInsets.symmetric(vertical: 20),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(18),
-                                  ),
-                                ),
-                                child: Label("Save Inventory Item", weight: 700).regular,
-                              ),
-                            ),
-                          ],
-                        ),
+                      _sidebarFooter(
+                        onCancel: () => Navigator.pop(context),
+                        onSave: () async {
+                          if (formKey.currentState!.validate()) {
+                            await _handleSaveItem(
+                              item: item,
+                              category: category,
+                              name: nameController.text,
+                              sku: skuController.text,
+                              weightStock: weightController.text,
+                              purity:
+                                  purityController.text.isEmpty &&
+                                      category == "Gold"
+                                  ? "22K"
+                                  : purityController.text,
+                              charges: chargesController.text,
+                              chargesType: chargesType,
+                              pieceStock: stockController.text,
+                            );
+                            if (context.mounted) {
+                              Navigator.pop(context, true);
+                            }
+                          }
+                        },
+                        label: "Save Inventory Item",
                       ),
                     ],
                   ),
@@ -435,6 +425,365 @@ class _InventoryUIState extends State<InventoryUI> {
           ),
         );
       },
+    );
+  }
+
+  void _showStockAdjustmentSidebar(InventoryModel item) async {
+    String action = "Credit"; // Credit or Debit
+    final weightController = TextEditingController();
+    final piecesController = TextEditingController();
+    final notesController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    await showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "Dismiss",
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
+      transitionBuilder: (context, anim1, anim2, child) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(1, 0),
+            end: const Offset(0, 0),
+          ).animate(CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic)),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                width: 500,
+                height: double.infinity,
+                color: kColor(context).surface,
+                child: StatefulBuilder(
+                  builder: (context, setState) => Column(
+                    children: [
+                      _sidebarHeader(
+                        "Stock Adjustment",
+                        LucideIcons.arrowUpDown,
+                        onClose: () => Navigator.pop(context),
+                      ),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(32),
+                          child: Form(
+                            key: formKey,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              spacing: 24,
+                              children: [
+                                Label(
+                                  "Item: ${item.name} (${item.sku})",
+                                  fontSize: 16,
+                                  weight: 700,
+                                ).regular,
+                                Center(
+                                  child: SegmentedButton<String>(
+                                    segments: const [
+                                      ButtonSegment(
+                                        value: "Credit",
+                                        label: Text("Credit (+)"),
+                                        icon: Icon(LucideIcons.circlePlus),
+                                      ),
+                                      ButtonSegment(
+                                        value: "Debit",
+                                        label: Text("Debit (-)"),
+                                        icon: Icon(LucideIcons.circleMinus),
+                                      ),
+                                    ],
+                                    selected: {action},
+                                    onSelectionChanged: (val) =>
+                                        setState(() => action = val.first),
+                                  ),
+                                ),
+                                KField(
+                                  controller: weightController,
+                                  label: action == "Credit"
+                                      ? "Add Weight (Gms)"
+                                      : "Reduce Weight (Gms)",
+                                  hintText: "0.000",
+                                  keyboardType:
+                                      const TextInputType.numberWithOptions(
+                                        decimal: true,
+                                      ),
+                                  validator: KValidation.required,
+                                ),
+                                KField(
+                                  controller: piecesController,
+                                  label: action == "Credit"
+                                      ? "Add Pieces"
+                                      : "Reduce Pieces",
+                                  hintText: "0",
+                                  keyboardType: TextInputType.number,
+                                  validator: KValidation.required,
+                                ),
+                                KField(
+                                  controller: notesController,
+                                  label: "Adjustment Note",
+                                  hintText:
+                                      "e.g. Manual Restock, Damaged, Correction",
+                                  maxLines: 3,
+                                  validator: KValidation.required,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      _sidebarFooter(
+                        onCancel: () => Navigator.pop(context),
+                        onSave: () async {
+                          if (formKey.currentState!.validate()) {
+                            final wDelta = double.parse(weightController.text);
+                            final pDelta = double.parse(piecesController.text);
+
+                            await DatabaseService.instance
+                                .recordStockAdjustment(
+                                  item: item,
+                                  weightDelta: action == "Credit"
+                                      ? wDelta
+                                      : -wDelta,
+                                  pieceDelta: action == "Credit"
+                                      ? pDelta
+                                      : -pDelta,
+                                  action: action,
+                                  type: 'Manual',
+                                  notes: notesController.text,
+                                );
+
+                            if (context.mounted) Navigator.pop(context, true);
+                          }
+                        },
+                        label: "Update Inventory",
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+    _loadData(); // Refresh UI
+  }
+
+  void _showStockHistorySidebar(InventoryModel item) async {
+    final logsFuture = DatabaseService.instance.getStockLogsForItem(item.id!);
+
+    await showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "Dismiss",
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (context, anim1, anim2) => const SizedBox.shrink(),
+      transitionBuilder: (context, anim1, anim2, child) {
+        return SlideTransition(
+          position: Tween<Offset>(
+            begin: const Offset(1, 0),
+            end: const Offset(0, 0),
+          ).animate(CurvedAnimation(parent: anim1, curve: Curves.easeOutCubic)),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                width: 700,
+                height: double.infinity,
+                color: kColor(context).surface,
+                child: Column(
+                  children: [
+                    _sidebarHeader(
+                      "Stock Transaction History",
+                      LucideIcons.history,
+                      onClose: () => Navigator.pop(context),
+                    ),
+                    Expanded(
+                      child: FutureBuilder<List<StockLogModel>>(
+                        future: logsFuture,
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) {
+                            return const Center(
+                              child: CircularProgressIndicator(),
+                            );
+                          }
+                          final logs = snapshot.data!;
+                          if (logs.isEmpty) {
+                            return Center(
+                              child: Label(
+                                "No history found for this item.",
+                              ).regular,
+                            );
+                          }
+
+                          return SingleChildScrollView(
+                            padding: const EdgeInsets.all(24),
+                            child: KTable(
+                              showCheckboxColumn: false,
+                              columns: [
+                                KTableColumn(
+                                  label: Label("DATE", weight: 700).regular,
+                                ),
+                                KTableColumn(
+                                  label: Label("ACTION", weight: 700).regular,
+                                ),
+                                KTableColumn(
+                                  label: Label("DEATILS", weight: 700).regular,
+                                ),
+                                KTableColumn(
+                                  label: Label("NOTES", weight: 700).regular,
+                                ),
+                              ],
+                              rows: logs.map((log) {
+                                final isDebit = log.action == "Debit";
+                                return KTableRow(
+                                  cells: [
+                                    Label(
+                                      DateFormat(
+                                        'dd MMM yy\nhh:mm a',
+                                      ).format(log.date),
+                                      fontSize: 11,
+                                    ).regular,
+                                    Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: isDebit
+                                            ? Colors.red.withAlpha(20)
+                                            : Colors.green.withAlpha(20),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Label(
+                                        log.action.toUpperCase(),
+                                        fontSize: 10,
+                                        weight: 800,
+                                        color: isDebit
+                                            ? Colors.red
+                                            : Colors.green,
+                                      ).regular,
+                                    ),
+                                    Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Label(
+                                          "${log.weight.toStringAsFixed(3)}g",
+                                          fontSize: 12,
+                                          weight: 600,
+                                        ).regular,
+                                        Label(
+                                          "${log.pieces.toInt()} Pcs",
+                                          fontSize: 10,
+                                        ).regular,
+                                      ],
+                                    ),
+                                    SizedBox(
+                                      width: 200,
+                                      child: Label(
+                                        log.notes,
+                                        fontSize: 11,
+                                        color: kColor(context).onSurfaceVariant,
+                                      ).regular,
+                                    ),
+                                  ],
+                                );
+                              }).toList(),
+                            ),
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _sidebarHeader(
+    String title,
+    IconData icon, {
+    required VoidCallback onClose,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(
+            color: kColor(context).outlineVariant.withAlpha(50),
+          ),
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: kColor(context).primary.withAlpha(15),
+              borderRadius: BorderRadius.circular(15),
+            ),
+            child: Icon(icon, color: kColor(context).primary, size: 28),
+          ),
+          const SizedBox(width: 20),
+          Expanded(child: Label(title, fontSize: 22, weight: 800).title),
+          IconButton(onPressed: onClose, icon: const Icon(LucideIcons.x)),
+        ],
+      ),
+    );
+  }
+
+  Widget _sidebarFooter({
+    required VoidCallback onCancel,
+    required VoidCallback onSave,
+    required String label,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+      decoration: BoxDecoration(
+        color: kColor(context).surfaceContainerLow,
+        border: Border(
+          top: BorderSide(color: kColor(context).outlineVariant.withAlpha(50)),
+        ),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: onCancel,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
+              child: Label("Cancel", weight: 700).regular,
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: ElevatedButton(
+              onPressed: onSave,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kColor(context).primary,
+                foregroundColor: kColor(context).onPrimary,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                ),
+              ),
+              child: Label(label, weight: 700).regular,
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -464,124 +813,64 @@ class _InventoryUIState extends State<InventoryUI> {
       appBar: KAppBar(context, title: "Inventory Master", showBack: false),
       body: Column(
         children: [
-          _buildFilterHeader(),
-          Expanded(child: _buildMainContent()),
-          if (filteredItems.isNotEmpty && !Responsive.isMobile(context)) _buildPaginationFooter(),
-        ],
-      ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddEditItemSidebar(),
-        icon: const Icon(LucideIcons.packagePlus),
-        elevation: 4,
-        backgroundColor: kColor(context).primary,
-        foregroundColor: kColor(context).onPrimary,
-        label: Label("Add New Item", weight: 700).regular,
-      ),
-    );
-  }
-
-  Widget _buildFilterHeader() {
-    return Container(
-      padding: const EdgeInsets.all(kPadding),
-      decoration: BoxDecoration(
-        color: kColor(context).surface,
-        border: Border(bottom: BorderSide(color: kColor(context).outlineVariant.withAlpha(50))),
-      ),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1400),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: KField(
-                      controller: searchController,
-                      hintText: "Search by item name or SKU...",
-                      prefix: const Icon(LucideIcons.search, size: 18),
-                      onChanged: (v) {
-                        searchQuery = v;
-                        _applyFilter();
-                      },
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  _buildCategorySelector(),
-                ],
+          KFilterBar(
+            configs: [
+              FilterConfig(
+                id: "search",
+                label: "Search by item name or SKU...",
+                isSearch: true,
+                initialValue: searchQuery,
               ),
-              if (searchQuery.isNotEmpty || selectedCategory != "All")
-                Padding(
-                  padding: const EdgeInsets.only(top: 12),
-                  child: Row(
-                    children: [
-                      Label("Filters: ", fontSize: 12, weight: 600, color: kColor(context).onSurfaceVariant).regular,
-                      if (selectedCategory != "All")
-                        _buildFilterTag(selectedCategory, () {
-                          setState(() {
-                            selectedCategory = "All";
-                            _applyFilter();
-                          });
-                        }),
-                      if (searchQuery.isNotEmpty)
-                        _buildFilterTag("Search: $searchQuery", () {
-                          setState(() {
-                            searchController.clear();
-                            searchQuery = "";
-                            _applyFilter();
-                          });
-                        }),
-                    ],
-                  ),
-                ),
+              FilterConfig(
+                id: "category",
+                label: "Category",
+                options: categories,
+                initialValue: selectedCategory,
+              ),
             ],
+            selectedFilters: {
+              "search": searchQuery,
+              "category": selectedCategory,
+            },
+            onFilterChanged: (id, value) {
+              setState(() {
+                if (id == "search") {
+                  searchQuery = value;
+                  searchController.text = value;
+                } else {
+                  selectedCategory = value;
+                }
+                _applyFilter();
+              });
+            },
+            onClearAll: () {
+              setState(() {
+                searchQuery = "";
+                searchController.clear();
+                selectedCategory = "All";
+                _applyFilter();
+              });
+            },
+            action: ElevatedButton.icon(
+              onPressed: () => _showAddEditItemSidebar(),
+              icon: const Icon(LucideIcons.packagePlus, size: 18),
+              label: Label("Add New", weight: 700).regular,
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 20,
+                  vertical: 20,
+                ),
+                backgroundColor: kColor(context).primary,
+                foregroundColor: kColor(context).onPrimary,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCategorySelector() {
-    return Container(
-      height: 55,
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      decoration: BoxDecoration(
-        color: kColor(context).surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: kColor(context).outlineVariant.withAlpha(80)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: selectedCategory,
-          items: categories.map((e) => DropdownMenuItem(value: e, child: Label(e).regular)).toList(),
-          onChanged: (v) {
-            setState(() {
-              selectedCategory = v!;
-              _applyFilter();
-            });
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFilterTag(String label, VoidCallback onClear) {
-    return Container(
-      margin: const EdgeInsets.only(right: 8),
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: kColor(context).primary.withAlpha(15),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: kColor(context).primary.withAlpha(30)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Label(label, fontSize: 11, weight: 700, color: kColor(context).primary).regular,
-          const SizedBox(width: 4),
-          InkWell(
-            onTap: onClear,
-            child: Icon(LucideIcons.x, size: 12, color: kColor(context).primary),
-          ),
+          Expanded(child: _buildMainContent()),
+          if (filteredItems.isNotEmpty && !Responsive.isMobile(context))
+            _buildPaginationFooter(),
         ],
       ),
     );
@@ -593,10 +882,17 @@ class _InventoryUIState extends State<InventoryUI> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(LucideIcons.packageX, size: 64, color: kColor(context).outlineVariant),
+            Icon(
+              LucideIcons.packageX,
+              size: 64,
+              color: kColor(context).outlineVariant,
+            ),
             const SizedBox(height: 16),
             Label("No Inventory Items Found", weight: 700).title,
-            Label("Try adjusting your search or filters", color: kColor(context).onSurfaceVariant).regular,
+            Label(
+              "Try adjusting your search or filters",
+              color: kColor(context).onSurfaceVariant,
+            ).regular,
           ],
         ),
       );
@@ -611,107 +907,95 @@ class _InventoryUIState extends State<InventoryUI> {
       );
     }
 
-    // Paginated Table for Desktop/Tablet
     final startIndex = currentPage * itemsPerPage;
     final endIndex = (startIndex + itemsPerPage) > filteredItems.length
         ? filteredItems.length
         : startIndex + itemsPerPage;
     final pageItems = filteredItems.sublist(startIndex, endIndex);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(kPadding),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1400),
-          child: KCard(
-            padding: EdgeInsets.zero,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: DataTable(
-                headingRowHeight: 60,
-                dataRowMinHeight: 75,
-                dataRowMaxHeight: 75,
-                headingRowColor: WidgetStateProperty.all(kColor(context).surfaceContainerHigh),
-                columns: [
-                  DataColumn(label: Label("SL", weight: 800).regular),
-                  DataColumn(label: Label("PRODUCT DETAILS", weight: 800).regular),
-                  DataColumn(label: Label("METAL SPECS", weight: 800).regular),
-                  DataColumn(label: Label("PIECE STOCK", weight: 800).regular),
-                  DataColumn(label: Label("WEIGHT STOCK", weight: 800).regular),
-                  DataColumn(label: Label("PRICING (MC)", weight: 800).regular),
-                  DataColumn(label: Label("ACTIONS", weight: 800).regular),
-                ],
-                rows: pageItems.map((item) {
-                  final index = filteredItems.indexOf(item) + 1;
-                  final isLowStock = item.pieceStock <= item.minStockAlert;
-                  
-                  return DataRow(
-                    cells: [
-                      DataCell(Label(index.toString().padLeft(2, '0')).regular),
-                      DataCell(
-                        Row(
-                          children: [
-                            _buildMiniCategoryIcon(item.category),
-                            const SizedBox(width: 12),
-                            Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Label(item.name, weight: 700).regular,
-                                _buildSkuChip(item.sku),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
-                      DataCell(
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Label(item.category, fontSize: 12, weight: 600).regular,
-                            if (item.category == "Gold")
-                              Label(item.purity, fontSize: 10, color: kColor(context).onSurfaceVariant).regular,
-                          ],
-                        ),
-                      ),
-                      DataCell(_buildStockBadge(item.pieceStock, isLowStock, "PCS")),
-                      DataCell(_buildStockBadge(item.weightStock, item.weightStock <= 5, "GMS")), // Arbitrary 5g alert
-                      DataCell(
-                        Label(
-                          item.makingChargesType == "Percent"
-                              ? "${item.makingCharges}%"
-                              : "₹${item.makingCharges}",
-                          weight: 600,
-                          color: kColor(context).primary,
-                        ).regular,
-                      ),
-                      DataCell(
-                        Row(
-                          children: [
-                            IconButton(
-                              onPressed: () => _showAddEditItemSidebar(item),
-                              icon: const Icon(LucideIcons.pencil, size: 18),
-                              tooltip: "Edit",
-                              color: kColor(context).primary,
-                            ),
-                            IconButton(
-                              onPressed: () => _handleDeleteItem(item),
-                              icon: const Icon(LucideIcons.trash2, size: 18),
-                              tooltip: "Delete",
-                              color: kColor(context).error,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  );
-                }).toList(),
-              ),
+    return KTable(
+      columns: [
+        KTableColumn(label: Label("SL", weight: 800).regular),
+        KTableColumn(label: Label("PRODUCT DETAILS", weight: 800).regular),
+        KTableColumn(label: Label("METAL SPECS", weight: 800).regular),
+        KTableColumn(label: Label("PIECE STOCK", weight: 800).regular),
+        KTableColumn(label: Label("WEIGHT STOCK", weight: 800).regular),
+        KTableColumn(label: Label("PRICING (MC)", weight: 800).regular),
+        KTableColumn(label: Label("ACTIONS", weight: 800).regular),
+      ],
+      rows: pageItems.map((item) {
+        final index = filteredItems.indexOf(item) + 1;
+        final isLowStock = item.pieceStock <= item.minStockAlert;
+        return KTableRow(
+          cells: [
+            Label(index.toString().padLeft(2, '0')).regular,
+            Row(
+              children: [
+                _buildMiniCategoryIcon(item.category),
+                const SizedBox(width: 12),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Label(item.name, weight: 700).regular,
+                    _buildSkuChip(item.sku),
+                  ],
+                ),
+              ],
             ),
-          ),
-        ),
-      ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Label(item.category, fontSize: 12, weight: 600).regular,
+                if (item.category == "Gold")
+                  Label(
+                    item.purity,
+                    fontSize: 10,
+                    color: kColor(context).onSurfaceVariant,
+                  ).regular,
+              ],
+            ),
+            _buildStockBadge(item.pieceStock, isLowStock, "PCS"),
+            _buildStockBadge(item.weightStock, item.weightStock <= 5, "GMS"),
+            Label(
+              item.makingChargesType == "Percent"
+                  ? "${item.makingCharges}%"
+                  : "₹${item.makingCharges}",
+              weight: 600,
+              color: kColor(context).primary,
+            ).regular,
+            Row(
+              children: [
+                IconButton(
+                  onPressed: () => _showStockHistorySidebar(item),
+                  icon: const Icon(LucideIcons.history, size: 18),
+                  tooltip: "History",
+                  color: kColor(context).tertiary,
+                ),
+                IconButton(
+                  onPressed: () => _showStockAdjustmentSidebar(item),
+                  icon: const Icon(LucideIcons.arrowUpDown, size: 18),
+                  tooltip: "Adjust Stock",
+                  color: Colors.orange,
+                ),
+                IconButton(
+                  onPressed: () => _showAddEditItemSidebar(item),
+                  icon: const Icon(LucideIcons.pencil, size: 18),
+                  tooltip: "Edit",
+                  color: kColor(context).primary,
+                ),
+                IconButton(
+                  onPressed: () => _handleDeleteItem(item),
+                  icon: const Icon(LucideIcons.trash2, size: 18),
+                  tooltip: "Delete",
+                  color: kColor(context).error,
+                ),
+              ],
+            ),
+          ],
+        );
+      }).toList(),
     );
   }
 
@@ -721,28 +1005,44 @@ class _InventoryUIState extends State<InventoryUI> {
       padding: const EdgeInsets.symmetric(horizontal: kPadding, vertical: 16),
       decoration: BoxDecoration(
         color: kColor(context).surface,
-        border: Border(top: BorderSide(color: kColor(context).outlineVariant.withAlpha(50))),
+        border: Border(
+          top: BorderSide(color: kColor(context).outlineVariant.withAlpha(50)),
+        ),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Label("Showing ${currentPage * itemsPerPage + 1} to ${((currentPage + 1) * itemsPerPage).clamp(0, filteredItems.length)} of ${filteredItems.length} entries", fontSize: 12).regular,
+          Label(
+            "Showing ${currentPage * itemsPerPage + 1} to ${((currentPage + 1) * itemsPerPage).clamp(0, filteredItems.length)} of ${filteredItems.length} entries",
+            fontSize: 12,
+          ).regular,
           Row(
             children: [
               IconButton(
-                onPressed: currentPage > 0 ? () => setState(() => currentPage--) : null,
+                onPressed: currentPage > 0
+                    ? () => setState(() => currentPage--)
+                    : null,
                 icon: const Icon(LucideIcons.chevronLeft),
               ),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 decoration: BoxDecoration(
                   color: kColor(context).primaryContainer,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Label("Page ${currentPage + 1} of $totalPages", weight: 700, color: kColor(context).primary).regular,
+                child: Label(
+                  "Page ${currentPage + 1} of $totalPages",
+                  weight: 700,
+                  color: kColor(context).primary,
+                ).regular,
               ),
               IconButton(
-                onPressed: (currentPage + 1) < totalPages ? () => setState(() => currentPage++) : null,
+                onPressed: (currentPage + 1) < totalPages
+                    ? () => setState(() => currentPage++)
+                    : null,
                 icon: const Icon(LucideIcons.chevronRight),
               ),
             ],
@@ -757,9 +1057,15 @@ class _InventoryUIState extends State<InventoryUI> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: isLow ? Colors.orange.withAlpha(20) : kColor(context).surfaceContainer,
+        color: isLow
+            ? Colors.orange.withAlpha(20)
+            : kColor(context).surfaceContainer,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isLow ? Colors.orange.withAlpha(50) : kColor(context).outlineVariant.withAlpha(50)),
+        border: Border.all(
+          color: isLow
+              ? Colors.orange.withAlpha(50)
+              : kColor(context).outlineVariant.withAlpha(50),
+        ),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -770,7 +1076,12 @@ class _InventoryUIState extends State<InventoryUI> {
             color: isLow ? Colors.orange : null,
           ).regular,
           const SizedBox(width: 4),
-          Label(unit, fontSize: 8, weight: 800, color: color.withAlpha(150)).regular,
+          Label(
+            unit,
+            fontSize: 8,
+            weight: 800,
+            color: color.withAlpha(150),
+          ).regular,
         ],
       ),
     );
@@ -788,7 +1099,11 @@ class _InventoryUIState extends State<InventoryUI> {
         borderRadius: BorderRadius.circular(10),
       ),
       child: Icon(
-        category == "Gold" ? LucideIcons.gem : category == "Silver" ? LucideIcons.disc : LucideIcons.sparkles,
+        category == "Gold"
+            ? LucideIcons.gem
+            : category == "Silver"
+            ? LucideIcons.disc
+            : LucideIcons.sparkles,
         color: color,
         size: 18,
       ),
@@ -798,56 +1113,91 @@ class _InventoryUIState extends State<InventoryUI> {
   Widget _buildItemCard(InventoryModel item) {
     final isLowStock = item.pieceStock <= item.minStockAlert;
     return KCard(
-      onTap: () => _showAddEditItemSidebar(item),
       padding: const EdgeInsets.all(18),
       color: isLowStock
           ? Colors.orange.withAlpha(10)
           : kColor(context).surfaceContainerLow,
-      child: Row(
+      child: Column(
         children: [
-          _buildCategoryIcon(item.category),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Row(
+          Row(
+            children: [
+              _buildCategoryIcon(item.category),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Flexible(
-                      child: Label(
-                        item.name,
-                        fontSize: 16,
-                        weight: 700,
-                        maxLines: 1,
-                      ).title,
+                    Row(
+                      children: [
+                        Flexible(
+                          child: Label(
+                            item.name,
+                            fontSize: 16,
+                            weight: 700,
+                            maxLines: 1,
+                          ).title,
+                        ),
+                        if (item.sku.isNotEmpty) ...[
+                          const SizedBox(width: 10),
+                          _buildSkuChip(item.sku),
+                        ],
+                      ],
                     ),
-                    if (item.sku.isNotEmpty) ...[
-                      const SizedBox(width: 10),
-                      _buildSkuChip(item.sku),
-                    ],
+                    const SizedBox(height: 12),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _buildSpecTag(
+                          LucideIcons.scale,
+                          "${item.weightStock.toStringAsFixed(3)} Gms",
+                        ),
+                        if (item.purity.isNotEmpty)
+                          _buildSpecTag(LucideIcons.award, item.purity),
+                        _buildSpecTag(
+                          LucideIcons.hammer,
+                          item.makingChargesType == 'Percent'
+                              ? "${item.makingCharges}% MC"
+                              : "Rs.${item.makingCharges} MC",
+                        ),
+                      ],
+                    ),
                   ],
                 ),
-                const SizedBox(height: 12),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _buildSpecTag(LucideIcons.scale, "${item.weightStock.toStringAsFixed(3)} Gms"),
-                    if (item.purity.isNotEmpty) _buildSpecTag(LucideIcons.award, item.purity),
-                    _buildSpecTag(
-                      LucideIcons.hammer,
-                      item.makingChargesType == 'Percent'
-                          ? "${item.makingCharges}% MC"
-                          : "Rs.${item.makingCharges} MC",
-                    ),
-                  ],
-                ),
-              ],
-            ),
+              ),
+              const SizedBox(width: 16),
+              _buildStockIndicator(item.pieceStock, isLowStock),
+            ],
           ),
-          const SizedBox(width: 16),
-          _buildStockIndicator(item.pieceStock, isLowStock),
+          const SizedBox(height: 16),
+          const Divider(height: 1, thickness: 0.5),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              IconButton(
+                onPressed: () => _showStockHistorySidebar(item),
+                icon: const Icon(LucideIcons.history, size: 20),
+                color: kColor(context).tertiary,
+              ),
+              IconButton(
+                onPressed: () => _showStockAdjustmentSidebar(item),
+                icon: const Icon(LucideIcons.arrowUpDown, size: 20),
+                color: Colors.orange,
+              ),
+              IconButton(
+                onPressed: () => _showAddEditItemSidebar(item),
+                icon: const Icon(LucideIcons.pencil, size: 20),
+                color: kColor(context).primary,
+              ),
+              IconButton(
+                onPressed: () => _handleDeleteItem(item),
+                icon: const Icon(LucideIcons.trash2, size: 20),
+                color: kColor(context).error,
+              ),
+            ],
+          ),
         ],
       ),
     );
@@ -895,12 +1245,7 @@ class _InventoryUIState extends State<InventoryUI> {
             weight: 900,
             color: color,
           ).title,
-          Label(
-            "PCS STOCK",
-            fontSize: 8,
-            weight: 800,
-            color: color,
-          ).regular,
+          Label("PCS STOCK", fontSize: 8, weight: 800, color: color).regular,
         ],
       ),
     );
