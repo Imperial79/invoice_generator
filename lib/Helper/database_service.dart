@@ -187,6 +187,11 @@ class DatabaseService {
     }
   }
 
+  Future<String?> getDbPath() async {
+    final db = await instance.database;
+    return db.path;
+  }
+
   // --- CRUD Operations ---
 
   // INVOICES

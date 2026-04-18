@@ -1,4 +1,6 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:prime_invoice/Essentials/KScaffold.dart';
 import 'package:prime_invoice/Essentials/Label.dart';
@@ -93,7 +95,7 @@ class _SetupUIState extends State<SetupUI> {
                             final pref = await SharedPreferences.getInstance();
                             await pref.setInt("theme_mode", e.index);
                           },
-                          borderRadius: BorderRadius.circular(10),
+                          borderRadius: kRadius(10),
                           child: Container(
                             padding: const EdgeInsets.all(8),
                             decoration: BoxDecoration(
@@ -101,7 +103,7 @@ class _SetupUIState extends State<SetupUI> {
                                   ? kColor(context).primary
                                   : kColor(context).surfaceContainerHigh
                                         .withValues(alpha: .5),
-                              borderRadius: BorderRadius.circular(10),
+                              borderRadius: kRadius(10),
                             ),
                             child: Icon(
                               icon,
@@ -142,8 +144,8 @@ class _SetupUIState extends State<SetupUI> {
               _buildOption(
                 LucideIcons.database,
                 "Backup & Restore",
-                "Clear all data",
-                onTap: () => _showClearDialog(context),
+                "Save & load local database backup",
+                onTap: () => _showBackupRestoreDialog(context),
               ),
               _buildOption(
                 LucideIcons.info,
@@ -168,6 +170,104 @@ class _SetupUIState extends State<SetupUI> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  void _showBackupRestoreDialog(BuildContext parentContext) {
+    showDialog(
+      context: parentContext,
+      builder: (dialogContext) => AlertDialog(
+        title: Label("Backup & Restore", weight: 700).title,
+        content: Label("Select an action for your database.").regular,
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext),
+            child: Label("Cancel").regular,
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext); // Close dialog
+              String? dbPath = await DatabaseService.instance.getDbPath();
+              if (dbPath == null) return;
+
+              String? outputFile = await FilePicker.platform.saveFile(
+                dialogTitle: 'Save Database Backup',
+                fileName: 'invoice_backup.db',
+              );
+
+              if (outputFile != null) {
+                try {
+                  File(dbPath).copySync(outputFile);
+                  if (parentContext.mounted) {
+                    KSnackbar(
+                      parentContext,
+                      message: "Backup saved at: $outputFile",
+                    );
+                  }
+                } catch (e) {
+                  if (parentContext.mounted) {
+                    KSnackbar(
+                      parentContext,
+                      message: "Error saving backup: $e",
+                      error: true,
+                    );
+                  }
+                }
+              }
+            },
+            child: Label(
+              "Backup",
+              color: kColor(parentContext).primary,
+            ).regular,
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.pop(dialogContext); // Close dialog
+              String? dbPath = await DatabaseService.instance.getDbPath();
+              if (dbPath == null) return;
+
+              FilePickerResult? result = await FilePicker.platform.pickFiles(
+                type: FileType.custom,
+                allowedExtensions: ['db'],
+              );
+
+              if (result != null && result.files.single.path != null) {
+                try {
+                  File(result.files.single.path!).copySync(dbPath);
+                  if (parentContext.mounted) {
+                    KSnackbar(
+                      parentContext,
+                      message: "Database restored! Please restart the app.",
+                    );
+                  }
+                } catch (e) {
+                  if (parentContext.mounted) {
+                    KSnackbar(
+                      parentContext,
+                      message: "Error restoring: $e",
+                      error: true,
+                    );
+                  }
+                }
+              }
+            },
+            child: Label(
+              "Restore",
+              color: kColor(parentContext).secondary,
+            ).regular,
+          ),
+          // TextButton(
+          //   onPressed: () async {
+          //     Navigator.pop(dialogContext); // Close dialog
+          //     _showClearDialog(parentContext);
+          //   },
+          //   child: Label(
+          //     "Clear DB",
+          //     color: kColor(parentContext).error,
+          //   ).regular,
+          // ),
+        ],
       ),
     );
   }

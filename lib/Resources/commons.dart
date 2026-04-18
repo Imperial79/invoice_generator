@@ -40,7 +40,7 @@ systemColors(BuildContext context) {
   );
 }
 
-BorderRadius kRadius(double radius) => BorderRadius.circular(radius);
+BorderRadius kRadius(double radius) => BorderRadius.zero;
 
 Future<T?> navPush<T extends Object?>(BuildContext context, Widget screen) {
   return Navigator.push(
@@ -68,7 +68,7 @@ Future<T?> navPopUntilPush<T extends Object?>(
 }
 
 KSnackbar(
-  context, {
+  BuildContext context, {
   dynamic message,
   bool error = false,
   SnackBarAction? action,
@@ -77,21 +77,25 @@ KSnackbar(
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: kRadius(10)),
-      backgroundColor: error ? kColor(context).error : kColor(context).primary,
+      behavior: SnackBarBehavior.floating,
+      margin: EdgeInsets.only(
+        bottom: MediaQuery.sizeOf(context).height - 100 > 0 ? MediaQuery.sizeOf(context).height - 100 : 0,
+        left: MediaQuery.sizeOf(context).width > 400 ? MediaQuery.sizeOf(context).width - 350 : 20,
+        right: 20,
+      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      backgroundColor: error ? StatusText.danger : StatusText.success,
       content: Row(
         spacing: 11,
         children: [
           Icon(
             error ? LucideIcons.circleAlert : LucideIcons.circleCheck,
-            color: error ? kColor(context).onError : kColor(context).onPrimary,
+            color: Colors.white,
           ),
           Flexible(
             child: Label(
               "$message",
-              color: error
-                  ? kColor(context).onError
-                  : kColor(context).onPrimary,
+              color: Colors.white,
             ).regular,
           ),
         ],

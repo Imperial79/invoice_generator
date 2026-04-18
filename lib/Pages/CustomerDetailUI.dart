@@ -96,7 +96,7 @@ class _CustomerDetailUIState extends State<CustomerDetailUI> {
                 width: 70,
                 decoration: BoxDecoration(
                   color: kColor(context).primary,
-                  shape: BoxShape.circle,
+                  shape: BoxShape.rectangle,
                 ),
                 child: Center(
                   child: Icon(
@@ -148,7 +148,7 @@ class _CustomerDetailUIState extends State<CustomerDetailUI> {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       decoration: BoxDecoration(
         color: kColor(context).surface,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: kRadius(16),
         border: Border.all(color: kColor(context).outlineVariant),
       ),
       child: Column(
@@ -230,7 +230,7 @@ class _CustomerDetailUIState extends State<CustomerDetailUI> {
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
                     color: kColor(context).surfaceContainerHigh,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: kRadius(10),
                   ),
                   child: Icon(LucideIcons.fileText,
                       size: 20, color: kColor(context).primary),

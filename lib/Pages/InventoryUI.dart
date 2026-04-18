@@ -452,7 +452,7 @@ class _InventoryUIState extends State<InventoryUI> {
             child: Material(
               color: Colors.transparent,
               child: Container(
-                width: 500,
+                width: Responsive.isMobile(context) ? MediaQuery.sizeOf(context).width : 500,
                 height: double.infinity,
                 color: kColor(context).surface,
                 child: StatefulBuilder(
@@ -653,7 +653,7 @@ class _InventoryUIState extends State<InventoryUI> {
                                         color: isDebit
                                             ? Colors.red.withAlpha(20)
                                             : Colors.green.withAlpha(20),
-                                        borderRadius: BorderRadius.circular(6),
+                                        borderRadius: kRadius(6),
                                       ),
                                       child: Label(
                                         log.action.toUpperCase(),
@@ -727,7 +727,7 @@ class _InventoryUIState extends State<InventoryUI> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: kColor(context).primary.withAlpha(15),
-              borderRadius: BorderRadius.circular(15),
+              borderRadius: kRadius(15),
             ),
             child: Icon(icon, color: kColor(context).primary, size: 28),
           ),
@@ -760,7 +760,7 @@ class _InventoryUIState extends State<InventoryUI> {
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: kRadius(18),
                 ),
               ),
               child: Label("Cancel", weight: 700).regular,
@@ -776,7 +776,7 @@ class _InventoryUIState extends State<InventoryUI> {
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(vertical: 20),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(18),
+                  borderRadius: kRadius(18),
                 ),
               ),
               child: Label(label, weight: 700).regular,
@@ -863,7 +863,7 @@ class _InventoryUIState extends State<InventoryUI> {
                 backgroundColor: kColor(context).primary,
                 foregroundColor: kColor(context).onPrimary,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: kRadius(12),
                 ),
               ),
             ),
@@ -1031,7 +1031,7 @@ class _InventoryUIState extends State<InventoryUI> {
                 ),
                 decoration: BoxDecoration(
                   color: kColor(context).primaryContainer,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: kRadius(8),
                 ),
                 child: Label(
                   "Page ${currentPage + 1} of $totalPages",
@@ -1060,7 +1060,7 @@ class _InventoryUIState extends State<InventoryUI> {
         color: isLow
             ? Colors.orange.withAlpha(20)
             : kColor(context).surfaceContainer,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: kRadius(8),
         border: Border.all(
           color: isLow
               ? Colors.orange.withAlpha(50)
@@ -1096,7 +1096,7 @@ class _InventoryUIState extends State<InventoryUI> {
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: color.withAlpha(15),
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: kRadius(10),
       ),
       child: Icon(
         category == "Gold"
@@ -1208,7 +1208,7 @@ class _InventoryUIState extends State<InventoryUI> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: kColor(context).primary.withAlpha(15),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: kRadius(6),
         border: Border.all(color: kColor(context).primary.withAlpha(30)),
       ),
       child: Row(
@@ -1233,7 +1233,7 @@ class _InventoryUIState extends State<InventoryUI> {
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: color.withAlpha(15),
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: kRadius(14),
         border: Border.all(color: color.withAlpha(30)),
       ),
       child: Column(
@@ -1256,7 +1256,7 @@ class _InventoryUIState extends State<InventoryUI> {
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
       decoration: BoxDecoration(
         color: kColor(context).surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: kRadius(6),
         border: Border.all(
           color: kColor(context).outlineVariant.withAlpha(100),
         ),
@@ -1295,7 +1295,7 @@ class _InventoryUIState extends State<InventoryUI> {
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: kRadius(10),
         border: Border.all(color: color.withAlpha(50), width: 1.5),
         boxShadow: [
           BoxShadow(

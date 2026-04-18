@@ -628,7 +628,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
           alignment: Alignment.centerRight,
           child: Material(
             child: Container(
-              width: 500,
+              width: Responsive.isMobile(context) ? MediaQuery.sizeOf(context).width : 500,
               height: double.infinity,
               color: kColor(context).surface,
               child: StatefulBuilder(
@@ -714,7 +714,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
           alignment: Alignment.centerRight,
           child: Material(
             child: Container(
-              width: 600,
+              width: Responsive.isMobile(context) ? MediaQuery.sizeOf(context).width : 600,
               height: double.infinity,
               color: kColor(context).surface,
               child: StatefulBuilder(
@@ -895,7 +895,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
       height: 200,
       decoration: BoxDecoration(
         color: kColor(context).surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: kRadius(12),
       ),
       child: ListView.builder(
         itemCount: res.length,
@@ -1034,7 +1034,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: kColor(context).surfaceContainer,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: kRadius(16),
           ),
           child: Column(
             spacing: 12,

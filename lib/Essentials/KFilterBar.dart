@@ -3,6 +3,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:prime_invoice/Essentials/KField.dart';
 import 'package:prime_invoice/Essentials/Label.dart';
 import 'package:prime_invoice/Resources/colors.dart';
+import 'package:prime_invoice/Resources/commons.dart';
 import 'package:prime_invoice/Resources/constants.dart';
 
 class FilterConfig {
@@ -156,7 +157,7 @@ class KFilterBar extends StatelessWidget {
       margin: const EdgeInsets.only(right: 16),
       decoration: BoxDecoration(
         color: kColor(context).surfaceContainerLow,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: kRadius(12),
         border: Border.all(color: kColor(context).outlineVariant.withAlpha(80)),
       ),
       child: DropdownButtonHideUnderline(
@@ -176,7 +177,7 @@ class KFilterBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: kColor(context).primary.withAlpha(15),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: kRadius(20),
         border: Border.all(color: kColor(context).primary.withAlpha(30)),
       ),
       child: Row(

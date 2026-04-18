@@ -138,7 +138,7 @@ class _HomeUIState extends State<HomeUI> {
           padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: Colors.red.withAlpha(25),
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: kRadius(12),
             border: Border.all(color: Colors.red.withAlpha(80)),
           ),
           child: Row(
@@ -229,7 +229,7 @@ class _HomeUIState extends State<HomeUI> {
                   decoration: BoxDecoration(
                     color: (isPortable ? Colors.green : Colors.orange)
                         .withAlpha(40),
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: kRadius(20),
                     border: Border.all(
                       color: (isPortable ? Colors.green : Colors.orange)
                           .withAlpha(80),
@@ -284,7 +284,7 @@ class _HomeUIState extends State<HomeUI> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: color.withAlpha(20),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: kRadius(16),
               border: Border.all(color: color.withAlpha(40)),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -368,7 +368,7 @@ class _HomeUIState extends State<HomeUI> {
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
               color: color.withAlpha(15),
-              shape: BoxShape.circle,
+              shape: BoxShape.rectangle,
               border: Border.all(color: color.withAlpha(30)),
             ),
             child: Icon(icon, color: color, size: 24),
@@ -445,7 +445,7 @@ class _HomeUIState extends State<HomeUI> {
                 width: 54,
                 decoration: BoxDecoration(
                   color: kColor(context).primary.withAlpha(15),
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: kRadius(16),
                   border: Border.all(color: kColor(context).primary.withAlpha(30)),
                 ),
                 child: Center(
@@ -554,7 +554,7 @@ class _HomeUIState extends State<HomeUI> {
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: color.withAlpha(25),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: kRadius(8),
         ),
         child: isLoading
             ? SizedBox(

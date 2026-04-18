@@ -8,6 +8,7 @@ import 'package:prime_invoice/Helper/database_service.dart';
 import 'package:prime_invoice/Helper/pdf_helper.dart';
 import 'package:prime_invoice/Models/Invoice_Model.dart';
 import 'package:prime_invoice/Resources/colors.dart';
+import 'package:prime_invoice/Resources/commons.dart';
 import 'package:prime_invoice/Resources/constants.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:prime_invoice/Helper/responsive.dart';
@@ -165,7 +166,7 @@ class _InvoicesListUIState extends State<InvoicesListUI> {
           });
         }
       },
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: kRadius(12),
       child: Container(
         height: 55,
         width: 55,
@@ -173,7 +174,7 @@ class _InvoicesListUIState extends State<InvoicesListUI> {
           color: selectedDateRange != null
               ? kColor(context).primary.withAlpha(20)
               : kColor(context).surfaceContainerLow,
-          borderRadius: BorderRadius.circular(15),
+          borderRadius: kRadius(15),
           border: Border.all(
             color: selectedDateRange != null
                 ? kColor(context).primary.withAlpha(80)
@@ -357,7 +358,7 @@ class _InvoicesListUIState extends State<InvoicesListUI> {
                 ),
                 decoration: BoxDecoration(
                   color: kColor(context).primaryContainer,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: kRadius(8),
                 ),
                 child: Label(
                   "Page ${currentPage + 1} of $totalPages",
@@ -390,7 +391,7 @@ class _InvoicesListUIState extends State<InvoicesListUI> {
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: color.withAlpha(25),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: kRadius(8),
         ),
         child: isLoading
             ? SizedBox(
@@ -414,7 +415,7 @@ class _InvoicesListUIState extends State<InvoicesListUI> {
             width: 54,
             decoration: BoxDecoration(
               color: kColor(context).primary.withAlpha(15),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: kRadius(16),
               border: Border.all(color: kColor(context).primary.withAlpha(30)),
             ),
             child: Center(

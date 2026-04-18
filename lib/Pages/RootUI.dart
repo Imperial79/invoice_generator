@@ -4,6 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:prime_invoice/Helper/responsive.dart';
 import 'package:prime_invoice/Resources/colors.dart';
 import 'package:prime_invoice/Essentials/Label.dart';
+import 'package:prime_invoice/Resources/commons.dart';
 
 class RootUI extends StatefulWidget {
   final Widget child;
@@ -101,7 +102,7 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
               width: 300,
               height: 300,
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
+                shape: BoxShape.rectangle,
                 color: kColor(context).primary.withAlpha(15),
               ),
             ),
@@ -110,10 +111,12 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
             bottom: -150,
             left: 200,
             child: Container(
-              width: 400,
+              width: Responsive.isMobile(context)
+                  ? MediaQuery.sizeOf(context).width
+                  : 400,
               height: 400,
               decoration: BoxDecoration(
-                shape: BoxShape.circle,
+                shape: BoxShape.rectangle,
                 color: kColor(context).secondary.withAlpha(11),
               ),
             ),
@@ -236,7 +239,7 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
                 kColor(context).primary.withAlpha(180),
               ],
             ),
-            borderRadius: BorderRadius.circular(14),
+            borderRadius: kRadius(14),
             boxShadow: [
               BoxShadow(
                 color: kColor(context).primary.withAlpha(50),
@@ -276,7 +279,7 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
       margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         onTap: () => _onItemTapped(index, context),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: kRadius(16),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -284,7 +287,7 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
             color: isSelected
                 ? kColor(context).primary.withAlpha(25)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: kRadius(16),
             border: Border.all(
               color: isSelected
                   ? kColor(context).primary.withAlpha(40)
@@ -317,7 +320,7 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
                   height: 5,
                   decoration: BoxDecoration(
                     color: kColor(context).primary,
-                    shape: BoxShape.circle,
+                    shape: BoxShape.rectangle,
                     boxShadow: [
                       BoxShadow(
                         color: kColor(context).primary.withAlpha(100),
@@ -338,7 +341,7 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: kColor(context).surfaceContainerHigh.withAlpha(100),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: kRadius(20),
         border: Border.all(color: kColor(context).outlineVariant.withAlpha(50)),
       ),
       child: Row(
@@ -348,7 +351,7 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
             height: 36,
             decoration: BoxDecoration(
               color: kColor(context).primary.withAlpha(30),
-              shape: BoxShape.circle,
+              shape: BoxShape.rectangle,
             ),
             alignment: Alignment.center,
             child: Label(

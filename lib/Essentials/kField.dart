@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:prime_invoice/Resources/commons.dart';
 import '../Resources/colors.dart';
 import 'Label.dart';
 
@@ -171,10 +172,9 @@ class KField extends StatelessWidget {
               fontVariations: [FontVariation.weight(500)],
             ),
             hintText: hintText,
-            hintStyle: kHintTextstyle(context).copyWith(
-              fontSize: fontSize,
-              color: hintTextColor,
-            ),
+            hintStyle: kHintTextstyle(
+              context,
+            ).copyWith(fontSize: fontSize, color: hintTextColor),
           ),
           onChanged: onChanged,
           validator: validator,
@@ -210,7 +210,7 @@ class KField extends StatelessWidget {
     Color? customBorder, {
     double width = 1.0,
   }) => OutlineInputBorder(
-    borderRadius: BorderRadius.circular(15),
+    borderRadius: kRadius(15),
     borderSide: BorderSide(
       color: borderColor ?? customBorder ?? kColor(context).outlineVariant,
       width: width,

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:prime_invoice/Essentials/kCard.dart';
 import 'package:prime_invoice/Resources/colors.dart';
+import 'package:prime_invoice/Resources/commons.dart';
 import 'package:prime_invoice/Resources/constants.dart';
 
 class KTableColumn {
@@ -8,21 +9,14 @@ class KTableColumn {
   final bool numeric;
   final String? tooltip;
 
-  KTableColumn({
-    required this.label,
-    this.numeric = false,
-    this.tooltip,
-  });
+  KTableColumn({required this.label, this.numeric = false, this.tooltip});
 }
 
 class KTableRow {
   final List<Widget> cells;
   final VoidCallback? onTap;
 
-  KTableRow({
-    required this.cells,
-    this.onTap,
-  });
+  KTableRow({required this.cells, this.onTap});
 }
 
 class KTable extends StatelessWidget {
@@ -53,7 +47,7 @@ class KTable extends StatelessWidget {
               child: KCard(
                 padding: EdgeInsets.zero,
                 child: ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: kRadius(16),
                   child: SingleChildScrollView(
                     scrollDirection: Axis.horizontal,
                     child: ConstrainedBox(
@@ -82,12 +76,10 @@ class KTable extends StatelessWidget {
                         rows: rows
                             .map(
                               (r) => DataRow(
-                                cells: r.cells
-                                    .map((c) => DataCell(c))
-                                    .toList(),
-                                onSelectChanged: r.onTap != null 
-                                  ? (_) => r.onTap!() 
-                                  : null,
+                                cells: r.cells.map((c) => DataCell(c)).toList(),
+                                onSelectChanged: r.onTap != null
+                                    ? (_) => r.onTap!()
+                                    : null,
                               ),
                             )
                             .toList(),

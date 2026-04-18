@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../Resources/colors.dart';
+import '../Resources/commons.dart';
 import 'Label.dart';
 
 class KDropdown<T> extends StatelessWidget {
@@ -72,7 +73,7 @@ class KDropdown<T> extends StatelessWidget {
     double width = 1.0,
   }) {
     return OutlineInputBorder(
-      borderRadius: BorderRadius.circular(10),
+      borderRadius: kRadius(10),
       borderSide: BorderSide(
         color: borderColor ?? customBorder ?? kColor(context).outlineVariant,
         width: width,

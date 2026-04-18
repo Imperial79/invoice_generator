@@ -106,7 +106,7 @@ class _MetalRatesUIState extends State<MetalRatesUI> {
                   foregroundColor: kColor(context).onPrimary,
                   padding: const EdgeInsets.symmetric(vertical: 18),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: kRadius(12),
                   ),
                 ),
               ),
@@ -122,7 +122,7 @@ class _MetalRatesUIState extends State<MetalRatesUI> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: kColor(context).primaryContainer.withAlpha(50),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: kRadius(12),
         border: Border.all(color: kColor(context).primary.withAlpha(50)),
       ),
       child: Row(

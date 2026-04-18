@@ -176,7 +176,7 @@ class _ClientsUIState extends State<ClientsUI> {
                               padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
                                 color: kColor(context).primary.withAlpha(20),
-                                borderRadius: BorderRadius.circular(12),
+                                borderRadius: kRadius(12),
                               ),
                               child: Icon(
                                 customer == null
@@ -364,7 +364,7 @@ class _ClientsUIState extends State<ClientsUI> {
                                     vertical: 18,
                                   ),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(15),
+                                    borderRadius: kRadius(15),
                                   ),
                                 ),
                                 child: Label("Cancel", weight: 700).regular,
@@ -398,7 +398,7 @@ class _ClientsUIState extends State<ClientsUI> {
                                     vertical: 18,
                                   ),
                                   shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(15),
+                                    borderRadius: kRadius(15),
                                   ),
                                 ),
                                 child: Label(
@@ -494,7 +494,7 @@ class _ClientsUIState extends State<ClientsUI> {
                 backgroundColor: kColor(context).primary,
                 foregroundColor: kColor(context).onPrimary,
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: kRadius(12),
                 ),
               ),
             ),
@@ -650,7 +650,7 @@ class _ClientsUIState extends State<ClientsUI> {
                 ),
                 decoration: BoxDecoration(
                   color: kColor(context).primaryContainer,
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: kRadius(8),
                 ),
                 child: Label(
                   "Page ${currentPage + 1} of $totalPages",
@@ -678,7 +678,7 @@ class _ClientsUIState extends State<ClientsUI> {
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
           color: color.withAlpha(25),
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: kRadius(8),
         ),
         child: Icon(icon, size: 16, color: color),
       ),
@@ -708,7 +708,7 @@ class _ClientsUIState extends State<ClientsUI> {
               color: isCompany
                   ? kColor(context).secondary.withAlpha(20)
                   : kColor(context).primary.withAlpha(20),
-              shape: BoxShape.circle,
+              shape: BoxShape.rectangle,
               border: Border.all(
                 color: isCompany
                     ? kColor(context).secondary.withAlpha(40)
@@ -790,7 +790,7 @@ class _ClientsUIState extends State<ClientsUI> {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
         color: color.withAlpha(15),
-        borderRadius: BorderRadius.circular(6),
+        borderRadius: kRadius(6),
         border: Border.all(color: color.withAlpha(30)),
       ),
       child: Label(

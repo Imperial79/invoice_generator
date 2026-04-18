@@ -8,6 +8,7 @@ import 'package:prime_invoice/Essentials/Label.dart';
 import 'package:prime_invoice/Essentials/kButton.dart';
 import 'package:prime_invoice/Resources/colors.dart';
 import 'package:prime_invoice/Helper/responsive.dart';
+import 'package:prime_invoice/Resources/commons.dart';
 
 class LoginUI extends StatefulWidget {
   const LoginUI({super.key});
@@ -102,10 +103,12 @@ class _LoginUIState extends State<LoginUI> with SingleTickerProviderStateMixin {
               top: -100,
               right: -100,
               child: Container(
-                width: 400,
+                width: Responsive.isMobile(context)
+                    ? MediaQuery.sizeOf(context).width
+                    : 400,
                 height: 400,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
+                  shape: BoxShape.rectangle,
                   color: kColor(context).primary.withAlpha(20),
                 ),
               ),
@@ -114,10 +117,12 @@ class _LoginUIState extends State<LoginUI> with SingleTickerProviderStateMixin {
               bottom: -150,
               left: -150,
               child: Container(
-                width: 500,
+                width: Responsive.isMobile(context)
+                    ? MediaQuery.sizeOf(context).width
+                    : 500,
                 height: 500,
                 decoration: BoxDecoration(
-                  shape: BoxShape.circle,
+                  shape: BoxShape.rectangle,
                   color: kColor(context).secondary.withAlpha(15),
                 ),
               ),
@@ -141,7 +146,7 @@ class _LoginUIState extends State<LoginUI> with SingleTickerProviderStateMixin {
                       elevation: 0,
                       color: kColor(context).surfaceContainerLow.withAlpha(200),
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(32),
+                        borderRadius: kRadius(32),
                         side: BorderSide(
                           color: kColor(context).outlineVariant.withAlpha(100),
                         ),
@@ -163,15 +168,23 @@ class _LoginUIState extends State<LoginUI> with SingleTickerProviderStateMixin {
                             : Row(
                                 crossAxisAlignment: CrossAxisAlignment.center,
                                 children: [
-                                  Expanded(flex: 1, child: _buildBranding(context)),
+                                  Expanded(
+                                    flex: 1,
+                                    child: _buildBranding(context),
+                                  ),
                                   const SizedBox(width: 80),
                                   Container(
                                     width: 1,
                                     height: 300,
-                                    color: kColor(context).outlineVariant.withAlpha(50),
+                                    color: kColor(
+                                      context,
+                                    ).outlineVariant.withAlpha(50),
                                   ),
                                   const SizedBox(width: 80),
-                                  Expanded(flex: 1, child: _buildLoginForm(context)),
+                                  Expanded(
+                                    flex: 1,
+                                    child: _buildLoginForm(context),
+                                  ),
                                 ],
                               ),
                       ),
@@ -201,7 +214,7 @@ class _LoginUIState extends State<LoginUI> with SingleTickerProviderStateMixin {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
-            borderRadius: BorderRadius.circular(28),
+            borderRadius: kRadius(28),
             boxShadow: [
               BoxShadow(
                 color: kColor(context).primary.withAlpha(80),
@@ -210,11 +223,7 @@ class _LoginUIState extends State<LoginUI> with SingleTickerProviderStateMixin {
               ),
             ],
           ),
-          child: const Icon(
-            LucideIcons.gem,
-            color: Colors.white,
-            size: 60,
-          ),
+          child: const Icon(LucideIcons.gem, color: Colors.white, size: 60),
         ),
         const SizedBox(height: 32),
         Label(
@@ -241,12 +250,17 @@ class _LoginUIState extends State<LoginUI> with SingleTickerProviderStateMixin {
     );
   }
 
-  Widget _buildInfoChip(BuildContext context, IconData icon, String label, Color color) {
+  Widget _buildInfoChip(
+    BuildContext context,
+    IconData icon,
+    String label,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
       decoration: BoxDecoration(
         color: color.withAlpha(15),
-        borderRadius: BorderRadius.circular(50),
+        borderRadius: kRadius(50),
         border: Border.all(color: color.withAlpha(40)),
       ),
       child: Row(
@@ -254,12 +268,7 @@ class _LoginUIState extends State<LoginUI> with SingleTickerProviderStateMixin {
         children: [
           Icon(icon, size: 16, color: color),
           const SizedBox(width: 8),
-          Label(
-            label,
-            fontSize: 12,
-            weight: 600,
-            color: color,
-          ).regular,
+          Label(label, fontSize: 12, weight: 600, color: color).regular,
         ],
       ),
     );
@@ -283,10 +292,13 @@ class _LoginUIState extends State<LoginUI> with SingleTickerProviderStateMixin {
           duration: const Duration(milliseconds: 300),
           child: _error.isNotEmpty
               ? Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 8,
+                  ),
                   decoration: BoxDecoration(
                     color: kColor(context).errorContainer.withAlpha(100),
-                    borderRadius: BorderRadius.circular(8),
+                    borderRadius: kRadius(8),
                   ),
                   child: Label(
                     _error,
@@ -324,7 +336,7 @@ class _LoginUIState extends State<LoginUI> with SingleTickerProviderStateMixin {
           width: isFilled ? 24 : 18,
           height: isFilled ? 24 : 18,
           decoration: BoxDecoration(
-            shape: BoxShape.circle,
+            shape: BoxShape.rectangle,
             color: isFilled
                 ? kColor(context).primary
                 : kColor(context).outlineVariant.withAlpha(80),
@@ -334,7 +346,7 @@ class _LoginUIState extends State<LoginUI> with SingleTickerProviderStateMixin {
                       color: kColor(context).primary.withAlpha(100),
                       blurRadius: 10,
                       spreadRadius: 2,
-                    )
+                    ),
                   ]
                 : [],
           ),
@@ -379,12 +391,12 @@ class _LoginUIState extends State<LoginUI> with SingleTickerProviderStateMixin {
   Widget _numButton(String text) {
     return InkWell(
       onTap: () => _handleInput(text),
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: kRadius(24),
       child: Container(
         width: 80,
         height: 70,
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
+          borderRadius: kRadius(24),
           color: kColor(context).surfaceContainerHighest.withAlpha(30),
           border: Border.all(
             color: kColor(context).outlineVariant.withAlpha(50),
@@ -399,15 +411,11 @@ class _LoginUIState extends State<LoginUI> with SingleTickerProviderStateMixin {
   Widget _actionButton(IconData icon, VoidCallback onTap) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(24),
+      borderRadius: kRadius(24),
       child: SizedBox(
         width: 80,
         height: 70,
-        child: Icon(
-          icon,
-          color: kColor(context).onSurface,
-          size: 28,
-        ),
+        child: Icon(icon, color: kColor(context).onSurface, size: 28),
       ),
     );
   }
