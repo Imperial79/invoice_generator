@@ -8,7 +8,7 @@ class CustomerModel {
   final String gst;
   final String pan;
   final String aadhaar;
-  final String clientType; // Customer or Company
+  final String clientType; // Customer or Business
 
   CustomerModel({
     this.id,

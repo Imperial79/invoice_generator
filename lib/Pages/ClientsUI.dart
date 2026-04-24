@@ -30,7 +30,7 @@ class _ClientsUIState extends State<ClientsUI> {
   final isLoading = ValueNotifier(false);
 
   String selectedType = "All";
-  final List<String> clientTypes = ["All", "Customer", "Company"];
+  final List<String> clientTypes = ["All", "Customer", "Business"];
   int currentPage = 0;
   static const int itemsPerPage = 8;
   String searchQuery = "";
@@ -200,7 +200,7 @@ class _ClientsUIState extends State<ClientsUI> {
                                   ).title,
                                   Label(
                                     customer == null
-                                        ? "Register a new business contact"
+                                        ? "Register a new contact"
                                         : "Update existing contact information",
                                     fontSize: 12,
                                     color: kColor(context).onSurfaceVariant,
@@ -230,11 +230,11 @@ class _ClientsUIState extends State<ClientsUI> {
                                     segments: const [
                                       ButtonSegment(
                                         value: "Customer",
-                                        label: Text("Individual"),
+                                        label: Text("Customer"),
                                         icon: Icon(LucideIcons.user, size: 16),
                                       ),
                                       ButtonSegment(
-                                        value: "Company",
+                                        value: "Business",
                                         label: Text("Business"),
                                         icon: Icon(
                                           LucideIcons.building,
@@ -255,15 +255,15 @@ class _ClientsUIState extends State<ClientsUI> {
                                 const SizedBox(height: 20),
                                 KField(
                                   controller: nameController,
-                                  label: clientType == "Company"
-                                      ? "Company Legal Name"
-                                      : "Client Full Name",
-                                  hintText: clientType == "Company"
+                                  label: clientType == "Business"
+                                      ? "Business Legal Name"
+                                      : "Customer Full Name",
+                                  hintText: clientType == "Business"
                                       ? "e.g. Acme Gems Pvt Ltd"
                                       : "Enter legal name",
                                   validator: KValidation.required,
                                   prefix: Icon(
-                                    clientType == "Company"
+                                    clientType == "Business"
                                         ? LucideIcons.building
                                         : LucideIcons.user,
                                     size: 18,
@@ -284,7 +284,7 @@ class _ClientsUIState extends State<ClientsUI> {
                                 const SizedBox(height: 40),
                                 _buildSectionHeader("TAX & IDENTITY"),
                                 const SizedBox(height: 20),
-                                if (clientType == "Company") ...[
+                                if (clientType == "Business") ...[
                                   KField(
                                     controller: gstController,
                                     label: "GSTIN Number",
@@ -558,7 +558,7 @@ class _ClientsUIState extends State<ClientsUI> {
       rows: pageItems.map((customer) {
         final index =
             (currentPage * itemsPerPage) + pageItems.indexOf(customer) + 1;
-        final isCompany = customer.clientType == "Company";
+        final isBusiness = customer.clientType == "Business";
         return KTableRow(
           onTap: () => Navigator.push(
             context,
@@ -568,18 +568,18 @@ class _ClientsUIState extends State<ClientsUI> {
           ).then((_) => _loadCustomers()),
           cells: [
             Label(index.toString().padLeft(2, '0')).regular,
-            _buildClientTypeChip(customer.clientType, isCompany),
+            _buildClientTypeChip(customer.clientType, isBusiness),
             Label(customer.name, weight: 700).regular,
             Label(customer.phone, weight: 500).regular,
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                if (isCompany && customer.gst.isNotEmpty)
+                if (isBusiness && customer.gst.isNotEmpty)
                   Label("GST: ${customer.gst}", fontSize: 11).regular,
                 if (customer.pan.isNotEmpty)
                   Label("PAN: ${customer.pan}", fontSize: 11).regular,
-                if (!isCompany && customer.aadhaar.isNotEmpty)
+                if (!isBusiness && customer.aadhaar.isNotEmpty)
                   Label("AADHAAR: ${customer.aadhaar}", fontSize: 11).regular,
                 if (customer.gst.isEmpty &&
                     customer.pan.isEmpty &&
@@ -686,7 +686,7 @@ class _ClientsUIState extends State<ClientsUI> {
   }
 
   Widget _buildCustomerCard(CustomerModel customer) {
-    final isCompany = customer.clientType == "Company";
+    final isBusiness = customer.clientType == "Business";
     return KCard(
       onTap: () async {
         await Navigator.push(
@@ -705,20 +705,20 @@ class _ClientsUIState extends State<ClientsUI> {
             height: 54,
             width: 54,
             decoration: BoxDecoration(
-              color: isCompany
+              color: isBusiness
                   ? kColor(context).secondary.withAlpha(20)
                   : kColor(context).primary.withAlpha(20),
               shape: BoxShape.rectangle,
               border: Border.all(
-                color: isCompany
+                color: isBusiness
                     ? kColor(context).secondary.withAlpha(40)
                     : kColor(context).primary.withAlpha(40),
               ),
             ),
             child: Center(
               child: Icon(
-                isCompany ? LucideIcons.building2 : LucideIcons.user,
-                color: isCompany
+                isBusiness ? LucideIcons.building2 : LucideIcons.user,
+                color: isBusiness
                     ? kColor(context).secondary
                     : kColor(context).primary,
                 size: 24,
@@ -741,7 +741,7 @@ class _ClientsUIState extends State<ClientsUI> {
                       ).regular,
                     ),
                     const SizedBox(width: 8),
-                    _buildClientTypeChip(customer.clientType, isCompany),
+                    _buildClientTypeChip(customer.clientType, isBusiness),
                   ],
                 ),
                 const SizedBox(height: 6),
@@ -782,8 +782,8 @@ class _ClientsUIState extends State<ClientsUI> {
     );
   }
 
-  Widget _buildClientTypeChip(String type, bool isCompany) {
-    final color = isCompany
+  Widget _buildClientTypeChip(String type, bool isBusiness) {
+    final color = isBusiness
         ? kColor(context).secondary
         : kColor(context).primary;
     return Container(

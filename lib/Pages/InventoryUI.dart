@@ -369,7 +369,7 @@ class _InventoryUIState extends State<InventoryUI> {
                                       child: KDropdown<String>(
                                         label: "Basis",
                                         value: chargesType,
-                                        items: ["Fixed", "Percent"]
+                                        items: ["Fixed", "Percent", "Per Gram"]
                                             .map(
                                               (e) => DropdownMenuItem(
                                                 value: e,

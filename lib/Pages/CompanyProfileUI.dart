@@ -7,6 +7,7 @@ import 'package:prime_invoice/Resources/commons.dart';
 import 'package:prime_invoice/Resources/constants.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:prime_invoice/Helper/responsive.dart';
+import 'package:file_picker/file_picker.dart';
 
 class CompanyProfileUI extends StatefulWidget {
   const CompanyProfileUI({super.key});
@@ -24,6 +25,9 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
   final bankDetails = TextEditingController();
   final terms = TextEditingController();
   final state = TextEditingController();
+  final declaration = TextEditingController();
+  final bannerPath = TextEditingController();
+  final watermarkPath = TextEditingController();
   final isLoading = ValueNotifier(false);
 
   @override
@@ -35,19 +39,17 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
   _loadData() async {
     isLoading.value = true;
     final pref = await SharedPreferences.getInstance();
-    name.text = pref.getString("biz_name") ?? "Imperial Studio";
+    name.text = pref.getString("biz_name") ?? "";
     phone.text = pref.getString("biz_phone") ?? "";
     email.text = pref.getString("biz_email") ?? "";
-    gstin.text = pref.getString("biz_gst") ?? "19APDPV5128C1ZU";
-    address.text =
-        pref.getString("biz_address") ?? "Arrah More, Durgapur - 713212";
-    bankDetails.text =
-        pref.getString("biz_bank") ??
-        "BANK DETAILS - SBI BANK, DURGAPUR SEN MARKET - A/C - 8718927918219871, IFSC - AKSLJASKLAAS\nSOUTH INDIAN BANK - ABC ROAD, - A/C - 8718927918219871, IFSC - AKSLJASKLAAS";
-    terms.text =
-        pref.getString("biz_terms") ??
-        "E. & O.E.\n1. Payments via cheque are subject to verification.\n2. No returns or exchanges for sold goods.\n3. 18% interest on overdue payments.\n4. Disputes are under 'West Bengal' jurisdiction.\n5. Report invoice errors within 7 days.";
-    state.text = pref.getString("biz_state") ?? "West Bengal (19)";
+    gstin.text = pref.getString("biz_gst") ?? "";
+    address.text = pref.getString("biz_address") ?? "";
+    bankDetails.text = pref.getString("biz_bank") ?? "";
+    terms.text = pref.getString("biz_terms") ?? "";
+    state.text = pref.getString("biz_state") ?? "";
+    declaration.text = pref.getString("biz_declaration") ?? "";
+    bannerPath.text = pref.getString("biz_banner") ?? "";
+    watermarkPath.text = pref.getString("biz_watermark") ?? "";
     isLoading.value = false;
   }
 
@@ -62,6 +64,9 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
     await pref.setString("biz_bank", bankDetails.text);
     await pref.setString("biz_terms", terms.text);
     await pref.setString("biz_state", state.text);
+    await pref.setString("biz_declaration", declaration.text);
+    await pref.setString("biz_banner", bannerPath.text);
+    await pref.setString("biz_watermark", watermarkPath.text);
     isLoading.value = false;
     if (mounted) {
       KSnackbar(context, message: "Profile updated successfully!");
@@ -143,6 +148,54 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
                               maxLines: 4,
                               prefix: const Icon(LucideIcons.mapPin, size: 16),
                             ),
+                            height15,
+                            Row(
+                              spacing: 15,
+                              children: [
+                                Expanded(
+                                  child: KField(
+                                    controller: bannerPath,
+                                    label: "Banner Image Path",
+                                    readOnly: true,
+                                    onTap: () async {
+                                      FilePickerResult? result =
+                                          await FilePicker.platform.pickFiles(
+                                            type: FileType.image,
+                                          );
+                                      if (result != null) {
+                                        bannerPath.text =
+                                            result.files.single.path ?? "";
+                                      }
+                                    },
+                                    prefix: const Icon(
+                                      LucideIcons.image,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: KField(
+                                    controller: watermarkPath,
+                                    label: "Watermark Image Path",
+                                    readOnly: true,
+                                    onTap: () async {
+                                      FilePickerResult? result =
+                                          await FilePicker.platform.pickFiles(
+                                            type: FileType.image,
+                                          );
+                                      if (result != null) {
+                                        watermarkPath.text =
+                                            result.files.single.path ?? "";
+                                      }
+                                    },
+                                    prefix: const Icon(
+                                      LucideIcons.fileImage,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
@@ -167,6 +220,13 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
                                 LucideIcons.fileText,
                                 size: 16,
                               ),
+                            ),
+                            height15,
+                            KField(
+                              controller: declaration,
+                              label: "Declaration",
+                              maxLines: 12,
+                              prefix: const Icon(LucideIcons.info, size: 16),
                             ),
                           ],
                         ),
@@ -233,6 +293,41 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
                         label: "Terms & Conditions",
                         maxLines: 10,
                         prefix: const Icon(LucideIcons.fileText, size: 16),
+                      ),
+                      height15,
+                      KField(
+                        controller: declaration,
+                        label: "Declaration",
+                        maxLines: 4,
+                        prefix: const Icon(LucideIcons.info, size: 16),
+                      ),
+                      height15,
+                      KField(
+                        controller: bannerPath,
+                        label: "Banner Image Path",
+                        readOnly: true,
+                        onTap: () async {
+                          FilePickerResult? result = await FilePicker.platform
+                              .pickFiles(type: FileType.image);
+                          if (result != null) {
+                            bannerPath.text = result.files.single.path ?? "";
+                          }
+                        },
+                        prefix: const Icon(LucideIcons.image, size: 16),
+                      ),
+                      height15,
+                      KField(
+                        controller: watermarkPath,
+                        label: "Watermark Image Path",
+                        readOnly: true,
+                        onTap: () async {
+                          FilePickerResult? result = await FilePicker.platform
+                              .pickFiles(type: FileType.image);
+                          if (result != null) {
+                            watermarkPath.text = result.files.single.path ?? "";
+                          }
+                        },
+                        prefix: const Icon(LucideIcons.fileImage, size: 16),
                       ),
                     ],
                   ),

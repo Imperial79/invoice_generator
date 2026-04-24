@@ -8,12 +8,12 @@ final PdfColor grey = PdfColor.fromHex("#adadad");
 
 List<Widget> pdfLayout(
   Context context,
-  MemoryImage banner,
+  MemoryImage? banner,
   InvoiceModel data,
   Map<String, dynamic> profile,
 ) {
   return [
-    Center(child: Image(banner)),
+    if (banner != null) Center(child: Image(banner)),
     SizedBox(height: 10),
     // HEADER (GST INFO) - Using a Table to keep the border and layout
     Table(
@@ -273,7 +273,7 @@ Authorized Signatory
         [
           '''
 ${profile['biz_bank']}
-(1) RATES INCLUDING MAKING CHARGE (2) GOODS DELIVERED AT OUR SHOP
+${profile['biz_declaration']}
 ''',
         ],
       ],

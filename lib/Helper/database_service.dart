@@ -72,10 +72,10 @@ class DatabaseService {
       }
     }
 
-    // 7. Open Database with version 11
+    // 7. Open Database with version 12
     return await openDatabase(
       path,
-      version: 11,
+      version: 12,
       onCreate: _createDB,
       onUpgrade: _onUpgrade,
     );
@@ -163,6 +163,11 @@ class DatabaseService {
           date TEXT NOT NULL
         )
       ''');
+    }
+    if (oldVersion < 12) {
+      await db.execute(
+        "UPDATE customers SET clientType = 'Business' WHERE clientType = 'Company'",
+      );
     }
   }
 

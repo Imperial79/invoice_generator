@@ -13,38 +13,60 @@ import 'package:shared_preferences/shared_preferences.dart';
 class PdfHelper {
   static Future<File> _buildPdfFile(InvoiceModel invoiceData) async {
     final pdf = pw.Document(compress: false);
-    final bannerImg = await rootBundle.load('assets/images/invoice-banner.png');
-    final watermarkImg = await rootBundle.load(
-      'assets/images/invoice-watermark.png',
-    );
-
-    final banner = pw.MemoryImage(bannerImg.buffer.asUint8List());
-    final watermark = pw.MemoryImage(watermarkImg.buffer.asUint8List());
-
     final pref = await SharedPreferences.getInstance();
     final showWatermark = pref.getBool("pdf_watermark") ?? true;
 
+    final bannerPath = pref.getString("biz_banner") ?? "";
+    final watermarkPath = pref.getString("biz_watermark") ?? "";
+
+    pw.MemoryImage? banner;
+    pw.MemoryImage? watermark;
+
+    try {
+      if (bannerPath.isNotEmpty && File(bannerPath).existsSync()) {
+        final bannerBytes = await File(bannerPath).readAsBytes();
+        banner = pw.MemoryImage(bannerBytes);
+      } else {
+        final bannerImg = await rootBundle.load(
+          'assets/images/invoice-banner.png',
+        );
+        banner = pw.MemoryImage(bannerImg.buffer.asUint8List());
+      }
+    } catch (e) {
+      log("Error loading banner: $e");
+    }
+
+    try {
+      if (watermarkPath.isNotEmpty && File(watermarkPath).existsSync()) {
+        final watermarkBytes = await File(watermarkPath).readAsBytes();
+        watermark = pw.MemoryImage(watermarkBytes);
+      } else {
+        final watermarkImg = await rootBundle.load(
+          'assets/images/invoice-watermark.png',
+        );
+        watermark = pw.MemoryImage(watermarkImg.buffer.asUint8List());
+      }
+    } catch (e) {
+      log("Error loading watermark: $e");
+    }
+
     final profile = {
-      'biz_name': pref.getString("biz_name") ?? "Imperial Studio",
+      'biz_name': pref.getString("biz_name") ?? "",
       'biz_phone': pref.getString("biz_phone") ?? "",
       'biz_email': pref.getString("biz_email") ?? "",
-      'biz_gst': pref.getString("biz_gst") ?? "19APDPV5128C1ZU",
-      'biz_address':
-          pref.getString("biz_address") ?? "Arrah More, Durgapur - 713212",
-      'biz_bank':
-          pref.getString("biz_bank") ??
-          "BANK DETAILS - SBI BANK, DURGAPUR SEN MARKET - A/C - 8718927918219871, IFSC - AKSLJASKLAAS\nSOUTH INDIAN BANK - ABC ROAD, - A/C - 8718927918219871, IFSC - AKSLJASKLAAS",
-      'biz_terms':
-          pref.getString("biz_terms") ??
-          "E. & O.E.\n1. Payments via cheque are subject to verification.\n2. No returns or exchanges for sold goods.\n3. 18% interest on overdue payments.\n4. Disputes are under 'West Bengal' jurisdiction.\n5. Report invoice errors within 7 days.",
-      'biz_state': pref.getString("biz_state") ?? "West Bengal (19)",
+      'biz_gst': pref.getString("biz_gst") ?? "",
+      'biz_address': pref.getString("biz_address") ?? "",
+      'biz_bank': pref.getString("biz_bank") ?? "",
+      'biz_terms': pref.getString("biz_terms") ?? "",
+      'biz_state': pref.getString("biz_state") ?? "",
+      'biz_declaration': pref.getString("biz_declaration") ?? "",
     };
 
     final pageTheme = pw.PageTheme(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.all(20),
       buildBackground: (context) {
-        if (!showWatermark) return pw.SizedBox();
+        if (!showWatermark || watermark == null) return pw.SizedBox();
         return pw.FullPage(
           ignoreMargins: true,
           child: pw.Opacity(

@@ -47,7 +47,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   double amount = 0;
   final billingAddress = TextEditingController(text: defaultBillingAddress);
 
-  bool forCustomer = false;
+  bool forCustomer = true;
   final customerName = TextEditingController();
   final customerPhone = TextEditingController();
   final customerPan = TextEditingController();
@@ -147,6 +147,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
           gst: customerGst.text,
           pan: customerPan.text,
           aadhaar: customerAadhaar.text,
+          clientType: forCustomer ? "Customer" : "Business",
         );
         await DatabaseService.instance.saveCustomer(customer);
       }
@@ -159,9 +160,10 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
       for (var item in addedItems) {
         final invItem = allInventory.firstWhere(
           (inv) => inv.sku == item.sku,
-          orElse: () => allInventory.firstWhere((inv) => inv.name == item.itemName),
+          orElse: () =>
+              allInventory.firstWhere((inv) => inv.name == item.itemName),
         );
-        
+
         if (invItem.id != null) {
           await DatabaseService.instance.recordStockAdjustment(
             item: invItem,
@@ -379,7 +381,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Label(
-                  forCustomer ? "Client Details" : "Org Details",
+                  forCustomer ? "Customer Details" : "Business Details",
                   weight: 700,
                 ).title,
                 Switch.adaptive(
@@ -613,6 +615,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
       return;
     }
 
+    String q = "";
     showGeneralDialog(
       context: context,
       barrierDismissible: true,
@@ -628,12 +631,13 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
           alignment: Alignment.centerRight,
           child: Material(
             child: Container(
-              width: Responsive.isMobile(context) ? MediaQuery.sizeOf(context).width : 500,
+              width: Responsive.isMobile(context)
+                  ? MediaQuery.sizeOf(context).width
+                  : 500,
               height: double.infinity,
               color: kColor(context).surface,
               child: StatefulBuilder(
-                builder: (c, setState) {
-                  String q = "";
+                builder: (cSelf, setSidebarState) {
                   final res = customers
                       .where(
                         (cu) =>
@@ -643,12 +647,12 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                       .toList();
                   return Column(
                     children: [
-                      _sidebarHeader("Select Client", LucideIcons.users),
+                      _sidebarHeader("Select Client", LucideIcons.users, cSelf),
                       Padding(
                         padding: const EdgeInsets.all(24),
                         child: KField(
                           hintText: "Search name...",
-                          onChanged: (v) => setState(() => q = v),
+                          onChanged: (v) => setSidebarState(() => q = v),
                         ),
                       ),
                       Expanded(
@@ -663,7 +667,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                             title: Label(res[i].name, weight: 600).regular,
                             subtitle: Label(res[i].phone).regular,
                             onTap: () {
-                              this.setState(() {
+                              setState(() {
                                 customerName.text = res[i].name;
                                 customerPhone.text = res[i].phone;
                                 customerPan.text = res[i].pan;
@@ -671,7 +675,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                                 customerAadhaar.text = res[i].aadhaar;
                                 billingAddress.text = res[i].address;
                               });
-                              Navigator.pop(context);
+                              Navigator.pop(cSelf);
                             },
                           ),
                         ),
@@ -714,7 +718,9 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
           alignment: Alignment.centerRight,
           child: Material(
             child: Container(
-              width: Responsive.isMobile(context) ? MediaQuery.sizeOf(context).width : 600,
+              width: Responsive.isMobile(context)
+                  ? MediaQuery.sizeOf(context).width
+                  : 600,
               height: double.infinity,
               color: kColor(context).surface,
               child: StatefulBuilder(
@@ -753,6 +759,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                           _sidebarHeader(
                             existingItem == null ? "Add Item" : "Edit Item",
                             LucideIcons.plus,
+                            c,
                           ),
                           Expanded(
                             child: SingleChildScrollView(
@@ -805,7 +812,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                             ),
                           ),
                           _sidebarFooter(
-                            onCancel: () => Navigator.pop(context),
+                            onCancel: () => Navigator.pop(c),
                             onSave: sel == null
                                 ? null
                                 : () => _save(
@@ -813,7 +820,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                                     sel!,
                                     weightC.text,
                                     qtyC.text,
-                                    context,
+                                    c,
                                   ),
                           ),
                         ],
@@ -829,24 +836,22 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
     );
   }
 
-  Widget _sidebarHeader(String t, IconData i) {
+  Widget _sidebarHeader(String t, IconData i, BuildContext ctx) {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(
-            color: kColor(context).outlineVariant.withAlpha(100),
-          ),
+          bottom: BorderSide(color: kColor(ctx).outlineVariant.withAlpha(100)),
         ),
       ),
       child: Row(
         children: [
-          Icon(i, color: kColor(context).primary),
+          Icon(i, color: kColor(ctx).primary),
           const SizedBox(width: 16),
           Label(t, fontSize: 20, weight: 800).title,
           const Spacer(),
           IconButton(
-            onPressed: () => Navigator.pop(context),
+            onPressed: () => Navigator.pop(ctx),
             icon: const Icon(LucideIcons.x),
           ),
         ],
@@ -1025,9 +1030,15 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
           r = m.ratePer10g / 10;
         }
         double w = parseToDouble(wS), q = parseToDouble(qS), val = w * r;
-        double mc = it.makingChargesType == "Percent"
-            ? val * (it.makingCharges / 100)
-            : it.makingCharges * q;
+        double mc = 0;
+        if (it.makingChargesType == "Percent") {
+          mc = val * (it.makingCharges / 100);
+        } else if (it.makingChargesType == "Per Gram") {
+          mc = it.makingCharges * w;
+        } else {
+          // Default to Fixed (multiplied by qty)
+          mc = it.makingCharges * q;
+        }
         double taxAmt =
             (val * (metalGstRate / 100)) + (mc * (serviceGstRate / 100));
         return Container(
@@ -1087,9 +1098,15 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
           w = parseToDouble(wS),
           q = parseToDouble(qS),
           val = w * ratePerG;
-      double mc = it.makingChargesType == "Percent"
-          ? val * (it.makingCharges / 100)
-          : it.makingCharges * q;
+      double mc = 0;
+      if (it.makingChargesType == "Percent") {
+        mc = val * (it.makingCharges / 100);
+      } else if (it.makingChargesType == "Per Gram") {
+        mc = it.makingCharges * w;
+      } else {
+        // Default to Fixed (multiplied by qty)
+        mc = it.makingCharges * q;
+      }
       double taxAmt =
           (val * (metalGstRate / 100)) + (mc * (serviceGstRate / 100));
       double taxable = val + mc;
