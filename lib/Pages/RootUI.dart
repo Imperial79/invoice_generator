@@ -116,7 +116,7 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
                   : 400,
               height: 400,
               decoration: BoxDecoration(
-                shape: BoxShape.rectangle,
+                shape: BoxShape.circle,
                 color: kColor(context).secondary.withAlpha(11),
               ),
             ),
@@ -208,7 +208,7 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
                 Padding(
                   padding: const EdgeInsets.symmetric(vertical: 20),
                   child: Divider(
-                    color: kColor(context).outlineVariant.withAlpha(30),
+                    color: kColor(context).outlineVariant.withAlpha(100),
                   ),
                 ),
                 _sidebarItem(
@@ -231,24 +231,13 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
     return Row(
       children: [
         Container(
-          padding: const EdgeInsets.all(10),
+          height: 50,
+          width: 50,
+
           decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                kColor(context).primary,
-                kColor(context).primary.withAlpha(180),
-              ],
-            ),
-            borderRadius: kRadius(14),
-            boxShadow: [
-              BoxShadow(
-                color: kColor(context).primary.withAlpha(50),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
+            image: DecorationImage(image: AssetImage("assets/images/logo.png")),
           ),
-          child: const Icon(LucideIcons.gem, color: Colors.white, size: 20),
+          // child: const Icon(LucideIcons.gem, color: Colors.white, size: 20),
         ),
         const SizedBox(width: 14),
         Column(
@@ -320,7 +309,7 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
                   height: 5,
                   decoration: BoxDecoration(
                     color: kColor(context).primary,
-                    shape: BoxShape.rectangle,
+                    shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
                         color: kColor(context).primary.withAlpha(100),
