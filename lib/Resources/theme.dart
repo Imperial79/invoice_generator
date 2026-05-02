@@ -11,8 +11,10 @@ ThemeData kTheme(
   ColorScheme scheme =
       lightDynamic ??
       ColorScheme.fromSeed(
-        seedColor: Kolor.primary,
-        dynamicSchemeVariant: DynamicSchemeVariant.tonalSpot,
+        seedColor: Kolor.secondary,
+        primary: Kolor.primary,
+        secondary: Kolor.secondary,
+        dynamicSchemeVariant: DynamicSchemeVariant.fidelity,
         brightness: brightness,
       );
 
@@ -22,7 +24,36 @@ ThemeData kTheme(
     colorScheme: scheme,
     fontFamily: kFont,
     textButtonTheme: TextButtonThemeData(
-      style: TextButton.styleFrom(foregroundColor: scheme.primary),
+      style: TextButton.styleFrom(
+        foregroundColor: scheme.primary,
+        shape: const RoundedRectangleBorder(),
+      ),
+    ),
+    elevatedButtonTheme: ElevatedButtonThemeData(
+      style: ElevatedButton.styleFrom(
+        shape: const RoundedRectangleBorder(),
+      ),
+    ),
+    outlinedButtonTheme: OutlinedButtonThemeData(
+      style: OutlinedButton.styleFrom(
+        shape: const RoundedRectangleBorder(),
+      ),
+    ),
+    filledButtonTheme: FilledButtonThemeData(
+      style: FilledButton.styleFrom(
+        shape: const RoundedRectangleBorder(),
+      ),
+    ),
+    cardTheme: const CardThemeData(
+      shape: RoundedRectangleBorder(),
+    ),
+    dialogTheme: const DialogThemeData(
+      shape: RoundedRectangleBorder(),
+    ),
+    inputDecorationTheme: const InputDecorationTheme(
+      border: OutlineInputBorder(borderRadius: BorderRadius.zero),
+      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.zero),
+      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.zero),
     ),
     appBarTheme: AppBarTheme(
       actionsIconTheme: const IconThemeData(color: Kolor.fadeText),
@@ -32,6 +63,7 @@ ThemeData kTheme(
     ),
     chipTheme: ChipThemeData(
       selectedColor: scheme.secondary,
+      shape: const RoundedRectangleBorder(),
       labelStyle: TextStyle(
         color: brightness == Brightness.dark ? Colors.white : Colors.black,
       ),

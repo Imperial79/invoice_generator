@@ -13,7 +13,9 @@ import 'package:prime_invoice/Resources/constants.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:prime_invoice/Helper/responsive.dart';
 import 'package:prime_invoice/Helper/date_helper.dart';
-import 'package:prime_invoice/Essentials/kField.dart';
+
+import 'package:prime_invoice/Essentials/KFilterBar.dart';
+import 'package:prime_invoice/Essentials/KTable.dart';
 
 class InvoicesListUI extends StatefulWidget {
   const InvoicesListUI({super.key});
@@ -24,10 +26,14 @@ class InvoicesListUI extends StatefulWidget {
 
 class _InvoicesListUIState extends State<InvoicesListUI> {
   final Set<String> loadingInvoiceIds = {};
-  List<InvoiceModel> invoices = [];
+  List<InvoiceModel> allInvoices = [];
+  List<InvoiceModel> filteredInvoicesData = [];
   final isLoading = ValueNotifier(false);
-  final searchQuery = TextEditingController();
+  final searchController = TextEditingController();
   DateTimeRange? selectedDateRange;
+  String searchQuery = "";
+  int currentPage = 0;
+  static const int itemsPerPage = 8;
 
   @override
   void initState() {
@@ -37,282 +43,334 @@ class _InvoicesListUIState extends State<InvoicesListUI> {
 
   @override
   void dispose() {
-    searchQuery.dispose();
+    searchController.dispose();
     super.dispose();
   }
 
   Future<void> _loadInvoices() async {
     isLoading.value = true;
-    final results = await DatabaseService.instance.getAllInvoices();
-    setState(() {
-      invoices = results;
-    });
-    isLoading.value = false;
+    try {
+      final results = await DatabaseService.instance.getAllInvoices();
+      if (mounted) {
+        setState(() {
+          allInvoices = results;
+          _applyFilters();
+        });
+      }
+    } finally {
+      isLoading.value = false;
+    }
   }
 
-  List<InvoiceModel> get filteredInvoices {
-    return invoices.where((invoice) {
-      final query = searchQuery.text.toLowerCase().trim();
-      final matchesSearch =
-          query.isEmpty ||
-          invoice.invoiceId.toLowerCase().contains(query) ||
-          invoice.customerName.toLowerCase().contains(query) ||
-          invoice.customerPhone.toLowerCase().contains(query);
+  void _applyFilters() {
+    setState(() {
+      filteredInvoicesData = allInvoices.where((invoice) {
+        final query = searchQuery.toLowerCase().trim();
+        final matchesSearch =
+            query.isEmpty ||
+            invoice.invoiceId.toLowerCase().contains(query) ||
+            invoice.customerName.toLowerCase().contains(query) ||
+            invoice.customerPhone.toLowerCase().contains(query);
 
-      bool matchesDate = true;
-      if (selectedDateRange != null) {
-        final date = invoice.invoiceDate ?? DateTime.now();
-        matchesDate =
-            date.isAfter(
-              selectedDateRange!.start.subtract(const Duration(days: 1)),
-            ) &&
-            date.isBefore(selectedDateRange!.end.add(const Duration(days: 1)));
+        bool matchesDate = true;
+        if (selectedDateRange != null) {
+          final date = invoice.invoiceDate ?? DateTime.now();
+          matchesDate =
+              date.isAfter(
+                selectedDateRange!.start.subtract(const Duration(days: 1)),
+              ) &&
+              date.isBefore(
+                selectedDateRange!.end.add(const Duration(days: 1)),
+              );
+        }
+
+        return matchesSearch && matchesDate;
+      }).toList();
+
+      if (currentPage >= (filteredInvoicesData.length / itemsPerPage).ceil() &&
+          filteredInvoicesData.isNotEmpty) {
+        currentPage = 0;
       }
-
-      return matchesSearch && matchesDate;
-    }).toList();
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return KScaffold(
       isLoading: isLoading,
-      appBar: KAppBar(
-        context,
-        title: "All Invoices",
-        actions: [
-          IconButton(
-            onPressed: () async {
-              final range = await DateHelper.pickDateRange(
-                context,
-                initialDateRange: selectedDateRange,
-              );
-              if (range != null) setState(() => selectedDateRange = range);
-            },
-            icon: Icon(
-              LucideIcons.calendarRange,
-              color: selectedDateRange != null ? kColor(context).primary : null,
-            ),
-          ),
-          if (selectedDateRange != null || searchQuery.text.isNotEmpty)
-            IconButton(
-              onPressed: () => setState(() {
-                searchQuery.clear();
-                selectedDateRange = null;
-              }),
-              icon: Icon(LucideIcons.filterX, color: kColor(context).error),
-            ),
-        ],
-      ),
+      appBar: KAppBar(context, title: "All Invoices", showBack: false),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: kPadding,
-              vertical: 10,
-            ),
-            child: KField(
-              controller: searchQuery,
-              hintText: "Search by Name, Phone or ID",
-              prefix: const Icon(LucideIcons.search, size: 18),
-              onChanged: (v) => setState(() {}),
-            ),
-          ),
-          if (selectedDateRange != null)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: kPadding),
-              child: Row(
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 6,
-                    ),
-                    decoration: BoxDecoration(
-                      color: kColor(context).primaryContainer,
-                      borderRadius: kRadius(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      spacing: 8,
-                      children: [
-                        Icon(
-                          LucideIcons.calendar,
-                          size: 14,
-                          color: kColor(context).onPrimaryContainer,
-                        ),
-                        Label(
-                          "${DateFormat('dd MMM').format(selectedDateRange!.start)} - ${DateFormat('dd MMM').format(selectedDateRange!.end)}",
-                          fontSize: 12,
-                          weight: 600,
-                          color: kColor(context).onPrimaryContainer,
-                        ).regular,
-                        InkWell(
-                          onTap: () => setState(() => selectedDateRange = null),
-                          child: Icon(
-                            LucideIcons.x,
-                            size: 14,
-                            color: kColor(context).onPrimaryContainer,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ],
+          KFilterBar(
+            configs: [
+              FilterConfig(
+                id: "search",
+                label: "Search by Name, Phone or ID",
+                isSearch: true,
+                initialValue: searchQuery,
               ),
-            ),
-          Expanded(
-            child: filteredInvoices.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(
-                          LucideIcons.inbox,
-                          size: 40,
-                          color: kColor(context).onSurfaceVariant,
-                        ),
-                        height10,
-                        Label(
-                          "No invoices found",
-                          color: kColor(context).onSurfaceVariant,
-                        ).regular,
-                      ],
-                    ),
-                  )
-                : Center(
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 1200),
-                      child: Responsive.isMobile(context)
-                          ? ListView.separated(
-                              primary: true,
-                              padding: const EdgeInsets.all(kPadding),
-                              itemCount: filteredInvoices.length,
-                              separatorBuilder: (context, index) => height15,
-                              itemBuilder: (context, index) =>
-                                  _buildInvoiceCard(filteredInvoices[index]),
-                            )
-                          : GridView.builder(
-                              primary: true,
-                              padding: const EdgeInsets.all(kPadding),
-                              gridDelegate:
-                                  const SliverGridDelegateWithMaxCrossAxisExtent(
-                                    maxCrossAxisExtent: 500,
-                                    mainAxisExtent: 130,
-                                    crossAxisSpacing: 15,
-                                    mainAxisSpacing: 15,
-                                  ),
-                              itemCount: filteredInvoices.length,
-                              itemBuilder: (context, index) =>
-                                  _buildInvoiceCard(filteredInvoices[index]),
-                            ),
-                    ),
-                  ),
+              FilterConfig(
+                id: "date",
+                label: "Date Range",
+                custom: (context) => _buildDatePickerButton(context),
+              ),
+            ],
+            selectedFilters: {
+              "search": searchQuery,
+              "date": selectedDateRange != null
+                  ? "${DateFormat('dd MMM').format(selectedDateRange!.start)} - ${DateFormat('dd MMM').format(selectedDateRange!.end)}"
+                  : "",
+            },
+            onFilterChanged: (id, value) {
+              if (id == "search") {
+                setState(() {
+                  searchQuery = value;
+                  _applyFilters();
+                });
+              } else if (id == "date" && value.isEmpty) {
+                // Handle clear from tag
+                setState(() {
+                  selectedDateRange = null;
+                  _applyFilters();
+                });
+              }
+            },
+            onClearAll: () {
+              setState(() {
+                searchQuery = "";
+                searchController.clear();
+                selectedDateRange = null;
+                _applyFilters();
+              });
+            },
           ),
+          Expanded(child: _buildMainContent()),
+          if (filteredInvoicesData.isNotEmpty && !Responsive.isMobile(context))
+            _buildPaginationFooter(),
         ],
       ),
     );
   }
 
-  Widget _buildInvoiceCard(InvoiceModel invoice) {
-    return KCard(
-      padding: const EdgeInsets.all(15),
-      color: kColor(context).surface,
-      borderWidth: 1,
-      borderColor: kColor(context).outlineVariant,
-      radius: 15,
-      child: Row(
-        children: [
-          KCard(
-            radius: 10,
-            height: 50,
-            width: 50,
-            padding: EdgeInsets.zero,
-            color: kColor(context).primaryContainer,
-            child: Center(
-              child: Label(
-                "PDF",
-                fontSize: 10,
-                color: kColor(context).onPrimaryContainer,
-              ).title,
-            ),
+  Widget _buildDatePickerButton(BuildContext context) {
+    return InkWell(
+      onTap: () async {
+        final range = await DateHelper.pickDateRange(
+          context,
+          initialDateRange: selectedDateRange,
+        );
+        if (range != null) {
+          setState(() {
+            selectedDateRange = range;
+            _applyFilters();
+          });
+        }
+      },
+      borderRadius: kRadius(12),
+      child: Container(
+        height: 55,
+        width: 55,
+        decoration: BoxDecoration(
+          color: selectedDateRange != null
+              ? kColor(context).primary.withAlpha(20)
+              : kColor(context).surfaceContainerLow,
+          borderRadius: kRadius(15),
+          border: Border.all(
+            color: selectedDateRange != null
+                ? kColor(context).primary.withAlpha(80)
+                : kColor(context).outlineVariant.withAlpha(50),
           ),
-          width15,
-          Expanded(
-            child: Column(
+        ),
+        child: Icon(
+          LucideIcons.calendarRange,
+          color: selectedDateRange != null
+              ? kColor(context).primary
+              : kColor(context).onSurfaceVariant,
+          size: 20,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMainContent() {
+    if (filteredInvoicesData.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              LucideIcons.inbox,
+              size: 64,
+              color: kColor(context).outlineVariant,
+            ),
+            const SizedBox(height: 16),
+            Label("No Invoices Found", weight: 700).title,
+            Label(
+              "Try adjusting your search or date range",
+              color: kColor(context).onSurfaceVariant,
+            ).regular,
+          ],
+        ),
+      );
+    }
+
+    if (Responsive.isMobile(context)) {
+      return ListView.separated(
+        padding: const EdgeInsets.all(kPadding),
+        itemCount: filteredInvoicesData.length,
+        separatorBuilder: (context, index) => const SizedBox(height: 12),
+        itemBuilder: (context, index) =>
+            _buildInvoiceCard(filteredInvoicesData[index]),
+      );
+    }
+
+    final startIndex = currentPage * itemsPerPage;
+    final endIndex = (startIndex + itemsPerPage) > filteredInvoicesData.length
+        ? filteredInvoicesData.length
+        : startIndex + itemsPerPage;
+    final pageItems = filteredInvoicesData.sublist(startIndex, endIndex);
+
+    return KTable(
+      showCheckboxColumn: false,
+      columns: [
+        KTableColumn(label: Label("DATE", weight: 800).regular),
+        KTableColumn(label: Label("INVOICE ID", weight: 800).regular),
+        KTableColumn(label: Label("CUSTOMER", weight: 800).regular),
+        KTableColumn(label: Label("TOTAL AMOUNT", weight: 800).regular),
+        KTableColumn(label: Label("ACTIONS", weight: 800).regular),
+      ],
+      rows: pageItems.map((invoice) {
+        return KTableRow(
+          cells: [
+            Label(
+              DateFormat(
+                'dd MMM yyyy',
+              ).format(invoice.invoiceDate ?? DateTime.now()),
+            ).regular,
+            Label(
+              invoice.invoiceId,
+              weight: 700,
+              color: kColor(context).primary,
+            ).regular,
+            Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Label(invoice.invoiceId, fontSize: 16, weight: 600).regular,
+                Label(invoice.customerName, weight: 600).regular,
                 Label(
-                  "${invoice.customerName} - ${DateFormat('dd MMM yyyy').format(invoice.invoiceDate ?? DateTime.now())}",
-                  fontSize: 12,
+                  invoice.customerPhone,
+                  fontSize: 11,
                   color: kColor(context).onSurfaceVariant,
                 ).regular,
               ],
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            mainAxisAlignment: MainAxisAlignment.center,
+            Label(
+              kCurrencyFormat(invoice.grandTotal),
+              weight: 900,
+              color: kColor(context).primary,
+            ).title,
+            Row(
+              children: [
+                _actionIcon(
+                  LucideIcons.eye,
+                  kColor(context).primary,
+                  () async {
+                    setState(() => loadingInvoiceIds.add(invoice.invoiceId));
+                    try {
+                      await PdfHelper.generateInvoice(invoice);
+                    } finally {
+                      if (mounted) {
+                        setState(
+                          () => loadingInvoiceIds.remove(invoice.invoiceId),
+                        );
+                      }
+                    }
+                  },
+                  isLoading: loadingInvoiceIds.contains(invoice.invoiceId),
+                ),
+                const SizedBox(width: 8),
+                _actionIcon(
+                  LucideIcons.pencil,
+                  kColor(context).secondary,
+                  () async {
+                    final res = await context.push(
+                      "/create-invoice",
+                      extra: invoice,
+                    );
+                    if (res == true) _loadInvoices();
+                  },
+                ),
+                const SizedBox(width: 8),
+                _actionIcon(
+                  LucideIcons.share2,
+                  kColor(context).tertiary,
+                  () async {
+                    setState(() => loadingInvoiceIds.add(invoice.invoiceId));
+                    try {
+                      await PdfHelper.shareInvoice(invoice);
+                    } finally {
+                      if (mounted) {
+                        setState(
+                          () => loadingInvoiceIds.remove(invoice.invoiceId),
+                        );
+                      }
+                    }
+                  },
+                  isLoading: loadingInvoiceIds.contains(invoice.invoiceId),
+                ),
+              ],
+            ),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+  Widget _buildPaginationFooter() {
+    final totalPages = (filteredInvoicesData.length / itemsPerPage).ceil();
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: kPadding, vertical: 16),
+      decoration: BoxDecoration(
+        color: kColor(context).surface,
+        border: Border(
+          top: BorderSide(color: kColor(context).outlineVariant.withAlpha(50)),
+        ),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Label(
+            "Showing ${currentPage * itemsPerPage + 1} to ${((currentPage + 1) * itemsPerPage).clamp(0, filteredInvoicesData.length)} of ${filteredInvoicesData.length} entries",
+            fontSize: 12,
+          ).regular,
+          Row(
             children: [
-              Label(
-                kCurrencyFormat(invoice.grandTotal),
-                fontSize: 16,
-                weight: 700,
-              ).title,
-              height10,
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _actionIcon(
-                    LucideIcons.eye,
-                    kColor(context).primary,
-                    () async {
-                      setState(() => loadingInvoiceIds.add(invoice.invoiceId));
-                      try {
-                        await PdfHelper.generateInvoice(invoice);
-                      } finally {
-                        if (mounted) {
-                          setState(
-                            () => loadingInvoiceIds.remove(invoice.invoiceId),
-                          );
-                        }
-                      }
-                    },
-                    isLoading: loadingInvoiceIds.contains(invoice.invoiceId),
-                  ),
-                  width10,
-                  _actionIcon(
-                    LucideIcons.pencil,
-                    kColor(context).secondary,
-                    () async {
-                      final res = await context.push(
-                        "/create-invoice",
-                        extra: invoice,
-                      );
-                      if (res == true) _loadInvoices();
-                    },
-                  ),
-                  width10,
-                  _actionIcon(
-                    LucideIcons.share2,
-                    kColor(context).tertiary,
-                    () async {
-                      setState(() => loadingInvoiceIds.add(invoice.invoiceId));
-                      try {
-                        await PdfHelper.shareInvoice(invoice);
-                      } finally {
-                        if (mounted) {
-                          setState(
-                            () => loadingInvoiceIds.remove(invoice.invoiceId),
-                          );
-                        }
-                      }
-                    },
-                    isLoading: loadingInvoiceIds.contains(invoice.invoiceId),
-                  ),
-                ],
+              IconButton(
+                onPressed: currentPage > 0
+                    ? () => setState(() => currentPage--)
+                    : null,
+                icon: const Icon(LucideIcons.chevronLeft),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: kColor(context).primaryContainer,
+                  borderRadius: kRadius(8),
+                ),
+                child: Label(
+                  "Page ${currentPage + 1} of $totalPages",
+                  weight: 700,
+                  color: kColor(context).primary,
+                ).regular,
+              ),
+              IconButton(
+                onPressed: (currentPage + 1) < totalPages
+                    ? () => setState(() => currentPage++)
+                    : null,
+                icon: const Icon(LucideIcons.chevronRight),
               ),
             ],
           ),
@@ -332,8 +390,8 @@ class _InvoicesListUIState extends State<InvoicesListUI> {
       child: Container(
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: .1),
-          borderRadius: BorderRadius.circular(8),
+          color: color.withAlpha(25),
+          borderRadius: kRadius(8),
         ),
         child: isLoading
             ? SizedBox(
@@ -342,6 +400,125 @@ class _InvoicesListUIState extends State<InvoicesListUI> {
                 child: CircularProgressIndicator(strokeWidth: 2, color: color),
               )
             : Icon(icon, size: 16, color: color),
+      ),
+    );
+  }
+
+  Widget _buildInvoiceCard(InvoiceModel invoice) {
+    return KCard(
+      padding: const EdgeInsets.all(18),
+      color: kColor(context).surfaceContainerLow,
+      child: Row(
+        children: [
+          Container(
+            height: 54,
+            width: 54,
+            decoration: BoxDecoration(
+              color: kColor(context).primary.withAlpha(15),
+              borderRadius: kRadius(16),
+              border: Border.all(color: kColor(context).primary.withAlpha(30)),
+            ),
+            child: Center(
+              child: Icon(
+                LucideIcons.fileText,
+                size: 20,
+                color: kColor(context).primary,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Label(invoice.invoiceId, fontSize: 16, weight: 700).regular,
+                const SizedBox(height: 4),
+                Label(
+                  "${invoice.customerName} • ${DateFormat('dd MMM yyyy').format(invoice.invoiceDate ?? DateTime.now())}",
+                  fontSize: 12,
+                  color: kColor(context).onSurfaceVariant,
+                ).regular,
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Label(
+                kCurrencyFormat(invoice.grandTotal),
+                fontSize: 18,
+                weight: 900,
+                color: kColor(context).primary,
+              ).title,
+              const SizedBox(height: 10),
+              if (!loadingInvoiceIds.contains(invoice.invoiceId))
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _actionIcon(
+                      LucideIcons.eye,
+                      kColor(context).primary,
+                      () async {
+                        setState(
+                          () => loadingInvoiceIds.add(invoice.invoiceId),
+                        );
+                        try {
+                          await PdfHelper.generateInvoice(invoice);
+                        } finally {
+                          if (mounted) {
+                            setState(
+                              () => loadingInvoiceIds.remove(invoice.invoiceId),
+                            );
+                          }
+                        }
+                      },
+                      isLoading: loadingInvoiceIds.contains(invoice.invoiceId),
+                    ),
+                    const SizedBox(width: 8),
+                    _actionIcon(
+                      LucideIcons.pencil,
+                      kColor(context).secondary,
+                      () async {
+                        final res = await context.push(
+                          "/create-invoice",
+                          extra: invoice,
+                        );
+                        if (res == true) _loadInvoices();
+                      },
+                    ),
+                    const SizedBox(width: 8),
+                    _actionIcon(
+                      LucideIcons.share2,
+                      kColor(context).tertiary,
+                      () async {
+                        setState(
+                          () => loadingInvoiceIds.add(invoice.invoiceId),
+                        );
+                        try {
+                          await PdfHelper.shareInvoice(invoice);
+                        } finally {
+                          if (mounted) {
+                            setState(
+                              () => loadingInvoiceIds.remove(invoice.invoiceId),
+                            );
+                          }
+                        }
+                      },
+                      isLoading: loadingInvoiceIds.contains(invoice.invoiceId),
+                    ),
+                  ],
+                )
+              else
+                const SizedBox(
+                  width: 60,
+                  child: LinearProgressIndicator(minHeight: 2),
+                ),
+            ],
+          ),
+        ],
       ),
     );
   }

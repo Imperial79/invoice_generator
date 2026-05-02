@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:prime_invoice/Resources/constants.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:prime_invoice/Essentials/Label.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'colors.dart';
 
 const SizedBox width5 = SizedBox(width: 5);
@@ -39,7 +40,7 @@ systemColors(BuildContext context) {
   );
 }
 
-BorderRadius kRadius(double radius) => BorderRadius.circular(radius);
+BorderRadius kRadius(double radius) => BorderRadius.zero;
 
 Future<T?> navPush<T extends Object?>(BuildContext context, Widget screen) {
   return Navigator.push(
@@ -67,7 +68,7 @@ Future<T?> navPopUntilPush<T extends Object?>(
 }
 
 KSnackbar(
-  context, {
+  BuildContext context, {
   dynamic message,
   bool error = false,
   SnackBarAction? action,
@@ -76,21 +77,25 @@ KSnackbar(
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       elevation: 0,
-      shape: RoundedRectangleBorder(borderRadius: kRadius(10)),
-      backgroundColor: error ? kColor(context).error : kColor(context).primary,
+      behavior: SnackBarBehavior.floating,
+      margin: EdgeInsets.only(
+        bottom: MediaQuery.sizeOf(context).height - 100 > 0 ? MediaQuery.sizeOf(context).height - 100 : 0,
+        left: MediaQuery.sizeOf(context).width > 400 ? MediaQuery.sizeOf(context).width - 350 : 20,
+        right: 20,
+      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
+      backgroundColor: error ? StatusText.danger : StatusText.success,
       content: Row(
         spacing: 11,
         children: [
           Icon(
-            error ? Icons.dangerous : Icons.check_circle_outline,
-            color: error ? kColor(context).onError : kColor(context).onPrimary,
+            error ? LucideIcons.circleAlert : LucideIcons.circleCheck,
+            color: Colors.white,
           ),
           Flexible(
             child: Label(
               "$message",
-              color: error
-                  ? kColor(context).onError
-                  : kColor(context).onPrimary,
+              color: Colors.white,
             ).regular,
           ),
         ],
@@ -107,7 +112,7 @@ KErrorAlert(context, {required dynamic message}) {
     builder: (context) => AlertDialog(
       backgroundColor: kColor(context).surface,
       title: Label("An Error Occurred!", color: kColor(context).error).title,
-      icon: Icon(Icons.dangerous, color: kColor(context).error, size: 50),
+      icon: Icon(LucideIcons.circleAlert, color: kColor(context).error, size: 50),
       content: Label("$message", textAlign: TextAlign.center).regular,
       actions: [
         TextButton(

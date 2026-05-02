@@ -1,7 +1,5 @@
-import 'dart:developer';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_contacts/flutter_contacts.dart';
+import 'package:flutter/services.dart';
 import 'package:prime_invoice/Essentials/KScaffold.dart';
 import 'package:prime_invoice/Essentials/Label.dart';
 import 'package:prime_invoice/Essentials/kButton.dart';
@@ -10,15 +8,18 @@ import 'package:prime_invoice/Essentials/kField.dart';
 import 'package:prime_invoice/Helper/date_helper.dart';
 import 'package:prime_invoice/Helper/database_service.dart';
 import 'package:prime_invoice/Helper/pdf_helper.dart';
+import 'package:prime_invoice/Models/Customer_Model.dart';
 import 'package:prime_invoice/Models/Invoice_Model.dart';
 import 'package:prime_invoice/Models/Item_Model.dart';
-import 'package:prime_invoice/Resources/app-data.dart';
+import 'package:prime_invoice/Models/Inventory_Model.dart';
+import 'package:prime_invoice/Models/Metal_Rate_Model.dart';
 import 'package:prime_invoice/Resources/colors.dart';
 import 'package:prime_invoice/Resources/commons.dart';
 import 'package:prime_invoice/Resources/constants.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:prime_invoice/Helper/responsive.dart';
+import 'package:prime_invoice/Essentials/KTable.dart';
 
 class CreateInvoiceUI extends StatefulWidget {
   final InvoiceModel? invoice;
@@ -30,37 +31,27 @@ class CreateInvoiceUI extends StatefulWidget {
 
 class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   DateTime invoiceDate = DateTime.now();
-  final _formKey = GlobalKey<FormState>();
   final _customerFormKey = GlobalKey<FormState>();
   final tax = TextEditingController();
   final gst = TextEditingController();
-
-  List<String> tableFields = [
-    "Sl.",
-    "Description",
-    "HSN/ASC",
-    "Qty.",
-    "Unit",
-    "Price",
-    "Amount",
-  ];
-
-  List<String> unitList = ["Gms", "Kg", "Pcs", "Nos"];
+  double metalGstRate = 3.0;
+  double serviceGstRate = 18.0;
 
   List<ItemModel> addedItems = [];
   final invoiceNo = TextEditingController();
   final itemName = TextEditingController();
-  final hsnCode = TextEditingController();
+  final skuController = TextEditingController();
   final qty = TextEditingController();
   String unit = "Gms";
   final price = TextEditingController();
   double amount = 0;
-  final billingAddress = TextEditingController(text: defaultBillingAddress);
+  final billingAddress = TextEditingController();
 
-  bool forCustomer = false;
+  bool forCustomer = true;
   final customerName = TextEditingController();
   final customerPhone = TextEditingController();
   final customerPan = TextEditingController();
+  final customerGst = TextEditingController();
   final customerAadhaar = TextEditingController();
   final isLoading = ValueNotifier(false);
 
@@ -76,6 +67,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
       customerName.text = inv.customerName;
       customerPhone.text = inv.customerPhone;
       customerPan.text = inv.customerPan;
+      customerGst.text = inv.customerGst;
       customerAadhaar.text = inv.customerAadhaar;
       billingAddress.text = inv.billingAddress;
       addedItems = List.from(inv.items);
@@ -84,30 +76,27 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
       invoiceNo.text =
           "INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}";
     }
+    _loadGstSettings();
+  }
+
+  Future<void> _loadGstSettings() async {
+    final pref = await SharedPreferences.getInstance();
+    setState(() {
+      metalGstRate = pref.getDouble("metal_gst") ?? 3.0;
+      serviceGstRate = pref.getDouble("service_gst") ?? 18.0;
+    });
   }
 
   Future<void> _loadProfile() async {
     final pref = await SharedPreferences.getInstance();
-    final bName = pref.getString("biz_name");
     final bAddress = pref.getString("biz_address");
-    if (bName != null && widget.invoice == null) {
-      // only if not editing
-      // maybe add a field for biz name in form if needed, but currently it's for generating PDF
-    }
     if (bAddress != null && widget.invoice == null) {
-      setState(() {
-        billingAddress.text = bAddress;
-      });
+      setState(() => billingAddress.text = bAddress);
     }
   }
 
   createInvoice() async {
     try {
-      if (invoiceNo.text.trim().isEmpty) {
-        invoiceNo.text =
-            "INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}";
-      }
-
       if (!_customerFormKey.currentState!.validate()) {
         KSnackbar(
           context,
@@ -128,8 +117,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
       isLoading.value = true;
       double total = 0;
       for (ItemModel item in addedItems) {
-        final gstAmt = (item.amount * item.gst) / 100;
-        total += item.amount + gstAmt;
+        total += item.amount + (item.amount * item.gst / 100);
       }
 
       InvoiceModel invoiceData = InvoiceModel(
@@ -140,34 +128,70 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
         customerPhone: customerPhone.text,
         customerAadhaar: customerAadhaar.text,
         customerPan: customerPan.text,
+        customerGst: customerGst.text,
         billingAddress: billingAddress.text,
         grandTotal: total,
         invoiceDate: invoiceDate,
       );
+
+      // Auto-save/Update client
+      if (customerName.text.isNotEmpty && customerPhone.text.length == 10) {
+        final existing = await DatabaseService.instance.getCustomerByPhone(
+          customerPhone.text,
+        );
+        final customer = CustomerModel(
+          id: existing?.id,
+          name: customerName.text,
+          phone: customerPhone.text,
+          address: billingAddress.text,
+          gst: customerGst.text,
+          pan: customerPan.text,
+          aadhaar: customerAadhaar.text,
+          clientType: forCustomer ? "Customer" : "Business",
+        );
+        await DatabaseService.instance.saveCustomer(customer);
+      }
+
       await PdfHelper.generateInvoice(invoiceData);
       await DatabaseService.instance.saveInvoice(invoiceData);
+
+      // Deduct Stock and record logs
+      final allInventory = await DatabaseService.instance.getAllInventory();
+      for (var item in addedItems) {
+        final invItem = allInventory.firstWhere(
+          (inv) => inv.sku == item.sku,
+          orElse: () =>
+              allInventory.firstWhere((inv) => inv.name == item.itemName),
+        );
+
+        if (invItem.id != null) {
+          await DatabaseService.instance.recordStockAdjustment(
+            item: invItem,
+            weightDelta: -item.weight,
+            pieceDelta: -item.qty,
+            action: 'Debit',
+            type: 'Sale',
+            notes: 'Invoice Generated: ${invoiceData.invoiceId}',
+          );
+        }
+      }
+
       if (mounted) {
-        Navigator.pop(context, true);
         KSnackbar(
           context,
           message: "Invoice generated and saved successfully!",
         );
       }
     } catch (e) {
-      log(e.toString());
       KSnackbar(context, message: e.toString(), error: true);
     } finally {
       isLoading.value = false;
     }
   }
 
-  double calculateGst() {
-    return (parseToDouble(gst.text) / 100) * amount;
-  }
-
-  clearFields() {
+  void clearFields() {
     itemName.clear();
-    hsnCode.clear();
+    skuController.clear();
     qty.clear();
     price.clear();
     gst.clear();
@@ -177,7 +201,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   void dispose() {
     invoiceNo.dispose();
     itemName.dispose();
-    hsnCode.dispose();
+    skuController.dispose();
     qty.dispose();
     price.dispose();
     tax.dispose();
@@ -186,6 +210,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
     customerName.dispose();
     customerPhone.dispose();
     customerPan.dispose();
+    customerGst.dispose();
     customerAadhaar.dispose();
     super.dispose();
   }
@@ -197,6 +222,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
       appBar: KAppBar(
         context,
         title: "Create Invoice",
+        showBack: false,
         actions: [
           IconButton(
             onPressed: () async {
@@ -204,9 +230,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                 context,
                 currentDate: invoiceDate,
               );
-              if (data != null) {
-                setState(() => invoiceDate = data);
-              }
+              if (data != null) setState(() => invoiceDate = data);
             },
             icon: const Icon(LucideIcons.calendar),
           ),
@@ -215,13 +239,12 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
       body: SafeArea(
         child: Center(
           child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 1000),
+            constraints: const BoxConstraints(maxWidth: 1400),
             child: SingleChildScrollView(
-              primary: true,
               padding: const EdgeInsets.all(kPadding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                spacing: 20,
+                spacing: 24,
                 children: [
                   if (Responsive.isMobile(context)) ...[
                     _buildSectionHeader(
@@ -229,21 +252,38 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                       LucideIcons.fileText,
                     ),
                     _buildInvoiceInfo(),
+                    _buildSectionHeader("Party Details", LucideIcons.user),
+                    _buildPartyDetails(),
                     _buildSectionHeader("Items List", LucideIcons.package),
                     _buildItemsSection(),
                     _buildSummarySection(),
-                    _buildSectionHeader("Party Details", LucideIcons.user),
-                    _buildPartyDetails(),
+                    _buildSectionHeader("Other Details", LucideIcons.ellipsis),
+                    _buildOtherDetails(),
                   ] else ...[
                     Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      spacing: 30,
+                      spacing: 32,
                       children: [
+                        Expanded(
+                          flex: 2,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            spacing: 24,
+                            children: [
+                              _buildSectionHeader(
+                                "Items List",
+                                LucideIcons.package,
+                              ),
+                              _buildItemsSection(),
+                              _buildSummarySection(),
+                            ],
+                          ),
+                        ),
                         Expanded(
                           flex: 1,
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
-                            spacing: 20,
+                            spacing: 24,
                             children: [
                               _buildSectionHeader(
                                 "Invoice Details",
@@ -255,37 +295,18 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                                 LucideIcons.user,
                               ),
                               _buildPartyDetails(),
-                            ],
-                          ),
-                        ),
-                        Expanded(
-                          flex: 1,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            spacing: 20,
-                            children: [
                               _buildSectionHeader(
-                                "Items List",
-                                LucideIcons.package,
+                                "Other Details",
+                                LucideIcons.ellipsis,
                               ),
-                              _buildItemsSection(),
-                              _buildSummarySection(),
+                              _buildOtherDetails(),
                             ],
                           ),
                         ),
                       ],
                     ),
                   ],
-                  _buildSectionHeader("Other Details", LucideIcons.ellipsis),
-                  KField(
-                    controller: billingAddress,
-                    maxLines: 4,
-                    minLines: 3,
-                    label: "Billing Address",
-                    hintText: "Enter complete billing address",
-                    validator: (val) => KValidation.required(val),
-                  ),
-                  const SizedBox(height: 80),
+                  const SizedBox(height: 100),
                 ],
               ),
             ),
@@ -295,47 +316,46 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
       floatingActionButton: FloatingActionButton.extended(
         onPressed: createInvoice,
         icon: const Icon(LucideIcons.fileOutput),
-        elevation: 4,
         backgroundColor: kColor(context).primary,
-        foregroundColor: kColor(context).onPrimary,
-        label: Label("Generate PDF", weight: 700).regular,
+        foregroundColor: Colors.white,
+        label: Label("Generate Invoice", weight: 700).regular,
       ),
     );
   }
 
   Widget _buildSectionHeader(String title, IconData icon) {
     return Row(
-      spacing: 10,
+      spacing: 12,
       children: [
-        Icon(icon, size: 20, color: kColor(context).secondary),
-        Label(title, fontSize: 18, weight: 700).title,
+        Icon(icon, size: 20, color: kColor(context).primary),
+        Label(title, fontSize: 18, weight: 800).title,
       ],
     );
   }
 
   Widget _buildInvoiceInfo() {
     return KCard(
-      padding: const EdgeInsets.all(15),
-      borderWidth: 1,
-      borderColor: kColor(context).outlineVariant,
+      padding: const EdgeInsets.all(20),
       child: Column(
-        spacing: 15,
+        spacing: 16,
         children: [
           KField(
             controller: invoiceNo,
             label: "Invoice No.",
-            hintText: "Enter Unique ID",
             prefix: const Icon(LucideIcons.hash, size: 16),
             suffix: IconButton(
-              onPressed: () => setState(() {
-                invoiceNo.text =
-                    "INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}";
-              }),
-              icon: const Icon(LucideIcons.refreshCw, size: 16),
+              onPressed: () => setState(
+                () => invoiceNo.text =
+                    "INV-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}",
+              ),
+              icon: const Icon(LucideIcons.refreshCw, size: 14),
             ),
-            validator: (val) => KValidation.required(val),
           ),
-          InkWell(
+          KField(
+            readOnly: true,
+            label: "Date",
+            hintText: kDateFormat(invoiceDate.toString()),
+            prefix: const Icon(LucideIcons.calendar, size: 16),
             onTap: () async {
               final data = await DateHelper.pickDate(
                 context,
@@ -343,188 +363,6 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
               );
               if (data != null) setState(() => invoiceDate = data);
             },
-            child: KField(
-              readOnly: true,
-              showRequired: false,
-              label: "Date",
-              hintText: kDateFormat(invoiceDate.toString()),
-              prefix: const Icon(LucideIcons.calendar, size: 16),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildItemsSection() {
-    return Column(
-      spacing: 15,
-      children: [
-        if (addedItems.isEmpty)
-          KCard(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(vertical: 40),
-            color: kColor(context).surfaceContainerLow.withValues(alpha: .5),
-            borderWidth: 1,
-            borderColor: kColor(context).outlineVariant,
-            child: Column(
-              spacing: 10,
-              children: [
-                Icon(
-                  LucideIcons.inbox,
-                  size: 40,
-                  color: kColor(context).onSurfaceVariant,
-                ),
-                Label(
-                  "No items added yet",
-                  color: kColor(context).onSurfaceVariant,
-                ).regular,
-              ],
-            ),
-          )
-        else
-          ...addedItems.map((item) => _buildItemCard(item)),
-        KButton(
-          onPressed: () {
-            clearFields();
-            showDialog(
-              context: context,
-              builder: (context) =>
-                  addItemDialog(setState, id: addedItems.length + 1),
-            );
-          },
-          style: KButtonStyle.expanded,
-          label: "Add New Item",
-          icon: const Icon(LucideIcons.plus),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildItemCard(ItemModel item) {
-    return KCard(
-      padding: const EdgeInsets.all(15),
-      borderWidth: 1,
-      borderColor: kColor(context).primary.withValues(alpha: .2),
-      color: kColor(context).surface,
-      child: Column(
-        spacing: 10,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Label(item.itemName, fontSize: 16, weight: 700).title,
-              Row(
-                spacing: 10,
-                children: [
-                  IconButton(
-                    onPressed: () {
-                      itemName.text = item.itemName;
-                      hsnCode.text = item.hsnCode;
-                      qty.text = item.qty.toString();
-                      unit = item.unit;
-                      price.text = item.price.toString();
-                      amount = item.amount;
-                      gst.text = item.gst.toString();
-                      showDialog(
-                        context: context,
-                        builder: (context) =>
-                            addItemDialog(setState, id: item.id),
-                      );
-                    },
-                    icon: Icon(
-                      LucideIcons.pencil,
-                      size: 18,
-                      color: kColor(context).primary,
-                    ),
-                  ),
-                  IconButton(
-                    onPressed: () => setState(() => addedItems.remove(item)),
-                    icon: Icon(
-                      LucideIcons.trash2,
-                      size: 18,
-                      color: kColor(context).error,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-          kDiv(context),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _itemStat("Qty", "${item.qty} ${item.unit}"),
-              _itemStat("Rate", kCurrencyFormat(item.price)),
-              _itemStat("GST", "${item.gst}%"),
-              _itemStat("Total", kCurrencyFormat(item.amount), isBold: true),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _itemStat(String label, String value, {bool isBold = false}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Label(
-          label,
-          fontSize: 10,
-          color: kColor(context).onSurfaceVariant,
-        ).regular,
-        Label(value, fontSize: 13, weight: isBold ? 700 : 500).regular,
-      ],
-    );
-  }
-
-  Widget _buildSummarySection() {
-    if (addedItems.isEmpty) return const SizedBox.shrink();
-
-    double totalTaxableAmount = addedItems.fold(
-      0.0,
-      (sum, item) => sum + item.amount,
-    );
-    double totalGstAmount = addedItems.fold(
-      0.0,
-      (sum, item) => sum + (item.amount * item.gst / 100),
-    );
-    double totalAmount = totalTaxableAmount + totalGstAmount;
-
-    return KCard(
-      padding: const EdgeInsets.all(20),
-      borderWidth: 1,
-      borderColor: kColor(context).outlineVariant,
-      child: Column(
-        spacing: 12,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Label("Sub Total (Before Tax)").regular,
-              Label(kCurrencyFormat(totalTaxableAmount), weight: 600).regular,
-            ],
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Label("Total GST").regular,
-              Label(kCurrencyFormat(totalGstAmount), weight: 600).regular,
-            ],
-          ),
-          kDiv(context),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Label("Grand Total", fontSize: 18, weight: 700).title,
-              Label(
-                kCurrencyFormat(totalAmount.round()),
-                fontSize: 18,
-                weight: 700,
-                color: kColor(context).primary,
-              ).title,
-            ],
           ),
         ],
       ),
@@ -533,13 +371,11 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
 
   Widget _buildPartyDetails() {
     return KCard(
-      padding: const EdgeInsets.all(20),
-      borderWidth: 1,
-      borderColor: kColor(context).outlineVariant,
+      padding: const EdgeInsets.all(24),
       child: Form(
         key: _customerFormKey,
         child: Column(
-          spacing: 15,
+          spacing: 20,
           children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -554,88 +390,40 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                 ),
               ],
             ),
-            kDiv(context),
+            const Divider(),
             KField(
               controller: customerName,
-              label: "Customer Name",
-              hintText: "Enter Name",
+              label: "Name",
               prefix: const Icon(LucideIcons.user, size: 16),
-              suffix: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    onPressed: () => _showExistingClients(),
-                    icon: Icon(
-                      LucideIcons.users,
-                      size: 18,
-                      color: kColor(context).secondary,
-                    ),
-                    tooltip: "Choose from existing clients",
-                  ),
-                  IconButton(
-                    onPressed: () async {
-                      try {
-                        if (await FlutterContacts.requestPermission()) {
-                          final contact =
-                              await FlutterContacts.openExternalPick();
-                          if (contact != null) {
-                            setState(() {
-                              customerName.text = contact.displayName;
-                              if (contact.phones.isNotEmpty) {
-                                customerPhone.text = contact.phones.first.number
-                                    .replaceAll(RegExp(r'[^0-9]'), '');
-                                if (customerPhone.text.length > 10 &&
-                                    customerPhone.text.startsWith('91')) {
-                                  customerPhone.text =
-                                      customerPhone.text.substring(2);
-                                }
-                              }
-                            });
-                          }
-                        } else {
-                          KSnackbar(
-                            context,
-                            message: "Contact permission denied!",
-                            error: true,
-                          );
-                        }
-                      } catch (e) {
-                        log("Contact Pick Error: $e");
-                        KSnackbar(
-                          context,
-                          message: "Couldn't pick contact",
-                          error: true,
-                        );
-                      }
-                    },
-                    icon: Icon(
-                      LucideIcons.contact,
-                      size: 18,
-                      color: kColor(context).primary,
-                    ),
-                    tooltip: "Pick from contacts",
-                  ),
-                ],
+              suffix: IconButton(
+                onPressed: _showExistingClients,
+                icon: const Icon(
+                  LucideIcons.users,
+                  size: 18,
+                  color: Colors.blue,
+                ),
               ),
-              validator: (val) => KValidation.required(val),
+              validator: (v) => KValidation.required(v),
             ),
             KField(
               controller: customerPhone,
-              label: "Phone Number",
-              hintText: "10 Digit Mobile",
+              label: "Phone",
               prefix: const Icon(LucideIcons.phone, size: 16),
               keyboardType: TextInputType.phone,
               maxLength: 10,
-              validator: (val) => KValidation.phone(val),
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(10),
+              ],
+              validator: (v) => KValidation.phone(v),
             ),
             Row(
-              spacing: 15,
+              spacing: 16,
               children: [
                 Expanded(
                   child: KField(
                     controller: customerPan,
                     label: "PAN",
-                    hintText: "Optional",
                     showRequired: false,
                     textCapitalization: TextCapitalization.characters,
                   ),
@@ -644,12 +432,17 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
                   child: KField(
                     controller: customerAadhaar,
                     label: "Aadhaar",
-                    hintText: "Optional",
                     showRequired: false,
                     keyboardType: TextInputType.number,
                   ),
                 ),
               ],
+            ),
+            KField(
+              controller: customerGst,
+              label: "GSTIN",
+              showRequired: false,
+              textCapitalization: TextCapitalization.characters,
             ),
           ],
         ),
@@ -657,343 +450,694 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
     );
   }
 
-  void _showExistingClients() async {
-    isLoading.value = true;
-    final invoices = await DatabaseService.instance.getAllInvoices();
-    final uniqueClients = <String, InvoiceModel>{};
-    for (var inv in invoices) {
-      final key = "${inv.customerName}-${inv.customerPhone}";
-      if (!uniqueClients.containsKey(key)) {
-        uniqueClients[key] = inv;
-      }
-    }
-    isLoading.value = false;
-
-    if (uniqueClients.isEmpty) {
-      if (mounted) {
-        KSnackbar(context, message: "No existing clients found!", error: true);
-      }
-      return;
-    }
-
-    final clientList = uniqueClients.values.toList();
-
-    if (mounted) {
-      showDialog(
-        context: context,
-        builder: (context) {
-          String search = "";
-          return StatefulBuilder(
-            builder: (context, setDialogState) {
-              final filtered = clientList
-                  .where(
-                    (c) =>
-                        c.customerName.toLowerCase().contains(
-                          search.toLowerCase(),
-                        ) ||
-                        c.customerPhone.contains(search),
-                  )
-                  .toList();
-
-              return _dialog(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  spacing: 15,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Label(
-                          "Select Existing Client",
-                          fontSize: 18,
-                          weight: 700,
-                        ).title,
-                        IconButton(
-                          onPressed: () => Navigator.pop(context),
-                          icon: const Icon(LucideIcons.x, size: 20),
+  Widget _buildItemsSection() {
+    return Column(
+      spacing: 16,
+      children: [
+        if (addedItems.isEmpty)
+          _emptyItemsPlaceholder()
+        else
+          KTable(
+            showCheckboxColumn: false,
+            columns: [
+              KTableColumn(label: Label("Sl.", weight: 700).regular),
+              KTableColumn(label: Label("Description", weight: 700).regular),
+              KTableColumn(label: Label("Weight", weight: 700).regular),
+              KTableColumn(label: Label("Qty", weight: 700).regular),
+              KTableColumn(label: Label("Total Price", weight: 700).regular),
+              KTableColumn(label: Label("Actions", weight: 700).regular),
+            ],
+            rows: addedItems.asMap().entries.map((entry) {
+              final idx = entry.key + 1;
+              final item = entry.value;
+              return KTableRow(
+                cells: [
+                  Label("$idx").regular,
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Label(item.itemName, weight: 600).regular,
+                      Label(
+                        item.sku,
+                        fontSize: 10,
+                        color: kColor(context).onSurfaceVariant,
+                      ).regular,
+                    ],
+                  ),
+                  Label("${item.weight.toStringAsFixed(3)}g").regular,
+                  Label("${item.qty.toInt()} Pcs").regular,
+                  Label(
+                    "Rs.${item.amount.toStringAsFixed(2)}",
+                    weight: 800,
+                    color: kColor(context).primary,
+                  ).regular,
+                  Row(
+                    children: [
+                      IconButton(
+                        onPressed: () => _showAddItemSidebar(
+                          id: item.id,
+                          existingItem: item,
                         ),
-                      ],
-                    ),
-                    KField(
-                      hintText: "Search name or phone",
-                      prefix: const Icon(LucideIcons.search, size: 16),
-                      onChanged: (v) => setDialogState(() => search = v),
-                    ),
-                    kDiv(context),
-                    if (filtered.isEmpty)
-                      Center(
-                        child: Label(
-                          "No results",
-                          color: kColor(context).onSurfaceVariant,
-                        ).regular,
-                      )
-                    else
-                      ...filtered.map(
-                        (client) => ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: CircleAvatar(
-                            backgroundColor: kColor(context).primaryContainer,
-                            child: Icon(
-                              LucideIcons.user,
-                              size: 18,
-                              color: kColor(context).onPrimaryContainer,
-                            ),
-                          ),
-                          title: Label(client.customerName, weight: 600).regular,
-                          subtitle:
-                              Label(client.customerPhone, fontSize: 12).regular,
-                          onTap: () {
-                            setState(() {
-                              customerName.text = client.customerName;
-                              customerPhone.text = client.customerPhone;
-                              customerPan.text = client.customerPan;
-                              customerAadhaar.text = client.customerAadhaar;
-                            });
-                            Navigator.pop(context);
-                          },
+                        icon: Icon(
+                          LucideIcons.pencil,
+                          size: 16,
+                          color: kColor(context).primary,
                         ),
                       ),
-                  ],
-                ),
+                      IconButton(
+                        onPressed: () =>
+                            setState(() => addedItems.remove(item)),
+                        icon: const Icon(
+                          LucideIcons.trash2,
+                          size: 16,
+                          color: Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               );
-            },
-          );
-        },
-      );
-    }
+            }).toList(),
+          ),
+        KButton(
+          onPressed: () => _showAddItemSidebar(id: addedItems.length + 1),
+          label: "Add New Item",
+          icon: const Icon(LucideIcons.plus),
+          style: KButtonStyle.expanded,
+        ),
+      ],
+    );
   }
 
-  Widget _dialog({required Widget child}) {
-    return Dialog(
-      constraints: BoxConstraints(maxWidth: 1000),
-      shape: RoundedRectangleBorder(borderRadius: kRadius(20)),
-      backgroundColor: kColor(context).surface,
-      insetPadding: const EdgeInsets.all(kPadding),
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        child: SingleChildScrollView(child: child),
+  Widget _emptyItemsPlaceholder() {
+    return KCard(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 60),
+      color: kColor(context).surfaceContainerLowest,
+      child: Column(
+        spacing: 12,
+        children: [
+          Icon(
+            LucideIcons.clipboardList,
+            size: 48,
+            color: kColor(context).outline,
+          ),
+          Label(
+            "No items added yet",
+            color: kColor(context).onSurfaceVariant,
+          ).regular,
+        ],
       ),
     );
   }
 
-  Widget addItemDialog(StateSetter setMainState, {required int id}) {
-    return StatefulBuilder(
-      builder: (context, setState) {
-        return _dialog(
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              spacing: 15,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Label("Item Details #$id", fontSize: 20, weight: 700).title,
-                    IconButton(
-                      onPressed: () => Navigator.pop(context),
-                      icon: Icon(LucideIcons.x, size: 20),
-                    ),
-                  ],
-                ),
-                kDiv(context),
-                KField(
-                  controller: itemName,
-                  label: "Item Name",
-                  hintText: "e.g. Graphic Design Services",
-                  validator: (val) => KValidation.required(val),
-                ),
-                KField(
-                  controller: hsnCode,
-                  label: "HSN/SAC Code",
-                  hintText: "e.g. 9983",
-                  textCapitalization: TextCapitalization.characters,
-                ),
-                if (Responsive.isMobile(context)) ...[
-                  KField(
-                    controller: qty,
-                    label: "Qty",
-                    keyboardType: TextInputType.number,
-                    validator: (val) => KValidation.required(val),
-                    onChanged: (v) => setState(() {
-                      amount = (parseToDouble(v) * parseToDouble(price.text));
-                    }),
-                  ),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    spacing: 5,
+  Widget _buildSummarySection() {
+    if (addedItems.isEmpty) return const SizedBox.shrink();
+    double subTotal = addedItems.fold(0, (s, i) => s + i.amount);
+    double totalGst = addedItems.fold(
+      0,
+      (s, i) => s + (i.amount * i.gst / 100),
+    );
+    return KCard(
+      padding: const EdgeInsets.all(24),
+      child: Column(
+        spacing: 12,
+        children: [
+          _summaryRow("Sub Total", "Rs.${subTotal.toStringAsFixed(2)}"),
+          _summaryRow("Tax Amount", "Rs.${totalGst.toStringAsFixed(2)}"),
+          const Divider(),
+          _summaryRow(
+            "Net Payable",
+            "Rs.${(subTotal + totalGst).round().toStringAsFixed(2)}",
+            isBold: true,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _summaryRow(String label, String val, {bool isBold = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Label(
+          label,
+          fontSize: isBold ? 16 : 14,
+          weight: isBold ? 800 : 400,
+        ).regular,
+        Label(
+          val,
+          fontSize: isBold ? 20 : 14,
+          weight: isBold ? 900 : 700,
+          color: isBold ? kColor(context).primary : null,
+        ).regular,
+      ],
+    );
+  }
+
+  Widget _buildOtherDetails() {
+    return KCard(
+      padding: const EdgeInsets.all(20),
+      child: KField(
+        controller: billingAddress,
+        label: "Billing Address",
+        maxLines: 3,
+        validator: (v) => KValidation.required(v),
+      ),
+    );
+  }
+
+  void _showExistingClients() async {
+    isLoading.value = true;
+    final customers = await DatabaseService.instance.getAllCustomers();
+    isLoading.value = false;
+    if (customers.isEmpty) {
+      if (mounted) {
+        KSnackbar(context, message: "No clients found!", error: true);
+      }
+      return;
+    }
+
+    String q = "";
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "Dismiss",
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (c, a1, a2) => const SizedBox.shrink(),
+      transitionBuilder: (c, a1, a2, child) => SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(1, 0),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: a1, curve: Curves.easeOutCubic)),
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: Material(
+            child: Container(
+              width: Responsive.isMobile(context)
+                  ? MediaQuery.sizeOf(context).width
+                  : 500,
+              height: double.infinity,
+              color: kColor(context).surface,
+              child: StatefulBuilder(
+                builder: (cSelf, setSidebarState) {
+                  final res = customers
+                      .where(
+                        (cu) =>
+                            cu.name.toLowerCase().contains(q.toLowerCase()) ||
+                            cu.phone.contains(q),
+                      )
+                      .toList();
+                  return Column(
                     children: [
-                      Label("Unit", fontSize: 13, weight: 600).regular,
-                      Wrap(
-                        spacing: 8,
-                        runSpacing: 8,
-                        children: unitList.map((e) {
-                          final isSelected = unit == e;
-                          return ChoiceChip(
-                            label: Label(e, fontSize: 12).regular,
-                            selected: isSelected,
-                            onSelected: (v) {
-                              if (v) setState(() => unit = e);
-                            },
-                            showCheckmark: false,
-                            selectedColor: kColor(context).primaryContainer,
-                            labelStyle: TextStyle(
-                              color: isSelected
-                                  ? kColor(context).onPrimaryContainer
-                                  : kColor(context).onSurface,
+                      _sidebarHeader("Select Client", LucideIcons.users, cSelf),
+                      Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: KField(
+                          hintText: "Search name...",
+                          onChanged: (v) => setSidebarState(() => q = v),
+                        ),
+                      ),
+                      Expanded(
+                        child: ListView.separated(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          itemCount: res.length,
+                          separatorBuilder: (c, i) => const Divider(),
+                          itemBuilder: (c, i) => ListTile(
+                            leading: CircleAvatar(
+                              child: Label(res[i].name[0]).title,
                             ),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: kRadius(10),
-                              side: BorderSide(
-                                color: isSelected
-                                    ? kColor(context).primary
-                                    : kColor(context).outlineVariant,
-                              ),
+                            title: Label(res[i].name, weight: 600).regular,
+                            subtitle: Label(res[i].phone).regular,
+                            onTap: () {
+                              setState(() {
+                                customerName.text = res[i].name;
+                                customerPhone.text = res[i].phone;
+                                customerPan.text = res[i].pan;
+                                customerGst.text = res[i].gst;
+                                customerAadhaar.text = res[i].aadhaar;
+                                billingAddress.text = res[i].address;
+                              });
+                              Navigator.pop(cSelf);
+                            },
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showAddItemSidebar({required int id, ItemModel? existingItem}) {
+    InventoryModel? sel;
+    List<InventoryModel> all = [];
+    String qSearch =
+        ""; // Renamed from q to qSearch to avoid potential shadowing
+    final weightC = TextEditingController(
+      text: existingItem?.weight.toStringAsFixed(3) ?? "",
+    );
+    final qtyC = TextEditingController(
+      text: existingItem?.qty.toInt().toString() ?? "1",
+    );
+
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "Dismiss",
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (c, a1, a2) => const SizedBox.shrink(),
+      transitionBuilder: (c, a1, a2, child) => SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(1, 0),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: a1, curve: Curves.easeOutCubic)),
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: Material(
+            child: Container(
+              width: Responsive.isMobile(context)
+                  ? MediaQuery.sizeOf(context).width
+                  : 600,
+              height: double.infinity,
+              color: kColor(context).surface,
+              child: StatefulBuilder(
+                builder: (c, setState) {
+                  return FutureBuilder<List<InventoryModel>>(
+                    future: all.isEmpty
+                        ? DatabaseService.instance.getAllInventory()
+                        : Future.value(all),
+                    builder: (context, snap) {
+                      if (snap.hasData && all.isEmpty) {
+                        all = snap.data!;
+                        if (existingItem != null) {
+                          sel = all.firstWhere(
+                            (it) => it.sku == existingItem.sku,
+                            orElse: () => all.firstWhere(
+                              (it) => it.name == existingItem.itemName,
                             ),
                           );
-                        }).toList(),
-                      ),
-                    ],
-                  ),
-                ] else
-                  Row(
-                    spacing: 12,
-                    children: [
-                      Expanded(
-                        flex: 2,
-                        child: KField(
-                          controller: qty,
-                          label: "Qty",
-                          keyboardType: TextInputType.number,
-                          validator: (val) => KValidation.required(val),
-                          onChanged: (v) => setState(() {
-                            amount =
-                                (parseToDouble(v) * parseToDouble(price.text));
-                          }),
-                        ),
-                      ),
-                      Expanded(
-                        flex: 1,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          spacing: 5,
-                          children: [
-                            Label("Unit", fontSize: 13, weight: 600).regular,
-                            Wrap(
-                              spacing: 8,
-                              runSpacing: 8,
-                              children: unitList.map((e) {
-                                final isSelected = unit == e;
-                                return ChoiceChip(
-                                  label: Label(e, fontSize: 12).regular,
-                                  selected: isSelected,
-                                  onSelected: (v) {
-                                    if (v) setState(() => unit = e);
-                                  },
-                                  showCheckmark: false,
-                                  selectedColor: kColor(
-                                    context,
-                                  ).primaryContainer,
-                                  labelStyle: TextStyle(
-                                    color: isSelected
-                                        ? kColor(context).onPrimaryContainer
-                                        : kColor(context).onSurface,
-                                  ),
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: kRadius(10),
-                                    side: BorderSide(
-                                      color: isSelected
-                                          ? kColor(context).primary
-                                          : kColor(context).outlineVariant,
-                                    ),
-                                  ),
-                                );
-                              }).toList(),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                Row(
-                  spacing: 12,
-                  children: [
-                    Expanded(
-                      child: KField(
-                        controller: price,
-                        label: "Rate/Price",
-                        prefixText: "₹",
-                        keyboardType: TextInputType.number,
-                        validator: (val) => KValidation.required(val),
-                        onChanged: (v) => setState(() {
-                          amount = (parseToDouble(v) * parseToDouble(qty.text));
-                        }),
-                      ),
-                    ),
-                    Expanded(
-                      child: KField(
-                        controller: gst,
-                        label: "GST (%)",
-                        suffix: Padding(
-                          padding: EdgeInsets.only(right: 10),
-                          child: Label("%", fontSize: 16).regular,
-                        ),
-                        keyboardType: TextInputType.number,
-                        validator: (val) => KValidation.required(val),
-                      ),
-                    ),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Label("Total Amount", fontSize: 20, weight: 900).regular,
-                    Label(
-                      kCurrencyFormat(amount, symbol: "₹"),
-                      fontSize: 17,
-                      weight: 700,
-                    ).regular,
-                  ],
-                ),
-                KButton(
-                  onPressed: () {
-                    if (_formKey.currentState!.validate()) {
-                      ItemModel data = ItemModel(
-                        id: id,
-                        itemName: itemName.text.trim(),
-                        hsnCode: hsnCode.text.trim(),
-                        gst: parseToDouble(gst.text),
-                        unit: unit,
-                        qty: parseToDouble(qty.text),
-                        price: parseToDouble(price.text),
-                        amount: parseToDouble(amount),
-                      );
-
-                      setMainState(() {
-                        int index = addedItems.indexWhere(
-                          (item) => item.id == id,
-                        );
-                        if (index != -1) {
-                          addedItems[index] = data;
-                        } else {
-                          addedItems.add(data);
                         }
-                      });
-                      Navigator.pop(context);
-                    }
-                  },
-                  label: id <= addedItems.length ? "Update Item" : "Add Item",
-                  icon: const Icon(LucideIcons.check),
-                  style: KButtonStyle.expanded,
-                ),
-              ],
+                      }
+                      final List<InventoryModel> searchResults = qSearch.isEmpty
+                          ? <InventoryModel>[]
+                          : all
+                                .where(
+                                  (it) =>
+                                      it.name.toLowerCase().contains(
+                                        qSearch.toLowerCase(),
+                                      ) ||
+                                      it.sku.toLowerCase().contains(
+                                        qSearch.toLowerCase(),
+                                      ),
+                                )
+                                .toList();
+                      return Column(
+                        children: [
+                          _sidebarHeader(
+                            existingItem == null ? "Add Item" : "Edit Item",
+                            LucideIcons.plus,
+                            c,
+                          ),
+                          Expanded(
+                            child: SingleChildScrollView(
+                              padding: const EdgeInsets.all(32),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                spacing: 32,
+                                children: [
+                                  KField(
+                                    label: "Search Products",
+                                    hintText: "Type name or sku...",
+                                    onChanged: (v) =>
+                                        setState(() => qSearch = v),
+                                  ),
+                                  if (searchResults.isNotEmpty && sel == null)
+                                    _searchRes(
+                                      searchResults,
+                                      (it) => setState(() => sel = it),
+                                    ),
+                                  if (sel != null) ...[
+                                    _selCard(
+                                      sel!,
+                                      () => setState(() => sel = null),
+                                    ),
+                                    Row(
+                                      spacing: 20,
+                                      children: [
+                                        Expanded(
+                                          child: KField(
+                                            controller: qtyC,
+                                            label: "Qty",
+                                            keyboardType: TextInputType.number,
+                                            onChanged: (v) => setState(() {}),
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: KField(
+                                            controller: weightC,
+                                            label: "Weight",
+                                            keyboardType: TextInputType.number,
+                                            onChanged: (v) => setState(() {}),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    _calcBox(sel!, weightC.text, qtyC.text),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                          _sidebarFooter(
+                            onCancel: () => Navigator.pop(c),
+                            onSave: sel == null
+                                ? null
+                                : () => _save(
+                                    id,
+                                    sel!,
+                                    weightC.text,
+                                    qtyC.text,
+                                    c,
+                                  ),
+                          ),
+                        ],
+                      );
+                    },
+                  );
+                },
+              ),
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _sidebarHeader(String t, IconData i, BuildContext ctx) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: kColor(ctx).outlineVariant.withAlpha(100)),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(i, color: kColor(ctx).primary),
+          const SizedBox(width: 16),
+          Label(t, fontSize: 20, weight: 800).title,
+          const Spacer(),
+          IconButton(
+            onPressed: () => Navigator.pop(ctx),
+            icon: const Icon(LucideIcons.x),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _sidebarFooter({
+    required VoidCallback onCancel,
+    VoidCallback? onSave,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: kColor(context).surfaceContainerLow,
+        border: Border(
+          top: BorderSide(color: kColor(context).outlineVariant.withAlpha(100)),
+        ),
+      ),
+      child: Row(
+        spacing: 16,
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: onCancel,
+              child: Label("Cancel", weight: 700).regular,
+            ),
+          ),
+          Expanded(
+            child: ElevatedButton(
+              onPressed: onSave,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kColor(context).primary,
+                foregroundColor: Colors.white,
+              ),
+              child: Label("Save Item", weight: 800).regular,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _searchRes(List<InventoryModel> res, Function(InventoryModel) onSel) {
+    return Container(
+      height: 200,
+      decoration: BoxDecoration(
+        color: kColor(context).surfaceContainerHigh,
+        borderRadius: kRadius(12),
+      ),
+      child: ListView.builder(
+        itemCount: res.length,
+        itemBuilder: (c, i) => ListTile(
+          title: Label(res[i].name).regular,
+          subtitle: Label("Stock: ${res[i].pieceStock}").regular,
+          onTap: () => onSel(res[i]),
+        ),
+      ),
+    );
+  }
+
+  Widget _selCard(InventoryModel it, VoidCallback onClear) {
+    return FutureBuilder<List<MetalRateModel>>(
+      future: DatabaseService.instance.getAllMetalRates(),
+      builder: (context, snap) {
+        double currentRate = 0;
+        if (snap.hasData) {
+          final m = snap.data!.firstWhere(
+            (r) =>
+                r.metalType.toLowerCase() == it.category.toLowerCase() &&
+                (it.category != "Gold" || r.purity == it.purity),
+            orElse: () =>
+                MetalRateModel(metalType: "", purity: "", ratePer10g: 0),
+          );
+          currentRate = m.ratePer10g / 10;
+        }
+
+        return KCard(
+          color: kColor(context).surfaceContainerHigh,
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            spacing: 20,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    backgroundColor: kColor(context).primaryContainer,
+                    child: Icon(
+                      it.category == "Gold"
+                          ? LucideIcons.gem
+                          : LucideIcons.disc,
+                      color: kColor(context).primary,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Label(it.name, weight: 800, fontSize: 18).regular,
+                        Label(
+                          "${it.category} • ${it.purity}",
+                          color: kColor(context).onSurfaceVariant,
+                        ).regular,
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: onClear,
+                    icon: const Icon(
+                      LucideIcons.x,
+                      size: 20,
+                      color: Colors.red,
+                    ),
+                  ),
+                ],
+              ),
+              const Divider(),
+              Wrap(
+                spacing: 32,
+                runSpacing: 20,
+                children: [
+                  _detailItem("SKU", it.sku),
+                  _detailItem("Stock (Pieces)", "${it.pieceStock.toInt()} Pcs"),
+                  _detailItem(
+                    "Stock (Weight)",
+                    "${it.weightStock.toStringAsFixed(3)}g",
+                  ),
+                  _detailItem(
+                    "Current Rate",
+                    "Rs.${currentRate.toStringAsFixed(2)}/g",
+                  ),
+                  _detailItem(
+                    "Making Charge",
+                    "${it.makingCharges}${it.makingChargesType == 'Percent' ? '%' : ' Fixed'}",
+                  ),
+                ],
+              ),
+            ],
           ),
         );
       },
     );
+  }
+
+  Widget _detailItem(String label, String value) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      spacing: 4,
+      children: [
+        Label(
+          label,
+          fontSize: 11,
+          color: kColor(context).onSurfaceVariant,
+          weight: 600,
+        ).regular,
+        Label(value, fontSize: 14, weight: 700).regular,
+      ],
+    );
+  }
+
+  Widget _calcBox(InventoryModel it, String wS, String qS) {
+    return FutureBuilder<List<MetalRateModel>>(
+      future: DatabaseService.instance.getAllMetalRates(),
+      builder: (c, snap) {
+        double r = 0;
+        if (snap.hasData) {
+          final m = snap.data!.firstWhere(
+            (r) =>
+                r.metalType.toLowerCase() == it.category.toLowerCase() &&
+                (it.category != "Gold" || r.purity == it.purity),
+            orElse: () =>
+                MetalRateModel(metalType: "", purity: "", ratePer10g: 0),
+          );
+          r = m.ratePer10g / 10;
+        }
+        double w = parseToDouble(wS), q = parseToDouble(qS), val = w * r;
+        double mc = 0;
+        if (it.makingChargesType == "Percent") {
+          mc = val * (it.makingCharges / 100);
+        } else if (it.makingChargesType == "Per Gram") {
+          mc = it.makingCharges * w;
+        } else {
+          // Default to Fixed (multiplied by qty)
+          mc = it.makingCharges * q;
+        }
+        double taxAmt =
+            (val * (metalGstRate / 100)) + (mc * (serviceGstRate / 100));
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: kColor(context).surfaceContainer,
+            borderRadius: kRadius(16),
+          ),
+          child: Column(
+            spacing: 12,
+            children: [
+              _row("Metal Value", "Rs.${val.toStringAsFixed(2)}"),
+              _row("Making Charges", "Rs.${mc.toStringAsFixed(2)}"),
+              _row("Estimated Taxes", "Rs.${taxAmt.toStringAsFixed(2)}"),
+              const Divider(),
+              _row(
+                "SUB TOTAL",
+                "Rs.${(val + mc + taxAmt).toStringAsFixed(2)}",
+                isBold: true,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _row(String l, String v, {bool isBold = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Label(l, weight: isBold ? 800 : 400).regular,
+        Label(
+          v,
+          weight: isBold ? 900 : 700,
+          color: isBold ? kColor(context).primary : null,
+        ).regular,
+      ],
+    );
+  }
+
+  void _save(
+    int id,
+    InventoryModel it,
+    String wS,
+    String qS,
+    BuildContext context,
+  ) {
+    DatabaseService.instance.getAllMetalRates().then((rates) {
+      final r = rates.firstWhere(
+        (r) =>
+            r.metalType.toLowerCase() == it.category.toLowerCase() &&
+            (it.category != "Gold" || r.purity == it.purity),
+        orElse: () => MetalRateModel(metalType: "", purity: "", ratePer10g: 0),
+      );
+      double ratePerG = r.ratePer10g / 10,
+          w = parseToDouble(wS),
+          q = parseToDouble(qS),
+          val = w * ratePerG;
+      double mc = 0;
+      if (it.makingChargesType == "Percent") {
+        mc = val * (it.makingCharges / 100);
+      } else if (it.makingChargesType == "Per Gram") {
+        mc = it.makingCharges * w;
+      } else {
+        // Default to Fixed (multiplied by qty)
+        mc = it.makingCharges * q;
+      }
+      double taxAmt =
+          (val * (metalGstRate / 100)) + (mc * (serviceGstRate / 100));
+      double taxable = val + mc;
+      ItemModel data = ItemModel(
+        id: id,
+        itemName: it.name,
+        sku: it.sku,
+        weight: w,
+        qty: q,
+        unit: "Gms",
+        price: q > 0 ? taxable / q : 0,
+        amount: taxable,
+        gst: taxable > 0 ? (taxAmt / taxable) * 100 : 0,
+        metalGst: metalGstRate,
+        serviceGst: serviceGstRate,
+        metalAmount: val,
+        serviceAmount: mc,
+      );
+      setState(() {
+        int idx = addedItems.indexWhere((i) => i.id == id);
+        if (idx != -1) {
+          addedItems[idx] = data;
+        } else {
+          addedItems.add(data);
+        }
+      });
+      Navigator.pop(context);
+    });
   }
 }

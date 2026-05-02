@@ -14,6 +14,8 @@ import 'package:prime_invoice/Resources/colors.dart';
 import 'package:intl/intl.dart';
 import 'package:prime_invoice/Helper/responsive.dart';
 
+import 'package:prime_invoice/Helper/update_service.dart';
+
 class HomeUI extends StatefulWidget {
   const HomeUI({super.key});
 
@@ -31,6 +33,9 @@ class _HomeUIState extends State<HomeUI> {
   void initState() {
     super.initState();
     _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateService.checkForUpdates(context);
+    });
   }
 
   Future<void> _loadData() async {
@@ -38,13 +43,25 @@ class _HomeUIState extends State<HomeUI> {
       isLoading.value = true;
       final invoices = await DatabaseService.instance.getAllInvoices();
       double total = 0;
+      double todayTotal = 0;
+      final now = DateTime.now();
+
       for (var inv in invoices) {
         total += inv.grandTotal;
+        final invDate = inv.invoiceDate ?? DateTime.now();
+        if (invDate.year == now.year &&
+            invDate.month == now.month &&
+            invDate.day == now.day) {
+          todayTotal += inv.grandTotal;
+        }
       }
+
       if (mounted) {
         setState(() {
           recentInvoices = invoices.take(5).toList();
           totalInvoicedNum = total;
+          todaySales = todayTotal;
+          totalOrders = invoices.length;
         });
       }
     } catch (e) {
@@ -53,6 +70,10 @@ class _HomeUIState extends State<HomeUI> {
       isLoading.value = false;
     }
   }
+
+  double todaySales = 0;
+  int totalOrders = 0;
+  int lowStockCount = 0; // Mock low stock count for now
 
   @override
   Widget build(BuildContext context) {
@@ -64,80 +85,89 @@ class _HomeUIState extends State<HomeUI> {
           padding: const EdgeInsets.all(kPadding),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            spacing: 20,
             children: [
-              ValueListenableBuilder<bool>(
-                valueListenable: DatabaseService.hasWriteIssue,
-                builder: (context, hasIssue, _) {
-                  if (!hasIssue || Responsive.isMobile(context)) {
-                    return const SizedBox.shrink();
-                  }
-                  return Container(
-                    margin: const EdgeInsets.only(bottom: 10),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.withValues(alpha: .1),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: Colors.red.withValues(alpha: .3),
-                      ),
-                    ),
-                    child: Row(
-                      spacing: 12,
-                      children: [
-                        const Icon(
-                          Icons.warning_amber_rounded,
-                          color: Colors.red,
-                          size: 20,
+              _buildNTFSNotice(),
+              const SizedBox(height: 24),
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 1400),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildHeader(),
+                      const SizedBox(height: 24),
+                      _buildSummaryCards(),
+                      const SizedBox(height: 24),
+                      if (Responsive.isMobile(context)) ...[
+                        _buildQuickActions(),
+                        _buildRecentInvoicesHeader(),
+                        _buildRecentInvoicesList(),
+                      ] else
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(flex: 2, child: _buildQuickActions()),
+                            const SizedBox(width: 30),
+                            Expanded(
+                              flex: 3,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  _buildRecentInvoicesHeader(),
+                                  _buildRecentInvoicesList(),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
-                        Expanded(
-                          child: Label(
-                            "Drive '${DatabaseService.driveName}' is Read-Only (NTFS). Data is being saved to Local Storage instead.",
-                            color: Colors.red,
-                            fontSize: 12,
-                            weight: 600,
-                          ).regular,
-                        ),
-                      ],
-                    ),
-                  );
-                },
-              ),
-              _buildHeader(),
-              if (Responsive.isMobile(context)) ...[
-                _buildSummary(),
-                _buildActions(),
-                _buildRecentInvoicesHeader(),
-                _buildRecentInvoicesList(),
-              ] else
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  spacing: 30,
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        spacing: 20,
-                        children: [_buildSummary(), _buildActions()],
-                      ),
-                    ),
-                    Expanded(
-                      flex: 3,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildRecentInvoicesHeader(),
-                          _buildRecentInvoicesList(),
-                        ],
-                      ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
+              ),
             ],
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildNTFSNotice() {
+    // No-op: drive monitoring removed after Supabase migration.
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildSummaryCards() {
+    return GridView.count(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      crossAxisCount: Responsive.isMobile(context)
+          ? 1
+          : MediaQuery.of(context).size.width > 1400
+          ? 3
+          : 2,
+      crossAxisSpacing: 20,
+      mainAxisSpacing: 20,
+      childAspectRatio: Responsive.isMobile(context) ? 1.6 : 1.4,
+      children: [
+        _summaryCard(
+          "Today's Sales",
+          kCurrencyFormat(todaySales),
+          LucideIcons.indianRupee,
+          Colors.green,
+        ),
+        _summaryCard(
+          "Total Orders",
+          totalOrders.toString(),
+          LucideIcons.shoppingBag,
+          Colors.blue,
+        ),
+        _summaryCard(
+          "Low Stock Alerts",
+          lowStockCount.toString(),
+          LucideIcons.info,
+          Colors.orange,
+        ),
+      ],
     );
   }
 
@@ -162,35 +192,26 @@ class _HomeUIState extends State<HomeUI> {
             ValueListenableBuilder<String>(
               valueListenable: DatabaseService.storageType,
               builder: (context, type, _) {
-                final isPortable = type == "Portable Drive";
                 return Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: (isPortable ? Colors.green : Colors.orange)
-                        .withValues(alpha: .15),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: (isPortable ? Colors.green : Colors.orange)
-                          .withValues(alpha: .3),
-                    ),
+                    color: Colors.green.withAlpha(40),
+                    borderRadius: kRadius(20),
+                    border: Border.all(color: Colors.green.withAlpha(80)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    spacing: 6,
                     children: [
-                      Icon(
-                        isPortable ? LucideIcons.usb : LucideIcons.hardDrive,
-                        size: 12,
-                        color: isPortable ? Colors.green : Colors.orange,
-                      ),
+                      Icon(LucideIcons.cloud, size: 12, color: Colors.green),
+                      const SizedBox(width: 6),
                       Label(
                         type,
                         fontSize: 10,
                         weight: 600,
-                        color: isPortable ? Colors.green : Colors.orange,
+                        color: Colors.green,
                       ).regular,
                     ],
                   ),
@@ -214,58 +235,83 @@ class _HomeUIState extends State<HomeUI> {
     );
   }
 
-  Widget _buildSummary() {
+  Widget _summaryCard(String title, String value, IconData icon, Color color) {
     return KCard(
-      width: double.infinity,
-      padding: const EdgeInsets.all(15),
-      color: kColor(context).primaryContainer.withValues(alpha: 0.3),
+      padding: const EdgeInsets.all(24),
+      color: kColor(context).surfaceContainerLow,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        spacing: 5,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Label(
-            "Total Invoiced",
-            fontSize: 12,
-            color: kColor(context).primary,
-          ).regular,
-          Label(
-            kCurrencyFormat(totalInvoicedNum),
-            fontSize: 18,
-            weight: 700,
-          ).title,
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withAlpha(20),
+              borderRadius: kRadius(16),
+              border: Border.all(color: color.withAlpha(40)),
+            ),
+            child: Icon(icon, color: color, size: 24),
+          ),
+          const SizedBox(height: 20),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Label(
+                value,
+                fontSize: 26,
+                weight: 900,
+                color: kColor(context).onSurface,
+              ).title,
+              const SizedBox(height: 4),
+              Label(
+                title,
+                fontSize: 13,
+                weight: 500,
+                color: kColor(context).onSurfaceVariant,
+              ).regular,
+            ],
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildActions() {
-    return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
-        spacing: 12,
-        children: [
-          _actionButton(
-            LucideIcons.plus,
-            "Create",
-            () async {
+  Widget _buildQuickActions() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Label("Quick Actions", fontSize: 18, weight: 600).title,
+        const SizedBox(height: 16),
+        GridView(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: 200,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: Responsive.isMobile(context) ? 1.4 : 1.2,
+          ),
+          children: [
+            _actionButton(LucideIcons.filePlus2, "Billing", () async {
               final res = await context.push("/create-invoice");
               if (res == true) _loadData();
-            },
-            bgColor: kColor(context).primary,
-            fgColor: kColor(context).onPrimary,
-          ),
-          _actionButton(
-            LucideIcons.users,
-            "Clients",
-            () => context.push("/clients"),
-          ),
-          _actionButton(
-            LucideIcons.settings,
-            "Setup",
-            () => context.push("/setup"),
-          ),
-        ],
-      ),
+            }, color: kColor(context).primary),
+            _actionButton(LucideIcons.packagePlus, "Inventory", () {
+              context.push("/inventory");
+            }, color: Colors.brown),
+            _actionButton(
+              LucideIcons.userPlus,
+              "Clients",
+              () => context.push("/clients"),
+              color: Colors.blueGrey,
+            ),
+
+            _actionButton(LucideIcons.layoutPanelTop, "Reports", () {
+              context.go("/reports");
+            }, color: Colors.indigo),
+          ],
+        ),
+      ],
     );
   }
 
@@ -273,27 +319,33 @@ class _HomeUIState extends State<HomeUI> {
     IconData icon,
     String label,
     VoidCallback onTap, {
-    Color? bgColor,
-    Color? fgColor,
+    required Color color,
   }) {
-    return Column(
-      spacing: 5,
-      children: [
-        KCard(
-          radius: 12,
-          padding: const EdgeInsets.all(12),
-          color: bgColor ?? kColor(context).surfaceContainerLow,
-          borderWidth: 1,
-          borderColor: kColor(context).outlineVariant,
-          onTap: onTap,
-          child: Icon(
-            icon,
-            size: 20,
-            color: fgColor ?? kColor(context).onSurface,
+    return KCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(20),
+      color: kColor(context).surfaceContainerLow,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: color.withAlpha(15),
+              shape: BoxShape.rectangle,
+              border: Border.all(color: color.withAlpha(30)),
+            ),
+            child: Icon(icon, color: color, size: 24),
           ),
-        ),
-        Label(label, fontSize: 12).regular,
-      ],
+          const SizedBox(height: 12),
+          Label(
+            label,
+            fontSize: 13,
+            weight: 700,
+            textAlign: TextAlign.center,
+          ).regular,
+        ],
+      ),
     );
   }
 
@@ -323,8 +375,8 @@ class _HomeUIState extends State<HomeUI> {
         borderWidth: 1,
         borderColor: kColor(context).outlineVariant,
         child: Column(
-          spacing: 10,
           children: [
+            const SizedBox(height: 10),
             Icon(
               LucideIcons.inbox,
               size: 40,
@@ -340,60 +392,65 @@ class _HomeUIState extends State<HomeUI> {
     }
     return ListView.separated(
       shrinkWrap: true,
-      padding: .only(top: 10),
+      padding: const EdgeInsets.only(top: 10),
       physics: const NeverScrollableScrollPhysics(),
       itemCount: recentInvoices.length,
       separatorBuilder: (context, index) => height15,
       itemBuilder: (context, index) {
         final invoice = recentInvoices[index];
         return KCard(
-          padding: const EdgeInsets.all(15),
-          borderWidth: 1,
-          radius: 15,
+          padding: const EdgeInsets.all(18),
+          margin: const EdgeInsets.only(bottom: 12),
+          color: kColor(context).surfaceContainerLow,
           child: Row(
-            spacing: 15,
             children: [
-              KCard(
-                radius: 10,
-                height: 50,
-                width: 50,
-                padding: EdgeInsets.zero,
-                color: kColor(context).primaryContainer,
+              Container(
+                height: 54,
+                width: 54,
+                decoration: BoxDecoration(
+                  color: kColor(context).primary.withAlpha(15),
+                  borderRadius: kRadius(16),
+                  border: Border.all(
+                    color: kColor(context).primary.withAlpha(30),
+                  ),
+                ),
                 child: Center(
-                  child: Label(
-                    "PDF",
-                    fontSize: 10,
-                    color: kColor(context).onPrimaryContainer,
-                  ).title,
+                  child: Icon(
+                    LucideIcons.fileText,
+                    size: 20,
+                    color: kColor(context).primary,
+                  ),
                 ),
               ),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  spacing: 4,
                   children: [
-                    Label(invoice.invoiceId, fontSize: 16, weight: 600).regular,
+                    Label(invoice.invoiceId, fontSize: 16, weight: 700).regular,
+                    const SizedBox(height: 4),
                     Label(
-                      "${invoice.customerName} - ${DateFormat('dd MMM yyyy').format(invoice.invoiceDate ?? DateTime.now())}",
+                      "${invoice.customerName} • ${DateFormat('dd MMM yyyy').format(invoice.invoiceDate ?? DateTime.now())}",
                       fontSize: 12,
                       color: kColor(context).onSurfaceVariant,
                     ).regular,
                   ],
                 ),
               ),
+              const SizedBox(width: 16),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
-                spacing: 8,
                 children: [
                   Label(
                     kCurrencyFormat(invoice.grandTotal),
-                    fontSize: 16,
-                    weight: 700,
+                    fontSize: 18,
+                    weight: 900,
+                    color: kColor(context).primary,
                   ).title,
+                  const SizedBox(height: 10),
                   if (!loadingInvoiceIds.contains(invoice.invoiceId))
                     Row(
                       mainAxisSize: MainAxisSize.min,
-                      spacing: 8,
                       children: [
                         _actionIcon(
                           LucideIcons.eye,
@@ -404,12 +461,6 @@ class _HomeUIState extends State<HomeUI> {
                             );
                             try {
                               await PdfHelper.generateInvoice(invoice);
-                            } catch (e) {
-                              KSnackbar(
-                                context,
-                                message: "Unable to generate PDF!",
-                                error: true,
-                              );
                             } finally {
                               if (mounted) {
                                 setState(
@@ -424,6 +475,7 @@ class _HomeUIState extends State<HomeUI> {
                             invoice.invoiceId,
                           ),
                         ),
+                        const SizedBox(width: 8),
                         _actionIcon(
                           LucideIcons.pencil,
                           kColor(context).secondary,
@@ -435,6 +487,7 @@ class _HomeUIState extends State<HomeUI> {
                             if (res == true) _loadData();
                           },
                         ),
+                        const SizedBox(width: 8),
                         _actionIcon(
                           LucideIcons.share2,
                           kColor(context).tertiary,
@@ -461,7 +514,10 @@ class _HomeUIState extends State<HomeUI> {
                       ],
                     )
                   else
-                    SizedBox(width: 50, child: LinearProgressIndicator()),
+                    const SizedBox(
+                      width: 60,
+                      child: LinearProgressIndicator(minHeight: 2),
+                    ),
                 ],
               ),
             ],
@@ -482,8 +538,8 @@ class _HomeUIState extends State<HomeUI> {
       child: Container(
         padding: const EdgeInsets.all(6),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: .1),
-          borderRadius: BorderRadius.circular(8),
+          color: color.withAlpha(25),
+          borderRadius: kRadius(8),
         ),
         child: isLoading
             ? SizedBox(

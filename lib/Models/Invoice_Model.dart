@@ -13,6 +13,7 @@ class InvoiceModel {
   String customerPhone = "";
   String customerAadhaar = "";
   String customerPan = "";
+  String customerGst = "";
   String billingAddress = "";
   double grandTotal = 0;
   DateTime? invoiceDate;
@@ -25,6 +26,7 @@ class InvoiceModel {
     required this.customerPhone,
     required this.customerAadhaar,
     required this.customerPan,
+    required this.customerGst,
     required this.billingAddress,
     required this.grandTotal,
     this.invoiceDate,
@@ -38,6 +40,7 @@ class InvoiceModel {
     String? customerPhone,
     String? customerAadhaar,
     String? customerPan,
+    String? customerGst,
     String? billingAddress,
     double? grandTotal,
     DateTime? invoiceDate,
@@ -50,6 +53,7 @@ class InvoiceModel {
       customerPhone: customerPhone ?? this.customerPhone,
       customerAadhaar: customerAadhaar ?? this.customerAadhaar,
       customerPan: customerPan ?? this.customerPan,
+      customerGst: customerGst ?? this.customerGst,
       billingAddress: billingAddress ?? this.billingAddress,
       grandTotal: grandTotal ?? this.grandTotal,
       invoiceDate: invoiceDate ?? this.invoiceDate,
@@ -65,6 +69,7 @@ class InvoiceModel {
       'customerPhone': customerPhone,
       'customerAadhaar': customerAadhaar,
       'customerPan': customerPan,
+      'customerGst': customerGst,
       'billingAddress': billingAddress,
       'grandTotal': grandTotal,
       'invoiceDate': invoiceDate?.millisecondsSinceEpoch,
@@ -82,6 +87,7 @@ class InvoiceModel {
       customerPhone: map['customerPhone'] ?? '',
       customerAadhaar: map['customerAadhaar'] ?? '',
       customerPan: map['customerPan'] ?? '',
+      customerGst: map['customerGst'] ?? '',
       billingAddress: map['billingAddress'] ?? '',
       grandTotal: parseToDouble(map['grandTotal']),
       invoiceDate: map['invoiceDate'] != null
@@ -97,7 +103,7 @@ class InvoiceModel {
 
   @override
   String toString() {
-    return 'InvoiceModel(invoiceId: $invoiceId, items: $items, forCustomer: $forCustomer, customerName: $customerName, customerPhone: $customerPhone, customerAadhaar: $customerAadhaar, customerPan: $customerPan, billingAddress: $billingAddress, grandTotal: $grandTotal, invoiceDate: $invoiceDate)';
+    return 'InvoiceModel(invoiceId: $invoiceId, items: $items, forCustomer: $forCustomer, customerName: $customerName, customerPhone: $customerPhone, customerAadhaar: $customerAadhaar, customerPan: $customerPan, customerGst: $customerGst, billingAddress: $billingAddress, grandTotal: $grandTotal, invoiceDate: $invoiceDate)';
   }
 
   @override
@@ -112,6 +118,7 @@ class InvoiceModel {
         other.customerPhone == customerPhone &&
         other.customerAadhaar == customerAadhaar &&
         other.customerPan == customerPan &&
+        other.customerGst == customerGst &&
         other.billingAddress == billingAddress &&
         other.grandTotal == grandTotal &&
         other.invoiceDate == invoiceDate;
@@ -126,6 +133,7 @@ class InvoiceModel {
         customerPhone.hashCode ^
         customerAadhaar.hashCode ^
         customerPan.hashCode ^
+        customerGst.hashCode ^
         billingAddress.hashCode ^
         grandTotal.hashCode ^
         invoiceDate.hashCode;

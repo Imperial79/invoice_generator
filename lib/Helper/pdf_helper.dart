@@ -1,5 +1,7 @@
 import 'dart:developer';
 import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:prime_invoice/Helper/database_service.dart';
 import 'package:prime_invoice/Helper/pdf_design.dart';
 import 'package:prime_invoice/Models/Invoice_Model.dart';
 import 'package:open_file/open_file.dart';
@@ -13,38 +15,78 @@ import 'package:shared_preferences/shared_preferences.dart';
 class PdfHelper {
   static Future<File> _buildPdfFile(InvoiceModel invoiceData) async {
     final pdf = pw.Document(compress: false);
-    final bannerImg = await rootBundle.load('assets/images/invoice-banner.png');
-    final watermarkImg = await rootBundle.load(
-      'assets/images/invoice-watermark.png',
-    );
 
-    final banner = pw.MemoryImage(bannerImg.buffer.asUint8List());
-    final watermark = pw.MemoryImage(watermarkImg.buffer.asUint8List());
-
+    // pdf_watermark is a device-local UI pref — stays in SharedPreferences
     final pref = await SharedPreferences.getInstance();
     final showWatermark = pref.getBool("pdf_watermark") ?? true;
 
-    final profile = {
-      'biz_name': pref.getString("biz_name") ?? "Imperial Studio",
-      'biz_phone': pref.getString("biz_phone") ?? "",
-      'biz_email': pref.getString("biz_email") ?? "",
-      'biz_gst': pref.getString("biz_gst") ?? "19APDPV5128C1ZU",
-      'biz_address':
-          pref.getString("biz_address") ?? "Arrah More, Durgapur - 713212",
-      'biz_bank':
-          pref.getString("biz_bank") ??
-          "BANK DETAILS - SBI BANK, DURGAPUR SEN MARKET - A/C - 8718927918219871, IFSC - AKSLJASKLAAS\nSOUTH INDIAN BANK - ABC ROAD, - A/C - 8718927918219871, IFSC - AKSLJASKLAAS",
-      'biz_terms':
-          pref.getString("biz_terms") ??
-          "E. & O.E.\n1. Payments via cheque are subject to verification.\n2. No returns or exchanges for sold goods.\n3. 18% interest on overdue payments.\n4. Disputes are under 'West Bengal' jurisdiction.\n5. Report invoice errors within 7 days.",
-      'biz_state': pref.getString("biz_state") ?? "West Bengal (19)",
+    // Load company profile from Supabase
+    final profile = await DatabaseService.instance.getCompanyProfile();
+
+    final bannerPath = profile.bannerPath;
+    final watermarkPath = profile.watermarkPath;
+
+    pw.MemoryImage? banner;
+    pw.MemoryImage? watermark;
+
+    try {
+      if (bannerPath.isNotEmpty) {
+        if (bannerPath.startsWith('http')) {
+          final response = await http.get(Uri.parse(bannerPath));
+          banner = pw.MemoryImage(response.bodyBytes);
+        } else if (File(bannerPath).existsSync()) {
+          final bannerBytes = await File(bannerPath).readAsBytes();
+          banner = pw.MemoryImage(bannerBytes);
+        } else {
+          final bannerImg = await rootBundle.load('assets/images/invoice-banner.png');
+          banner = pw.MemoryImage(bannerImg.buffer.asUint8List());
+        }
+      } else {
+        final bannerImg = await rootBundle.load('assets/images/invoice-banner.png');
+        banner = pw.MemoryImage(bannerImg.buffer.asUint8List());
+      }
+    } catch (e) {
+      log("Error loading banner: $e");
+    }
+
+    try {
+      if (watermarkPath.isNotEmpty) {
+        if (watermarkPath.startsWith('http')) {
+          final response = await http.get(Uri.parse(watermarkPath));
+          watermark = pw.MemoryImage(response.bodyBytes);
+        } else if (File(watermarkPath).existsSync()) {
+          final watermarkBytes = await File(watermarkPath).readAsBytes();
+          watermark = pw.MemoryImage(watermarkBytes);
+        } else {
+          final watermarkImg = await rootBundle.load('assets/images/invoice-watermark.png');
+          watermark = pw.MemoryImage(watermarkImg.buffer.asUint8List());
+        }
+      } else {
+        final watermarkImg = await rootBundle.load('assets/images/invoice-watermark.png');
+        watermark = pw.MemoryImage(watermarkImg.buffer.asUint8List());
+      }
+    } catch (e) {
+      log("Error loading watermark: $e");
+    }
+
+    // Build the profile map expected by pdfLayout
+    final profileMap = {
+      'biz_name': profile.name,
+      'biz_phone': profile.phone,
+      'biz_email': profile.email,
+      'biz_gst': profile.gst,
+      'biz_address': profile.address,
+      'biz_bank': profile.bankDetails,
+      'biz_terms': profile.terms,
+      'biz_state': profile.state,
+      'biz_declaration': profile.declaration,
     };
 
     final pageTheme = pw.PageTheme(
       pageFormat: PdfPageFormat.a4,
       margin: const pw.EdgeInsets.all(20),
       buildBackground: (context) {
-        if (!showWatermark) return pw.SizedBox();
+        if (!showWatermark || watermark == null) return pw.SizedBox();
         return pw.FullPage(
           ignoreMargins: true,
           child: pw.Opacity(
@@ -59,7 +101,7 @@ class PdfHelper {
       pw.MultiPage(
         pageTheme: pageTheme,
         build: (pw.Context context) =>
-            pdfLayout(context, banner, invoiceData, profile),
+            pdfLayout(context, banner, invoiceData, profileMap),
       ),
     );
 
@@ -78,8 +120,9 @@ class PdfHelper {
 
   static Future<void> shareInvoice(InvoiceModel invoiceData) async {
     final file = await _buildPdfFile(invoiceData);
-    await Share.shareXFiles([
-      XFile(file.path),
-    ], text: 'Invoice: ${invoiceData.invoiceId}');
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      text: 'Invoice: ${invoiceData.invoiceId}',
+    );
   }
 }

@@ -4,7 +4,7 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:prime_invoice/Helper/responsive.dart';
 import 'package:prime_invoice/Resources/colors.dart';
 import 'package:prime_invoice/Essentials/Label.dart';
-import 'package:prime_invoice/Resources/constants.dart';
+import 'package:prime_invoice/Resources/commons.dart';
 
 class RootUI extends StatefulWidget {
   final Widget child;
@@ -14,14 +14,48 @@ class RootUI extends StatefulWidget {
   State<RootUI> createState() => _RootUIState();
 }
 
-class _RootUIState extends State<RootUI> {
+class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
+  DateTime? _backgroundTimestamp;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.paused) {
+      // 🕒 Record the time when app goes to background
+      _backgroundTimestamp = DateTime.now();
+    } else if (state == AppLifecycleState.resumed) {
+      if (_backgroundTimestamp != null) {
+        final elapsed = DateTime.now().difference(_backgroundTimestamp!);
+        // 🔒 Logout only if app was in background for more than 20 seconds
+        // This avoids logging out during quick app switches but captures device sleep.
+        if (elapsed.inSeconds >= 20) {
+          context.go('/login');
+        }
+        _backgroundTimestamp = null;
+      }
+    }
+  }
+
   int _calculateSelectedIndex(BuildContext context) {
     final String location = GoRouterState.of(context).uri.path;
     if (location == '/') return 0;
     if (location == '/invoices') return 1;
     if (location == '/create-invoice') return 2;
     if (location == '/clients') return 3;
-    if (location == '/setup' || location == '/company-profile') return 4;
+    if (location == '/inventory') return 4;
+    if (location == '/reports') return 5;
+    if (location == '/setup' || location == '/company-profile') return 6;
     return 0;
   }
 
@@ -34,12 +68,18 @@ class _RootUIState extends State<RootUI> {
         context.go('/invoices');
         break;
       case 2:
-        context.push('/create-invoice');
+        context.go('/create-invoice');
         break;
       case 3:
         context.go('/clients');
         break;
       case 4:
+        context.go('/inventory');
+        break;
+      case 5:
+        context.go('/reports');
+        break;
+      case 6:
         context.go('/setup');
         break;
     }
@@ -51,10 +91,55 @@ class _RootUIState extends State<RootUI> {
     final isMobile = Responsive.isMobile(context);
 
     return Scaffold(
-      body: Row(
+      backgroundColor: kColor(context).surface,
+      body: Stack(
         children: [
-          if (!isMobile) _buildSidebar(context, selectedIndex),
-          Expanded(child: widget.child),
+          // Background Decoration
+          Positioned(
+            top: -100,
+            right: -100,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.rectangle,
+                color: kColor(context).primary.withAlpha(15),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -150,
+            left: 200,
+            child: Container(
+              width: Responsive.isMobile(context)
+                  ? MediaQuery.sizeOf(context).width
+                  : 400,
+              height: 400,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: kColor(context).secondary.withAlpha(11),
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              if (!isMobile) _buildSidebar(context, selectedIndex),
+              Expanded(
+                child: ClipRRect(
+                  borderRadius: isMobile
+                      ? BorderRadius.zero
+                      : const BorderRadius.only(
+                          topLeft: Radius.circular(32),
+                          bottomLeft: Radius.circular(32),
+                        ),
+                  child: Container(
+                    decoration: BoxDecoration(color: kColor(context).surface),
+                    child: widget.child,
+                  ),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       bottomNavigationBar: isMobile
@@ -66,21 +151,17 @@ class _RootUIState extends State<RootUI> {
 
   Widget _buildSidebar(BuildContext context, int selectedIndex) {
     return Container(
-      padding: .all(kPadding),
-      width: 280,
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
+      width: 300,
       height: double.infinity,
-      decoration: BoxDecoration(
-        color: kColor(context).surfaceContainerLow,
-        border: Border(
-          right: BorderSide(color: kColor(context).outlineVariant, width: 1),
-        ),
-      ),
+      color: Colors.transparent, // Let background show through
       child: Column(
         children: [
           _buildSidebarHeader(context),
-          const SizedBox(height: 40),
+          const SizedBox(height: 48),
           Expanded(
             child: ListView(
+              padding: EdgeInsets.zero,
               children: [
                 _sidebarItem(
                   context,
@@ -110,12 +191,31 @@ class _RootUIState extends State<RootUI> {
                   index: 3,
                   selectedIndex: selectedIndex,
                 ),
-                const Divider(height: 40),
+                _sidebarItem(
+                  context,
+                  icon: LucideIcons.package2,
+                  label: "Inventory",
+                  index: 4,
+                  selectedIndex: selectedIndex,
+                ),
+                _sidebarItem(
+                  context,
+                  icon: LucideIcons.chartPie,
+                  label: "Reports",
+                  index: 5,
+                  selectedIndex: selectedIndex,
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Divider(
+                    color: kColor(context).outlineVariant.withAlpha(100),
+                  ),
+                ),
                 _sidebarItem(
                   context,
                   icon: LucideIcons.settings,
                   label: "Settings",
-                  index: 4,
+                  index: 6,
                   selectedIndex: selectedIndex,
                 ),
               ],
@@ -128,35 +228,30 @@ class _RootUIState extends State<RootUI> {
   }
 
   Widget _buildSidebarHeader(BuildContext context) {
-    return SizedBox(
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: kColor(context).primary,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(
-              LucideIcons.fileText,
-              color: kColor(context).onPrimary,
-              size: 24,
-            ),
+    return Row(
+      children: [
+        Container(
+          height: 50,
+          width: 50,
+
+          decoration: BoxDecoration(
+            image: DecorationImage(image: AssetImage("assets/images/logo.png")),
           ),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Label("Prime", fontSize: 18, weight: 800).title,
-              Label(
-                "Invoicing",
-                fontSize: 14,
-                color: kColor(context).onSurfaceVariant,
-              ).regular,
-            ],
-          ),
-        ],
-      ),
+          // child: const Icon(LucideIcons.gem, color: Colors.white, size: 20),
+        ),
+        const SizedBox(width: 14),
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Label("Prime", fontSize: 20, weight: 900).title,
+            Label(
+              "Management",
+              fontSize: 12,
+              color: kColor(context).onSurfaceVariant,
+            ).regular,
+          ],
+        ),
+      ],
     );
   }
 
@@ -168,44 +263,59 @@ class _RootUIState extends State<RootUI> {
     required int selectedIndex,
   }) {
     final isSelected = selectedIndex == index;
-    final color = isSelected
-        ? kColor(context).primary
-        : kColor(context).onSurfaceVariant;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 4),
+      margin: const EdgeInsets.only(bottom: 8),
       child: InkWell(
         onTap: () => _onItemTapped(index, context),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        borderRadius: kRadius(16),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           decoration: BoxDecoration(
             color: isSelected
-                ? kColor(context).primaryContainer.withAlpha(127)
+                ? kColor(context).primary.withAlpha(25)
                 : Colors.transparent,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: kRadius(16),
+            border: Border.all(
+              color: isSelected
+                  ? kColor(context).primary.withAlpha(40)
+                  : Colors.transparent,
+            ),
           ),
           child: Row(
             children: [
-              Icon(icon, size: 20, color: color),
+              Icon(
+                icon,
+                size: 20,
+                color: isSelected
+                    ? kColor(context).primary
+                    : kColor(context).onSurfaceVariant,
+              ),
               const SizedBox(width: 16),
               Expanded(
                 child: Label(
                   label,
                   fontSize: 14,
-                  weight: isSelected ? 600 : 500,
+                  weight: isSelected ? 700 : 500,
                   color: isSelected
-                      ? kColor(context).onPrimaryContainer
+                      ? kColor(context).primary
                       : kColor(context).onSurface,
                 ).regular,
               ),
               if (isSelected)
                 Container(
-                  width: 4,
-                  height: 4,
+                  width: 5,
+                  height: 5,
                   decoration: BoxDecoration(
                     color: kColor(context).primary,
                     shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: kColor(context).primary.withAlpha(100),
+                        blurRadius: 4,
+                      ),
+                    ],
                   ),
                 ),
             ],
@@ -217,20 +327,27 @@ class _RootUIState extends State<RootUI> {
 
   Widget _buildSidebarFooter(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: kColor(context).surfaceContainerHigh,
-        borderRadius: BorderRadius.circular(10),
+        color: kColor(context).surfaceContainerHigh.withAlpha(100),
+        borderRadius: kRadius(20),
+        border: Border.all(color: kColor(context).outlineVariant.withAlpha(50)),
       ),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundColor: kColor(context).primary,
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: kColor(context).primary.withAlpha(30),
+              shape: BoxShape.rectangle,
+            ),
+            alignment: Alignment.center,
             child: Label(
               "JD",
-              fontSize: 10,
-              color: kColor(context).onPrimary,
+              fontSize: 12,
+              weight: 800,
+              color: kColor(context).primary,
             ).title,
           ),
           const SizedBox(width: 12),
@@ -239,19 +356,24 @@ class _RootUIState extends State<RootUI> {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Label("John Doe", fontSize: 12, weight: 600).regular,
+                Label("John Doe", fontSize: 13, weight: 700).regular,
                 Label(
-                  "Administrator",
-                  fontSize: 10,
+                  "Admin",
+                  fontSize: 11,
                   color: kColor(context).onSurfaceVariant,
                 ).regular,
               ],
             ),
           ),
-          Icon(
-            LucideIcons.ellipsis,
-            size: 16,
-            color: kColor(context).onSurfaceVariant,
+          IconButton(
+            onPressed: () => context.go('/login'),
+            icon: Icon(
+              LucideIcons.logOut,
+              size: 18,
+              color: kColor(context).onSurfaceVariant,
+            ),
+            visualDensity: VisualDensity.compact,
+            tooltip: "Logout",
           ),
         ],
       ),
@@ -273,6 +395,10 @@ class _RootUIState extends State<RootUI> {
         ),
         NavigationDestination(icon: Icon(LucideIcons.plus), label: "New"),
         NavigationDestination(icon: Icon(LucideIcons.users), label: "Clients"),
+        NavigationDestination(
+          icon: Icon(LucideIcons.chartPie),
+          label: "Reports",
+        ),
         NavigationDestination(
           icon: Icon(LucideIcons.settings),
           label: "Settings",

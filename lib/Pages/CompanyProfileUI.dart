@@ -1,12 +1,16 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:prime_invoice/Essentials/KScaffold.dart';
 import 'package:prime_invoice/Essentials/kButton.dart';
 import 'package:prime_invoice/Essentials/kField.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:prime_invoice/Helper/database_service.dart';
+import 'package:prime_invoice/Models/Company_Profile_Model.dart';
 import 'package:prime_invoice/Resources/commons.dart';
 import 'package:prime_invoice/Resources/constants.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:prime_invoice/Helper/responsive.dart';
+import 'package:file_picker/file_picker.dart';
 
 class CompanyProfileUI extends StatefulWidget {
   const CompanyProfileUI({super.key});
@@ -24,6 +28,9 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
   final bankDetails = TextEditingController();
   final terms = TextEditingController();
   final state = TextEditingController();
+  final declaration = TextEditingController();
+  final bannerPath = TextEditingController();
+  final watermarkPath = TextEditingController();
   final isLoading = ValueNotifier(false);
 
   @override
@@ -32,40 +39,72 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
     _loadData();
   }
 
-  _loadData() async {
-    isLoading.value = true;
-    final pref = await SharedPreferences.getInstance();
-    name.text = pref.getString("biz_name") ?? "Imperial Studio";
-    phone.text = pref.getString("biz_phone") ?? "";
-    email.text = pref.getString("biz_email") ?? "";
-    gstin.text = pref.getString("biz_gst") ?? "19APDPV5128C1ZU";
-    address.text =
-        pref.getString("biz_address") ?? "Arrah More, Durgapur - 713212";
-    bankDetails.text =
-        pref.getString("biz_bank") ??
-        "BANK DETAILS - SBI BANK, DURGAPUR SEN MARKET - A/C - 8718927918219871, IFSC - AKSLJASKLAAS\nSOUTH INDIAN BANK - ABC ROAD, - A/C - 8718927918219871, IFSC - AKSLJASKLAAS";
-    terms.text =
-        pref.getString("biz_terms") ??
-        "E. & O.E.\n1. Payments via cheque are subject to verification.\n2. No returns or exchanges for sold goods.\n3. 18% interest on overdue payments.\n4. Disputes are under 'West Bengal' jurisdiction.\n5. Report invoice errors within 7 days.";
-    state.text = pref.getString("biz_state") ?? "West Bengal (19)";
-    isLoading.value = false;
+  @override
+  void dispose() {
+    name.dispose();
+    phone.dispose();
+    email.dispose();
+    gstin.dispose();
+    address.dispose();
+    bankDetails.dispose();
+    terms.dispose();
+    state.dispose();
+    declaration.dispose();
+    bannerPath.dispose();
+    watermarkPath.dispose();
+    isLoading.dispose();
+    super.dispose();
   }
 
-  _saveData() async {
+  Future<void> _loadData() async {
     isLoading.value = true;
-    final pref = await SharedPreferences.getInstance();
-    await pref.setString("biz_name", name.text);
-    await pref.setString("biz_phone", phone.text);
-    await pref.setString("biz_email", email.text);
-    await pref.setString("biz_gst", gstin.text);
-    await pref.setString("biz_address", address.text);
-    await pref.setString("biz_bank", bankDetails.text);
-    await pref.setString("biz_terms", terms.text);
-    await pref.setString("biz_state", state.text);
-    isLoading.value = false;
-    if (mounted) {
-      KSnackbar(context, message: "Profile updated successfully!");
-      Navigator.pop(context);
+    try {
+      final profile = await DatabaseService.instance.getCompanyProfile();
+      name.text = profile.name;
+      phone.text = profile.phone;
+      email.text = profile.email;
+      gstin.text = profile.gst;
+      address.text = profile.address;
+      bankDetails.text = profile.bankDetails;
+      terms.text = profile.terms;
+      state.text = profile.state;
+      declaration.text = profile.declaration;
+      bannerPath.text = profile.bannerPath;
+      watermarkPath.text = profile.watermarkPath;
+    } catch (e) {
+      debugPrint("Error loading company profile: $e");
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> _saveData() async {
+    isLoading.value = true;
+    try {
+      final profile = CompanyProfileModel(
+        name: name.text,
+        phone: phone.text,
+        email: email.text,
+        gst: gstin.text,
+        address: address.text,
+        bankDetails: bankDetails.text,
+        terms: terms.text,
+        state: state.text,
+        declaration: declaration.text,
+        bannerPath: bannerPath.text,
+        watermarkPath: watermarkPath.text,
+      );
+      await DatabaseService.instance.saveCompanyProfile(profile);
+      if (mounted) {
+        KSnackbar(context, message: "Profile updated successfully!");
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        KSnackbar(context, message: "Error saving profile: $e", error: true);
+      }
+    } finally {
+      isLoading.value = false;
     }
   }
 
@@ -76,7 +115,7 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
       appBar: KAppBar(context, title: "Company Profile"),
       body: Center(
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 1000),
+          constraints: const BoxConstraints(maxWidth: 1200),
           child: SingleChildScrollView(
             primary: true,
             padding: const EdgeInsets.all(kPadding),
@@ -128,6 +167,13 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
                             KField(
                               controller: phone,
                               label: "Phone",
+                              keyboardType: TextInputType.phone,
+                              maxLength: 10,
+                              inputFormatters: [
+                                FilteringTextInputFormatter.digitsOnly,
+                                LengthLimitingTextInputFormatter(10),
+                              ],
+                              validator: KValidation.phone,
                               prefix: const Icon(LucideIcons.phone, size: 16),
                             ),
                             height15,
@@ -142,6 +188,94 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
                               label: "Address",
                               maxLines: 4,
                               prefix: const Icon(LucideIcons.mapPin, size: 16),
+                            ),
+                            height15,
+                            Row(
+                              spacing: 15,
+                              children: [
+                                Expanded(
+                                  child: KField(
+                                    controller: bannerPath,
+                                    label: "Banner Image URL",
+                                    readOnly: true,
+                                    onTap: () async {
+                                      FilePickerResult? result =
+                                          await FilePicker.platform.pickFiles(
+                                            type: FileType.image,
+                                          );
+                                      if (result != null &&
+                                          result.files.single.path != null) {
+                                        isLoading.value = true;
+                                        try {
+                                          final url = await DatabaseService
+                                              .instance
+                                              .uploadFile(
+                                                File(result.files.single.path!),
+                                                result.files.single.path!,
+                                              );
+                                          bannerPath.text = url;
+                                        } catch (e) {
+                                          if (mounted) {
+                                            KSnackbar(
+                                              context,
+                                              message:
+                                                  "Error uploading banner: $e",
+                                              error: true,
+                                            );
+                                          }
+                                        } finally {
+                                          isLoading.value = false;
+                                        }
+                                      }
+                                    },
+                                    prefix: const Icon(
+                                      LucideIcons.image,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: KField(
+                                    controller: watermarkPath,
+                                    label: "Watermark Image URL",
+                                    readOnly: true,
+                                    onTap: () async {
+                                      FilePickerResult? result =
+                                          await FilePicker.platform.pickFiles(
+                                            type: FileType.image,
+                                          );
+                                      if (result != null &&
+                                          result.files.single.path != null) {
+                                        isLoading.value = true;
+                                        try {
+                                          final url = await DatabaseService
+                                              .instance
+                                              .uploadFile(
+                                                File(result.files.single.path!),
+                                                result.files.single.path!,
+                                              );
+                                          watermarkPath.text = url;
+                                        } catch (e) {
+                                          if (mounted) {
+                                            KSnackbar(
+                                              context,
+                                              message:
+                                                  "Error uploading watermark: $e",
+                                              error: true,
+                                            );
+                                          }
+                                        } finally {
+                                          isLoading.value = false;
+                                        }
+                                      }
+                                    },
+                                    prefix: const Icon(
+                                      LucideIcons.fileImage,
+                                      size: 16,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -167,6 +301,13 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
                                 LucideIcons.fileText,
                                 size: 16,
                               ),
+                            ),
+                            height15,
+                            KField(
+                              controller: declaration,
+                              label: "Declaration",
+                              maxLines: 12,
+                              prefix: const Icon(LucideIcons.info, size: 16),
                             ),
                           ],
                         ),
@@ -205,6 +346,13 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
                       KField(
                         controller: phone,
                         label: "Phone",
+                        keyboardType: TextInputType.phone,
+                        maxLength: 10,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                          LengthLimitingTextInputFormatter(10),
+                        ],
+                        validator: KValidation.phone,
                         prefix: const Icon(LucideIcons.phone, size: 16),
                       ),
                       height15,
@@ -233,6 +381,79 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
                         label: "Terms & Conditions",
                         maxLines: 10,
                         prefix: const Icon(LucideIcons.fileText, size: 16),
+                      ),
+                      height15,
+                      KField(
+                        controller: declaration,
+                        label: "Declaration",
+                        maxLines: 4,
+                        prefix: const Icon(LucideIcons.info, size: 16),
+                      ),
+                      height15,
+                      KField(
+                        controller: bannerPath,
+                        label: "Banner Image URL",
+                        readOnly: true,
+                        onTap: () async {
+                          FilePickerResult? result = await FilePicker.platform
+                              .pickFiles(type: FileType.image);
+                          if (result != null &&
+                              result.files.single.path != null) {
+                            isLoading.value = true;
+                            try {
+                              final url = await DatabaseService.instance
+                                  .uploadFile(
+                                    File(result.files.single.path!),
+                                    result.files.single.path!,
+                                  );
+                              bannerPath.text = url;
+                            } catch (e) {
+                              if (mounted) {
+                                KSnackbar(
+                                  context,
+                                  message: "Error uploading banner: $e",
+                                  error: true,
+                                );
+                              }
+                            } finally {
+                              isLoading.value = false;
+                            }
+                          }
+                        },
+                        prefix: const Icon(LucideIcons.image, size: 16),
+                      ),
+                      height15,
+                      KField(
+                        controller: watermarkPath,
+                        label: "Watermark Image URL",
+                        readOnly: true,
+                        onTap: () async {
+                          FilePickerResult? result = await FilePicker.platform
+                              .pickFiles(type: FileType.image);
+                          if (result != null &&
+                              result.files.single.path != null) {
+                            isLoading.value = true;
+                            try {
+                              final url = await DatabaseService.instance
+                                  .uploadFile(
+                                    File(result.files.single.path!),
+                                    result.files.single.path!,
+                                  );
+                              watermarkPath.text = url;
+                            } catch (e) {
+                              if (mounted) {
+                                KSnackbar(
+                                  context,
+                                  message: "Error uploading watermark: $e",
+                                  error: true,
+                                );
+                              }
+                            } finally {
+                              isLoading.value = false;
+                            }
+                          }
+                        },
+                        prefix: const Icon(LucideIcons.fileImage, size: 16),
                       ),
                     ],
                   ),

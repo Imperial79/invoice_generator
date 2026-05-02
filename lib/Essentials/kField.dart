@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:prime_invoice/Resources/commons.dart';
 import '../Resources/colors.dart';
 import 'Label.dart';
 
@@ -25,6 +26,7 @@ class KField extends StatelessWidget {
   final int? maxLines;
   final FocusNode? focusNode;
   final String? label;
+  final String? subLabel;
   final double? fontSize;
   final Widget? labelIcon;
   final TextCapitalization textCapitalization;
@@ -33,6 +35,7 @@ class KField extends StatelessWidget {
   final String? Function(String? val)? validator;
   final void Function(String val)? onFieldSubmitted;
   final Iterable<String>? autofillHints;
+  final String? initialValue;
   const KField({
     super.key,
     this.showRequired = true,
@@ -56,6 +59,7 @@ class KField extends StatelessWidget {
     this.maxLines = 1,
     this.focusNode,
     this.label,
+    this.subLabel,
     this.fontSize,
     this.labelIcon,
     this.textCapitalization = TextCapitalization.words,
@@ -64,6 +68,7 @@ class KField extends StatelessWidget {
     this.validator,
     this.onFieldSubmitted,
     this.autofillHints,
+    this.initialValue,
   });
 
   @override
@@ -79,6 +84,16 @@ class KField extends StatelessWidget {
               children: [
                 if (labelIcon != null) labelIcon!,
                 kLabel,
+                if (subLabel != null)
+                  Padding(
+                    padding: const EdgeInsets.only(left: 6.0),
+                    child: Label(
+                      subLabel!,
+                      color: kColor(context).onSurfaceVariant,
+                      fontSize: 11,
+                      height: 1,
+                    ).regular,
+                  ),
                 if (validator != null && showRequired)
                   Padding(
                     padding: EdgeInsets.only(left: 3.0),
@@ -98,6 +113,7 @@ class KField extends StatelessWidget {
           focusNode: focusNode,
           autofillHints: autofillHints,
           controller: controller,
+          initialValue: initialValue,
           textCapitalization: textCapitalization,
           style: kFieldTextstyle.copyWith(fontSize: fontSize, color: textColor),
           cursorColor: cursorColor,
@@ -156,10 +172,9 @@ class KField extends StatelessWidget {
               fontVariations: [FontVariation.weight(500)],
             ),
             hintText: hintText,
-            hintStyle: kHintTextstyle(context).copyWith(
-              fontSize: fontSize,
-              color: hintTextColor,
-            ),
+            hintStyle: kHintTextstyle(
+              context,
+            ).copyWith(fontSize: fontSize, color: hintTextColor),
           ),
           onChanged: onChanged,
           validator: validator,
@@ -195,7 +210,7 @@ class KField extends StatelessWidget {
     Color? customBorder, {
     double width = 1.0,
   }) => OutlineInputBorder(
-    borderRadius: BorderRadius.circular(10),
+    borderRadius: kRadius(15),
     borderSide: BorderSide(
       color: borderColor ?? customBorder ?? kColor(context).outlineVariant,
       width: width,
