@@ -7,12 +7,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:ui';
 import 'package:prime_invoice/Essentials/ConnectionGuard.dart';
 
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
 
   await Supabase.initialize(
-    url: 'https://dmnediqjfrpkthmauryg.supabase.co',
-    anonKey: 'sb_publishable_bj2iLXUNdXJsb9G4oFeqqA_LPkEZNrG',
+    url: dotenv.env['SUPABASE_URL']!,
+    anonKey: dotenv.env['SUPABASE_ANON_KEY']!,
   );
 
   final pref = await SharedPreferences.getInstance();

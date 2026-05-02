@@ -123,7 +123,11 @@ class KField extends StatelessWidget {
           maxLength: maxLength,
           maxLines: maxLines,
           minLines: minLines,
-          inputFormatters: inputFormatters,
+          inputFormatters: [
+            if (textCapitalization == TextCapitalization.words)
+              CapitalizeWordsFormatter(),
+            ...?inputFormatters,
+          ],
           decoration: InputDecoration(
             filled: true,
             fillColor: fieldColor ?? kColor(context).surfaceContainerLowest,
@@ -246,5 +250,29 @@ class KValidation {
       return 'PAN must be alphanumeric!';
     }
     return null;
+  }
+}
+
+class CapitalizeWordsFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    if (newValue.text.isEmpty) return newValue;
+
+    final String text = newValue.text;
+    final List<String> words = text.split(' ');
+    final List<String> capitalizedWords = words.map((word) {
+      if (word.isEmpty) return word;
+      return word[0].toUpperCase() + word.substring(1);
+    }).toList();
+
+    final String result = capitalizedWords.join(' ');
+
+    return newValue.copyWith(
+      text: result,
+      selection: newValue.selection,
+    );
   }
 }

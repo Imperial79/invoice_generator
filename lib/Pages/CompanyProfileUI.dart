@@ -180,6 +180,7 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
                             KField(
                               controller: email,
                               label: "Email",
+                              textCapitalization: TextCapitalization.none,
                               prefix: const Icon(LucideIcons.mail, size: 16),
                             ),
                             height15,
