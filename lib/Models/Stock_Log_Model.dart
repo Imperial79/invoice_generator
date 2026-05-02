@@ -25,11 +25,12 @@ class StockLogModel {
     required this.date,
   });
 
+  /// Serializes using snake_case keys for Supabase columns.
   Map<String, dynamic> toMap() {
     return {
       if (id != null) 'id': id,
-      'itemId': itemId,
-      'itemName': itemName,
+      'item_id': itemId,
+      'item_name': itemName,
       'sku': sku,
       'action': action,
       'type': type,
@@ -40,11 +41,12 @@ class StockLogModel {
     };
   }
 
+  /// Accepts both snake_case (Supabase) and camelCase (legacy local DB) keys.
   factory StockLogModel.fromMap(Map<String, dynamic> map) {
     return StockLogModel(
       id: map['id']?.toInt(),
-      itemId: map['itemId']?.toInt() ?? 0,
-      itemName: map['itemName'] ?? '',
+      itemId: (map['item_id'] ?? map['itemId'])?.toInt() ?? 0,
+      itemName: (map['item_name'] ?? map['itemName']) ?? '',
       sku: map['sku'] ?? '',
       action: map['action'] ?? '',
       type: map['type'] ?? '',
@@ -57,5 +59,6 @@ class StockLogModel {
 
   String toJson() => json.encode(toMap());
 
-  factory StockLogModel.fromJson(String source) => StockLogModel.fromMap(json.decode(source));
+  factory StockLogModel.fromJson(String source) =>
+      StockLogModel.fromMap(json.decode(source));
 }

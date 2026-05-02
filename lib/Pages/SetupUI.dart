@@ -1,17 +1,21 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:file_picker/file_picker.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:prime_invoice/Essentials/KScaffold.dart';
 import 'package:prime_invoice/Essentials/Label.dart';
 import 'package:prime_invoice/Essentials/kCard.dart';
-import 'package:prime_invoice/Helper/database_service.dart';
+import 'package:prime_invoice/Helper/responsive.dart';
+import 'package:prime_invoice/Helper/update_service.dart';
 import 'package:prime_invoice/Resources/colors.dart';
 import 'package:prime_invoice/Resources/commons.dart';
 import 'package:prime_invoice/Resources/constants.dart';
-import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:prime_invoice/Resources/theme.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:prime_invoice/Essentials/kField.dart';
+import 'package:prime_invoice/Helper/database_service.dart';
+import 'package:prime_invoice/Helper/security_helper.dart';
+import 'package:flutter/foundation.dart';
 
 class SetupUI extends StatefulWidget {
   const SetupUI({super.key});
@@ -22,6 +26,7 @@ class SetupUI extends StatefulWidget {
 
 class _SetupUIState extends State<SetupUI> {
   bool isWatermarkEnabled = true;
+  String appVersion = "1.0.0";
 
   @override
   void initState() {
@@ -31,8 +36,10 @@ class _SetupUIState extends State<SetupUI> {
 
   _loadSettings() async {
     final pref = await SharedPreferences.getInstance();
+    final packageInfo = await PackageInfo.fromPlatform();
     setState(() {
       isWatermarkEnabled = pref.getBool("pdf_watermark") ?? true;
+      appVersion = packageInfo.version;
     });
   }
 
@@ -142,19 +149,37 @@ class _SetupUIState extends State<SetupUI> {
                 onTap: () {},
               ),
               _buildOption(
-                LucideIcons.database,
-                "Backup & Restore",
-                "Save & load local database backup",
-                onTap: () => _showBackupRestoreDialog(context),
+                LucideIcons.cloudUpload,
+                "Cloud Sync",
+                "Data is synced automatically via Supabase",
+                onTap: () {
+                  KSnackbar(
+                    context,
+                    message: "All data syncs automatically to Supabase cloud.",
+                  );
+                },
+              ),
+              _buildOption(
+                LucideIcons.refreshCw,
+                "Check for Updates",
+                "Current version: $appVersion",
+                onTap: () =>
+                    UpdateService.checkForUpdates(context, showNoUpdate: true),
+              ),
+              _buildOption(
+                LucideIcons.lock,
+                "Security PIN",
+                "Update your login PIN",
+                onTap: _showChangePinSidebar,
               ),
               _buildOption(
                 LucideIcons.info,
                 "About",
-                "Version 1.0.0",
+                "Learn more about Prime Invoice",
                 onTap: () => showAboutDialog(
                   context: context,
                   applicationName: "Invoice Generator",
-                  applicationVersion: "1.0.0",
+                  applicationVersion: appVersion,
                   applicationIcon: Icon(
                     LucideIcons.fileText,
                     size: 40,
@@ -174,126 +199,216 @@ class _SetupUIState extends State<SetupUI> {
     );
   }
 
-  void _showBackupRestoreDialog(BuildContext parentContext) {
-    showDialog(
-      context: parentContext,
-      builder: (dialogContext) => AlertDialog(
-        title: Label("Backup & Restore", weight: 700).title,
-        content: Label("Select an action for your database.").regular,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dialogContext),
-            child: Label("Cancel").regular,
+  void _showChangePinSidebar() {
+    final oldPinC = TextEditingController();
+    final newPinC = TextEditingController();
+    final confirmPinC = TextEditingController();
+    final isLoading = ValueNotifier(false);
+
+    showGeneralDialog(
+      context: context,
+      barrierDismissible: true,
+      barrierLabel: "Dismiss",
+      transitionDuration: const Duration(milliseconds: 300),
+      pageBuilder: (c, a1, a2) => const SizedBox.shrink(),
+      transitionBuilder: (c, a1, a2, child) => SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(1, 0),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(parent: a1, curve: Curves.easeOutCubic)),
+        child: Align(
+          alignment: Alignment.centerRight,
+          child: Material(
+            child: Container(
+              width: Responsive.isMobile(context)
+                  ? MediaQuery.sizeOf(context).width
+                  : 500,
+              height: double.infinity,
+              color: kColor(context).surface,
+              child: StatefulBuilder(
+                builder: (cSelf, setSidebarState) {
+                  return Column(
+                    children: [
+                      _sidebarHeader("Security PIN", LucideIcons.lock, cSelf),
+                      Expanded(
+                        child: SingleChildScrollView(
+                          padding: const EdgeInsets.all(24),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            spacing: 24,
+                            children: [
+                              KField(
+                                controller: oldPinC,
+                                label: "Current PIN",
+                                hintText: "Enter current 5-digit PIN",
+                                obscureText: true,
+                                maxLength: 5,
+                                keyboardType: TextInputType.number,
+                              ),
+                              const Divider(),
+                              KField(
+                                controller: newPinC,
+                                label: "New PIN",
+                                hintText: "Enter new 5-digit PIN",
+                                obscureText: true,
+                                maxLength: 5,
+                                keyboardType: TextInputType.number,
+                              ),
+                              KField(
+                                controller: confirmPinC,
+                                label: "Confirm New PIN",
+                                hintText: "Re-enter new 5-digit PIN",
+                                obscureText: true,
+                                maxLength: 5,
+                                keyboardType: TextInputType.number,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      _sidebarFooter("Update PIN", isLoading, () async {
+                        if (oldPinC.text.length != 5 ||
+                            newPinC.text.length != 5) {
+                          KSnackbar(
+                            context,
+                            message: "PIN must be 5 digits",
+                            error: true,
+                          );
+                          return;
+                        }
+                        if (newPinC.text != confirmPinC.text) {
+                          KSnackbar(
+                            context,
+                            message: "New PINs do not match",
+                            error: true,
+                          );
+                          return;
+                        }
+
+                        isLoading.value = true;
+                        try {
+                          final profile = await DatabaseService.instance
+                              .getCompanyProfile();
+                          if (!SecurityHelper.verifyPin(
+                            oldPinC.text,
+                            profile.securityPin,
+                          )) {
+                            KSnackbar(
+                              context,
+                              message: "Current PIN is incorrect",
+                              error: true,
+                            );
+                            return;
+                          }
+
+                          final hashedNewPin = SecurityHelper.hashPin(
+                            newPinC.text,
+                          );
+                          await DatabaseService.instance.saveCompanyProfile(
+                            profile.copyWith(securityPin: hashedNewPin),
+                          );
+
+                          if (mounted) {
+                            Navigator.pop(cSelf);
+                            KSnackbar(
+                              context,
+                              message: "Security PIN updated successfully",
+                            );
+                          }
+                        } catch (e) {
+                          KSnackbar(
+                            context,
+                            message: "Error updating PIN: $e",
+                            error: true,
+                          );
+                        } finally {
+                          isLoading.value = false;
+                        }
+                      }, onCancel: () => Navigator.pop(cSelf)),
+                    ],
+                  );
+                },
+              ),
+            ),
           ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(dialogContext); // Close dialog
-              String? dbPath = await DatabaseService.instance.getDbPath();
-              if (dbPath == null) return;
+        ),
+      ),
+    );
+  }
 
-              String? outputFile = await FilePicker.platform.saveFile(
-                dialogTitle: 'Save Database Backup',
-                fileName: 'invoice_backup.db',
-              );
-
-              if (outputFile != null) {
-                try {
-                  File(dbPath).copySync(outputFile);
-                  if (parentContext.mounted) {
-                    KSnackbar(
-                      parentContext,
-                      message: "Backup saved at: $outputFile",
-                    );
-                  }
-                } catch (e) {
-                  if (parentContext.mounted) {
-                    KSnackbar(
-                      parentContext,
-                      message: "Error saving backup: $e",
-                      error: true,
-                    );
-                  }
-                }
-              }
-            },
-            child: Label(
-              "Backup",
-              color: kColor(parentContext).primary,
-            ).regular,
+  Widget _sidebarHeader(String title, IconData icon, BuildContext ctx) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(24, 60, 24, 20),
+      decoration: BoxDecoration(
+        color: kColor(ctx).surfaceContainerLow,
+        border: Border(bottom: BorderSide(color: kColor(ctx).outlineVariant)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, size: 24, color: kColor(ctx).primary),
+          const SizedBox(width: 16),
+          Label(title, fontSize: 20, weight: 800).title,
+          const Spacer(),
+          IconButton(
+            onPressed: () => Navigator.pop(ctx),
+            icon: const Icon(LucideIcons.x),
           ),
-          TextButton(
-            onPressed: () async {
-              Navigator.pop(dialogContext); // Close dialog
-              String? dbPath = await DatabaseService.instance.getDbPath();
-              if (dbPath == null) return;
-
-              FilePickerResult? result = await FilePicker.platform.pickFiles(
-                type: FileType.custom,
-                allowedExtensions: ['db'],
-              );
-
-              if (result != null && result.files.single.path != null) {
-                try {
-                  File(result.files.single.path!).copySync(dbPath);
-                  if (parentContext.mounted) {
-                    KSnackbar(
-                      parentContext,
-                      message: "Database restored! Please restart the app.",
-                    );
-                  }
-                } catch (e) {
-                  if (parentContext.mounted) {
-                    KSnackbar(
-                      parentContext,
-                      message: "Error restoring: $e",
-                      error: true,
-                    );
-                  }
-                }
-              }
-            },
-            child: Label(
-              "Restore",
-              color: kColor(parentContext).secondary,
-            ).regular,
-          ),
-          // TextButton(
-          //   onPressed: () async {
-          //     Navigator.pop(dialogContext); // Close dialog
-          //     _showClearDialog(parentContext);
-          //   },
-          //   child: Label(
-          //     "Clear DB",
-          //     color: kColor(parentContext).error,
-          //   ).regular,
-          // ),
         ],
       ),
     );
   }
 
-  void _showClearDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Label("Clear Database?", weight: 700).title,
-        content: Label(
-          "Are you sure? This will permanently delete all your invoices.",
-        ).regular,
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Label("Cancel").regular,
+  Widget _sidebarFooter(
+    String label,
+    ValueListenable<bool> loading,
+    VoidCallback onSave, {
+    VoidCallback? onCancel,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: kColor(context).surface,
+        border: Border(top: BorderSide(color: kColor(context).outlineVariant)),
+      ),
+      child: Row(
+        spacing: 16,
+        children: [
+          Expanded(
+            child: OutlinedButton(
+              onPressed: onCancel,
+              style: OutlinedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                shape: RoundedRectangleBorder(borderRadius: kRadius(18)),
+              ),
+              child: Label("Cancel", weight: 700).regular,
+            ),
           ),
-          TextButton(
-            onPressed: () async {
-              await DatabaseService.instance.clearDatabase();
-              if (context.mounted) {
-                Navigator.pop(context);
-                KSnackbar(context, message: "Database cleared successfully!");
-              }
-            },
-            child: Label("Yes, Clear", color: kColor(context).error).regular,
+          Expanded(
+            child: ValueListenableBuilder<bool>(
+              valueListenable: loading,
+              builder: (context, val, _) {
+                return ElevatedButton(
+                  onPressed: val ? null : onSave,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: kColor(context).primary,
+                    foregroundColor: kColor(context).onPrimary,
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 20),
+                    shape: RoundedRectangleBorder(borderRadius: kRadius(18)),
+                  ),
+                  child: val
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: Colors.white,
+                          ),
+                        )
+                      : Label(label, weight: 700).regular,
+                );
+              },
+            ),
           ),
         ],
       ),

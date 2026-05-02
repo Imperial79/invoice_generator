@@ -30,7 +30,7 @@ class CustomerModel {
       'gst': gst,
       'pan': pan,
       'aadhaar': aadhaar,
-      'clientType': clientType,
+      'client_type': clientType, // snake_case for Supabase
     };
   }
 
@@ -43,7 +43,9 @@ class CustomerModel {
       gst: map['gst'] ?? '',
       pan: map['pan'] ?? '',
       aadhaar: map['aadhaar'] ?? '',
-      clientType: map['clientType'] ?? 'Customer',
+      // Accept both snake_case (Supabase) and camelCase (legacy)
+      clientType:
+          (map['client_type'] ?? map['clientType']) ?? 'Customer',
     );
   }
 

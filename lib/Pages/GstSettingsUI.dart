@@ -3,11 +3,11 @@ import 'package:prime_invoice/Essentials/KScaffold.dart';
 import 'package:prime_invoice/Essentials/Label.dart';
 import 'package:prime_invoice/Essentials/kButton.dart';
 import 'package:prime_invoice/Essentials/kField.dart';
+import 'package:prime_invoice/Helper/database_service.dart';
 import 'package:prime_invoice/Resources/colors.dart';
 import 'package:prime_invoice/Resources/commons.dart';
 import 'package:prime_invoice/Resources/constants.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 class GstSettingsUI extends StatefulWidget {
   const GstSettingsUI({super.key});
@@ -27,23 +27,53 @@ class _GstSettingsUIState extends State<GstSettingsUI> {
     _loadSettings();
   }
 
-  _loadSettings() async {
-    final pref = await SharedPreferences.getInstance();
-    setState(() {
-      metalGstC.text = (pref.getDouble("metal_gst") ?? 3.0).toString();
-      serviceGstC.text = (pref.getDouble("service_gst") ?? 18.0).toString();
-    });
+  @override
+  void dispose() {
+    metalGstC.dispose();
+    serviceGstC.dispose();
+    isLoading.dispose();
+    super.dispose();
   }
 
-  _saveSettings() async {
+  Future<void> _loadSettings() async {
     isLoading.value = true;
-    final pref = await SharedPreferences.getInstance();
-    await pref.setDouble("metal_gst", parseToDouble(metalGstC.text));
-    await pref.setDouble("service_gst", parseToDouble(serviceGstC.text));
-    isLoading.value = false;
-    if (mounted) {
-      KSnackbar(context, message: "GST Settings saved successfully!");
-      Navigator.pop(context);
+    try {
+      final profile = await DatabaseService.instance.getCompanyProfile();
+      setState(() {
+        metalGstC.text = profile.metalGst.toString();
+        serviceGstC.text = profile.serviceGst.toString();
+      });
+    } catch (e) {
+      debugPrint("Error loading GST settings: $e");
+      setState(() {
+        metalGstC.text = "3.0";
+        serviceGstC.text = "18.0";
+      });
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> _saveSettings() async {
+    isLoading.value = true;
+    try {
+      // Load existing profile and patch only GST fields
+      final existing = await DatabaseService.instance.getCompanyProfile();
+      final updated = existing.copyWith(
+        metalGst: parseToDouble(metalGstC.text),
+        serviceGst: parseToDouble(serviceGstC.text),
+      );
+      await DatabaseService.instance.saveCompanyProfile(updated);
+      if (mounted) {
+        KSnackbar(context, message: "GST Settings saved successfully!");
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        KSnackbar(context, message: "Error saving GST settings: $e", error: true);
+      }
+    } finally {
+      isLoading.value = false;
     }
   }
 

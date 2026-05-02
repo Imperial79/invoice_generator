@@ -1,5 +1,7 @@
 import 'dart:developer';
 import 'dart:io';
+import 'package:http/http.dart' as http;
+import 'package:prime_invoice/Helper/database_service.dart';
 import 'package:prime_invoice/Helper/pdf_design.dart';
 import 'package:prime_invoice/Models/Invoice_Model.dart';
 import 'package:open_file/open_file.dart';
@@ -13,23 +15,34 @@ import 'package:shared_preferences/shared_preferences.dart';
 class PdfHelper {
   static Future<File> _buildPdfFile(InvoiceModel invoiceData) async {
     final pdf = pw.Document(compress: false);
+
+    // pdf_watermark is a device-local UI pref — stays in SharedPreferences
     final pref = await SharedPreferences.getInstance();
     final showWatermark = pref.getBool("pdf_watermark") ?? true;
 
-    final bannerPath = pref.getString("biz_banner") ?? "";
-    final watermarkPath = pref.getString("biz_watermark") ?? "";
+    // Load company profile from Supabase
+    final profile = await DatabaseService.instance.getCompanyProfile();
+
+    final bannerPath = profile.bannerPath;
+    final watermarkPath = profile.watermarkPath;
 
     pw.MemoryImage? banner;
     pw.MemoryImage? watermark;
 
     try {
-      if (bannerPath.isNotEmpty && File(bannerPath).existsSync()) {
-        final bannerBytes = await File(bannerPath).readAsBytes();
-        banner = pw.MemoryImage(bannerBytes);
+      if (bannerPath.isNotEmpty) {
+        if (bannerPath.startsWith('http')) {
+          final response = await http.get(Uri.parse(bannerPath));
+          banner = pw.MemoryImage(response.bodyBytes);
+        } else if (File(bannerPath).existsSync()) {
+          final bannerBytes = await File(bannerPath).readAsBytes();
+          banner = pw.MemoryImage(bannerBytes);
+        } else {
+          final bannerImg = await rootBundle.load('assets/images/invoice-banner.png');
+          banner = pw.MemoryImage(bannerImg.buffer.asUint8List());
+        }
       } else {
-        final bannerImg = await rootBundle.load(
-          'assets/images/invoice-banner.png',
-        );
+        final bannerImg = await rootBundle.load('assets/images/invoice-banner.png');
         banner = pw.MemoryImage(bannerImg.buffer.asUint8List());
       }
     } catch (e) {
@@ -37,29 +50,36 @@ class PdfHelper {
     }
 
     try {
-      if (watermarkPath.isNotEmpty && File(watermarkPath).existsSync()) {
-        final watermarkBytes = await File(watermarkPath).readAsBytes();
-        watermark = pw.MemoryImage(watermarkBytes);
+      if (watermarkPath.isNotEmpty) {
+        if (watermarkPath.startsWith('http')) {
+          final response = await http.get(Uri.parse(watermarkPath));
+          watermark = pw.MemoryImage(response.bodyBytes);
+        } else if (File(watermarkPath).existsSync()) {
+          final watermarkBytes = await File(watermarkPath).readAsBytes();
+          watermark = pw.MemoryImage(watermarkBytes);
+        } else {
+          final watermarkImg = await rootBundle.load('assets/images/invoice-watermark.png');
+          watermark = pw.MemoryImage(watermarkImg.buffer.asUint8List());
+        }
       } else {
-        final watermarkImg = await rootBundle.load(
-          'assets/images/invoice-watermark.png',
-        );
+        final watermarkImg = await rootBundle.load('assets/images/invoice-watermark.png');
         watermark = pw.MemoryImage(watermarkImg.buffer.asUint8List());
       }
     } catch (e) {
       log("Error loading watermark: $e");
     }
 
-    final profile = {
-      'biz_name': pref.getString("biz_name") ?? "",
-      'biz_phone': pref.getString("biz_phone") ?? "",
-      'biz_email': pref.getString("biz_email") ?? "",
-      'biz_gst': pref.getString("biz_gst") ?? "",
-      'biz_address': pref.getString("biz_address") ?? "",
-      'biz_bank': pref.getString("biz_bank") ?? "",
-      'biz_terms': pref.getString("biz_terms") ?? "",
-      'biz_state': pref.getString("biz_state") ?? "",
-      'biz_declaration': pref.getString("biz_declaration") ?? "",
+    // Build the profile map expected by pdfLayout
+    final profileMap = {
+      'biz_name': profile.name,
+      'biz_phone': profile.phone,
+      'biz_email': profile.email,
+      'biz_gst': profile.gst,
+      'biz_address': profile.address,
+      'biz_bank': profile.bankDetails,
+      'biz_terms': profile.terms,
+      'biz_state': profile.state,
+      'biz_declaration': profile.declaration,
     };
 
     final pageTheme = pw.PageTheme(
@@ -81,7 +101,7 @@ class PdfHelper {
       pw.MultiPage(
         pageTheme: pageTheme,
         build: (pw.Context context) =>
-            pdfLayout(context, banner, invoiceData, profile),
+            pdfLayout(context, banner, invoiceData, profileMap),
       ),
     );
 
@@ -100,8 +120,9 @@ class PdfHelper {
 
   static Future<void> shareInvoice(InvoiceModel invoiceData) async {
     final file = await _buildPdfFile(invoiceData);
-    await Share.shareXFiles([
-      XFile(file.path),
-    ], text: 'Invoice: ${invoiceData.invoiceId}');
+    await Share.shareXFiles(
+      [XFile(file.path)],
+      text: 'Invoice: ${invoiceData.invoiceId}',
+    );
   }
 }

@@ -10,6 +10,9 @@ import 'package:prime_invoice/Resources/colors.dart';
 import 'package:prime_invoice/Helper/responsive.dart';
 import 'package:prime_invoice/Resources/commons.dart';
 
+import 'package:prime_invoice/Helper/database_service.dart';
+import 'package:prime_invoice/Helper/security_helper.dart';
+
 class LoginUI extends StatefulWidget {
   const LoginUI({super.key});
 
@@ -22,6 +25,7 @@ class _LoginUIState extends State<LoginUI> with SingleTickerProviderStateMixin {
   final FocusNode _focusNode = FocusNode();
   String _error = "";
   late AnimationController _shakeController;
+  final ValueNotifier<bool> _isVerifying = ValueNotifier(false);
 
   @override
   void initState() {
@@ -38,10 +42,12 @@ class _LoginUIState extends State<LoginUI> with SingleTickerProviderStateMixin {
     _pinController.dispose();
     _focusNode.dispose();
     _shakeController.dispose();
+    _isVerifying.dispose();
     super.dispose();
   }
 
   void _handleInput(String value) {
+    if (_isVerifying.value) return;
     setState(() {
       _error = "";
     });
@@ -54,6 +60,7 @@ class _LoginUIState extends State<LoginUI> with SingleTickerProviderStateMixin {
   }
 
   void _handleBackspace() {
+    if (_isVerifying.value) return;
     if (_pinController.text.isNotEmpty) {
       setState(() {
         _pinController.text = _pinController.text.substring(
@@ -65,16 +72,30 @@ class _LoginUIState extends State<LoginUI> with SingleTickerProviderStateMixin {
     }
   }
 
-  void _verifyPin() {
-    if (_pinController.text == "12345") {
-      context.go('/');
-    } else {
-      setState(() {
-        _error = "Invalid Security PIN";
-        _pinController.clear();
-      });
-      _shakeController.forward(from: 0.0);
-      HapticFeedback.heavyImpact();
+  Future<void> _verifyPin() async {
+    _isVerifying.value = true;
+    try {
+      final profile = await DatabaseService.instance.getCompanyProfile();
+      final enteredPin = _pinController.text;
+
+      if (SecurityHelper.verifyPin(enteredPin, profile.securityPin)) {
+        if (mounted) context.go('/');
+      } else {
+        if (mounted) {
+          setState(() {
+            _error = "Invalid Security PIN";
+            _pinController.clear();
+          });
+          _shakeController.forward(from: 0.0);
+          HapticFeedback.heavyImpact();
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = "System Error: $e");
+      }
+    } finally {
+      _isVerifying.value = false;
     }
   }
 

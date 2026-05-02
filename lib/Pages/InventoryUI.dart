@@ -235,8 +235,8 @@ class _InventoryUIState extends State<InventoryUI> {
                                                   c == "Gold"
                                                       ? LucideIcons.gem
                                                       : c == "Silver"
-                                                          ? LucideIcons.disc
-                                                          : LucideIcons.sparkles,
+                                                      ? LucideIcons.disc
+                                                      : LucideIcons.sparkles,
                                                   size: 16,
                                                 ),
                                               ),
@@ -257,6 +257,7 @@ class _InventoryUIState extends State<InventoryUI> {
                                   controller: nameController,
                                   label: "Item Name",
                                   hintText: "e.g. Traditional Gold Bangle",
+                                  autoFocus: true,
                                   validator: KValidation.required,
                                   prefix: const Icon(LucideIcons.tag, size: 18),
                                 ),
@@ -335,8 +336,8 @@ class _InventoryUIState extends State<InventoryUI> {
                                     onChanged: item != null
                                         ? null
                                         : (v) => setSidebarState(
-                                              () => purityController.text = v!,
-                                            ),
+                                            () => purityController.text = v!,
+                                          ),
                                   ),
                                   const SizedBox(height: 40),
                                 ],
@@ -452,7 +453,9 @@ class _InventoryUIState extends State<InventoryUI> {
             child: Material(
               color: Colors.transparent,
               child: Container(
-                width: Responsive.isMobile(context) ? MediaQuery.sizeOf(context).width : 500,
+                width: Responsive.isMobile(context)
+                    ? MediaQuery.sizeOf(context).width
+                    : 500,
                 height: double.infinity,
                 color: kColor(context).surface,
                 child: StatefulBuilder(
@@ -759,9 +762,7 @@ class _InventoryUIState extends State<InventoryUI> {
               onPressed: onCancel,
               style: OutlinedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 20),
-                shape: RoundedRectangleBorder(
-                  borderRadius: kRadius(18),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: kRadius(18)),
               ),
               child: Label("Cancel", weight: 700).regular,
             ),
@@ -775,9 +776,7 @@ class _InventoryUIState extends State<InventoryUI> {
                 foregroundColor: kColor(context).onPrimary,
                 elevation: 0,
                 padding: const EdgeInsets.symmetric(vertical: 20),
-                shape: RoundedRectangleBorder(
-                  borderRadius: kRadius(18),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: kRadius(18)),
               ),
               child: Label(label, weight: 700).regular,
             ),
@@ -862,9 +861,7 @@ class _InventoryUIState extends State<InventoryUI> {
                 ),
                 backgroundColor: kColor(context).primary,
                 foregroundColor: kColor(context).onPrimary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: kRadius(12),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: kRadius(12)),
               ),
             ),
           ),

@@ -1,6 +1,7 @@
 import 'dart:developer';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:prime_invoice/Essentials/KScaffold.dart';
 import 'package:prime_invoice/Essentials/Label.dart';
@@ -255,6 +256,7 @@ class _ClientsUIState extends State<ClientsUI> {
                                 const SizedBox(height: 20),
                                 KField(
                                   controller: nameController,
+                                  autoFocus: true,
                                   label: clientType == "Business"
                                       ? "Business Legal Name"
                                       : "Customer Full Name",
@@ -275,6 +277,11 @@ class _ClientsUIState extends State<ClientsUI> {
                                   label: "Contact Number",
                                   hintText: "10-digit mobile number",
                                   keyboardType: TextInputType.phone,
+                                  maxLength: 10,
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.digitsOnly,
+                                    LengthLimitingTextInputFormatter(10),
+                                  ],
                                   validator: KValidation.phone,
                                   prefix: const Icon(
                                     LucideIcons.phone,
@@ -493,9 +500,7 @@ class _ClientsUIState extends State<ClientsUI> {
                 ),
                 backgroundColor: kColor(context).primary,
                 foregroundColor: kColor(context).onPrimary,
-                shape: RoundedRectangleBorder(
-                  borderRadius: kRadius(12),
-                ),
+                shape: RoundedRectangleBorder(borderRadius: kRadius(12)),
               ),
             ),
           ),

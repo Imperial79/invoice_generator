@@ -33,10 +33,10 @@ class InventoryModel {
       'category': category,
       'weight': weightStock,
       'purity': purity,
-      'makingCharges': makingCharges,
-      'makingChargesType': makingChargesType,
+      'making_charges': makingCharges,
+      'making_charges_type': makingChargesType,
       'stock': pieceStock,
-      'minStockAlert': minStockAlert,
+      'min_stock_alert': minStockAlert,
     };
   }
 
@@ -48,10 +48,14 @@ class InventoryModel {
       category: map['category'] ?? 'Gold',
       weightStock: (map['weight'] ?? 0.0).toDouble(),
       purity: map['purity'] ?? '',
-      makingCharges: (map['makingCharges'] ?? 0.0).toDouble(),
-      makingChargesType: map['makingChargesType'] ?? 'Fixed',
+      // Accept both snake_case (Supabase) and camelCase (legacy) keys
+      makingCharges:
+          ((map['making_charges'] ?? map['makingCharges']) ?? 0.0).toDouble(),
+      makingChargesType:
+          (map['making_charges_type'] ?? map['makingChargesType']) ?? 'Fixed',
       pieceStock: (map['stock'] ?? 0.0).toDouble(),
-      minStockAlert: (map['minStockAlert'] ?? 2.0).toDouble(),
+      minStockAlert:
+          ((map['min_stock_alert'] ?? map['minStockAlert']) ?? 2.0).toDouble(),
     );
   }
 

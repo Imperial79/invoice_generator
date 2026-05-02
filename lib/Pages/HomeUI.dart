@@ -14,6 +14,8 @@ import 'package:prime_invoice/Resources/colors.dart';
 import 'package:intl/intl.dart';
 import 'package:prime_invoice/Helper/responsive.dart';
 
+import 'package:prime_invoice/Helper/update_service.dart';
+
 class HomeUI extends StatefulWidget {
   const HomeUI({super.key});
 
@@ -31,6 +33,9 @@ class _HomeUIState extends State<HomeUI> {
   void initState() {
     super.initState();
     _loadData();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateService.checkForUpdates(context);
+    });
   }
 
   Future<void> _loadData() async {
@@ -68,7 +73,7 @@ class _HomeUIState extends State<HomeUI> {
 
   double todaySales = 0;
   int totalOrders = 0;
-  int lowStockCount = 3; // Mock low stock count for now
+  int lowStockCount = 0; // Mock low stock count for now
 
   @override
   Widget build(BuildContext context) {
@@ -127,41 +132,8 @@ class _HomeUIState extends State<HomeUI> {
   }
 
   Widget _buildNTFSNotice() {
-    return ValueListenableBuilder<bool>(
-      valueListenable: DatabaseService.hasWriteIssue,
-      builder: (context, hasIssue, _) {
-        if (!hasIssue || Responsive.isMobile(context)) {
-          return const SizedBox.shrink();
-        }
-        return Container(
-          margin: const EdgeInsets.only(bottom: 10),
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: Colors.red.withAlpha(25),
-            borderRadius: kRadius(12),
-            border: Border.all(color: Colors.red.withAlpha(80)),
-          ),
-          child: Row(
-            children: [
-              const Icon(
-                LucideIcons.triangleAlert,
-                color: Colors.red,
-                size: 20,
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Label(
-                  "Drive '${DatabaseService.driveName}' is Read-Only (NTFS). Data is being saved to Local Storage instead.",
-                  color: Colors.red,
-                  fontSize: 12,
-                  weight: 600,
-                ).regular,
-              ),
-            ],
-          ),
-        );
-      },
-    );
+    // No-op: drive monitoring removed after Supabase migration.
+    return const SizedBox.shrink();
   }
 
   Widget _buildSummaryCards() {
@@ -220,35 +192,26 @@ class _HomeUIState extends State<HomeUI> {
             ValueListenableBuilder<String>(
               valueListenable: DatabaseService.storageType,
               builder: (context, type, _) {
-                final isPortable = type == "Portable Drive";
                 return Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 10,
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: (isPortable ? Colors.green : Colors.orange)
-                        .withAlpha(40),
+                    color: Colors.green.withAlpha(40),
                     borderRadius: kRadius(20),
-                    border: Border.all(
-                      color: (isPortable ? Colors.green : Colors.orange)
-                          .withAlpha(80),
-                    ),
+                    border: Border.all(color: Colors.green.withAlpha(80)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
-                        isPortable ? LucideIcons.usb : LucideIcons.hardDrive,
-                        size: 12,
-                        color: isPortable ? Colors.green : Colors.orange,
-                      ),
+                      Icon(LucideIcons.cloud, size: 12, color: Colors.green),
                       const SizedBox(width: 6),
                       Label(
                         type,
                         fontSize: 10,
                         weight: 600,
-                        color: isPortable ? Colors.green : Colors.orange,
+                        color: Colors.green,
                       ).regular,
                     ],
                   ),
@@ -329,19 +292,20 @@ class _HomeUIState extends State<HomeUI> {
             childAspectRatio: Responsive.isMobile(context) ? 1.4 : 1.2,
           ),
           children: [
-            _actionButton(LucideIcons.filePlus2, "Create Bill", () async {
+            _actionButton(LucideIcons.filePlus2, "Billing", () async {
               final res = await context.push("/create-invoice");
               if (res == true) _loadData();
             }, color: kColor(context).primary),
+            _actionButton(LucideIcons.packagePlus, "Inventory", () {
+              context.push("/inventory");
+            }, color: Colors.brown),
             _actionButton(
               LucideIcons.userPlus,
-              "Add Customer",
+              "Clients",
               () => context.push("/clients"),
               color: Colors.blueGrey,
             ),
-            _actionButton(LucideIcons.packagePlus, "Add Inventory", () {
-              context.push("/inventory");
-            }, color: Colors.brown),
+
             _actionButton(LucideIcons.layoutPanelTop, "Reports", () {
               context.go("/reports");
             }, color: Colors.indigo),
@@ -446,7 +410,9 @@ class _HomeUIState extends State<HomeUI> {
                 decoration: BoxDecoration(
                   color: kColor(context).primary.withAlpha(15),
                   borderRadius: kRadius(16),
-                  border: Border.all(color: kColor(context).primary.withAlpha(30)),
+                  border: Border.all(
+                    color: kColor(context).primary.withAlpha(30),
+                  ),
                 ),
                 child: Center(
                   child: Icon(
@@ -490,23 +456,34 @@ class _HomeUIState extends State<HomeUI> {
                           LucideIcons.eye,
                           kColor(context).primary,
                           () async {
-                            setState(() => loadingInvoiceIds.add(invoice.invoiceId));
+                            setState(
+                              () => loadingInvoiceIds.add(invoice.invoiceId),
+                            );
                             try {
                               await PdfHelper.generateInvoice(invoice);
                             } finally {
                               if (mounted) {
-                                setState(() => loadingInvoiceIds.remove(invoice.invoiceId));
+                                setState(
+                                  () => loadingInvoiceIds.remove(
+                                    invoice.invoiceId,
+                                  ),
+                                );
                               }
                             }
                           },
-                          isLoading: loadingInvoiceIds.contains(invoice.invoiceId),
+                          isLoading: loadingInvoiceIds.contains(
+                            invoice.invoiceId,
+                          ),
                         ),
                         const SizedBox(width: 8),
                         _actionIcon(
                           LucideIcons.pencil,
                           kColor(context).secondary,
                           () async {
-                            final res = await context.push("/create-invoice", extra: invoice);
+                            final res = await context.push(
+                              "/create-invoice",
+                              extra: invoice,
+                            );
                             if (res == true) _loadData();
                           },
                         ),
@@ -515,16 +492,24 @@ class _HomeUIState extends State<HomeUI> {
                           LucideIcons.share2,
                           kColor(context).tertiary,
                           () async {
-                            setState(() => loadingInvoiceIds.add(invoice.invoiceId));
+                            setState(
+                              () => loadingInvoiceIds.add(invoice.invoiceId),
+                            );
                             try {
                               await PdfHelper.shareInvoice(invoice);
                             } finally {
                               if (mounted) {
-                                setState(() => loadingInvoiceIds.remove(invoice.invoiceId));
+                                setState(
+                                  () => loadingInvoiceIds.remove(
+                                    invoice.invoiceId,
+                                  ),
+                                );
                               }
                             }
                           },
-                          isLoading: loadingInvoiceIds.contains(invoice.invoiceId),
+                          isLoading: loadingInvoiceIds.contains(
+                            invoice.invoiceId,
+                          ),
                         ),
                       ],
                     )

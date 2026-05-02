@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:prime_invoice/Essentials/KScaffold.dart';
 import 'package:prime_invoice/Essentials/Label.dart';
 import 'package:prime_invoice/Essentials/kButton.dart';
@@ -12,7 +13,6 @@ import 'package:prime_invoice/Models/Invoice_Model.dart';
 import 'package:prime_invoice/Models/Item_Model.dart';
 import 'package:prime_invoice/Models/Inventory_Model.dart';
 import 'package:prime_invoice/Models/Metal_Rate_Model.dart';
-import 'package:prime_invoice/Resources/app-data.dart';
 import 'package:prime_invoice/Resources/colors.dart';
 import 'package:prime_invoice/Resources/commons.dart';
 import 'package:prime_invoice/Resources/constants.dart';
@@ -45,7 +45,7 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
   String unit = "Gms";
   final price = TextEditingController();
   double amount = 0;
-  final billingAddress = TextEditingController(text: defaultBillingAddress);
+  final billingAddress = TextEditingController();
 
   bool forCustomer = true;
   final customerName = TextEditingController();
@@ -411,6 +411,10 @@ class _CreateInvoiceUIState extends State<CreateInvoiceUI> {
               prefix: const Icon(LucideIcons.phone, size: 16),
               keyboardType: TextInputType.phone,
               maxLength: 10,
+              inputFormatters: [
+                FilteringTextInputFormatter.digitsOnly,
+                LengthLimitingTextInputFormatter(10),
+              ],
               validator: (v) => KValidation.phone(v),
             ),
             Row(
