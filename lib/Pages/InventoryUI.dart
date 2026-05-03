@@ -325,7 +325,7 @@ class _InventoryUIState extends State<InventoryUI> {
                                     value: purityController.text.isEmpty
                                         ? "22K"
                                         : purityController.text,
-                                    items: ["24K", "22K", "18K", "14K"]
+                                    items: ["24K", "22K", "18K", "14K", "9K"]
                                         .map(
                                           (e) => DropdownMenuItem(
                                             value: e,

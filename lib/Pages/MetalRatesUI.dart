@@ -17,7 +17,7 @@ class MetalRatesUI extends StatefulWidget {
 
 class _MetalRatesUIState extends State<MetalRatesUI> {
   final Map<String, List<String>> metals = {
-    "Gold": ["24K", "22K", "18K", "14K"],
+    "Gold": ["24K", "22K", "18K", "14K", "9K"],
     "Silver": ["Base"],
     "Platinum": ["Base"],
   };

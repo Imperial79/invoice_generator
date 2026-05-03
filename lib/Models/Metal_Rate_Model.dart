@@ -2,7 +2,7 @@ import 'dart:convert';
 
 class MetalRateModel {
   final String metalType; // Gold, Silver, Platinum
-  final String purity; // 24K, 22K, 18K, 14K or 'Base' for Silver/Platinum
+  final String purity; // 24K, 22K, 18K, 14K, 9K or 'Base' for Silver/Platinum
   final double ratePer10g;
 
   MetalRateModel({

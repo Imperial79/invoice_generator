@@ -6,7 +6,7 @@ class InventoryModel {
   final String name;
   final String category; // Gold, Silver, Diamond
   final double weightStock; // Total Weight in grams in inventory
-  final String purity; // 22K, 18K etc
+  final String purity; // 22K, 18K, 9K etc
   final double makingCharges;
   final String makingChargesType; // Fixed, Percent
   final double pieceStock; // Total Quantity/Pieces in hand
