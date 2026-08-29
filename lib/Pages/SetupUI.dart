@@ -34,7 +34,7 @@ class _SetupUIState extends State<SetupUI> {
     _loadSettings();
   }
 
-  _loadSettings() async {
+  Future<void> _loadSettings() async {
     final pref = await SharedPreferences.getInstance();
     final packageInfo = await PackageInfo.fromPlatform();
     setState(() {

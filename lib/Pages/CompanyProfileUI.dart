@@ -110,15 +110,18 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
     }
   }
 
-  Future<void> _pickAndUpload(TextEditingController controller, String label) async {
-    FilePickerResult? result =
-        await FilePicker.platform.pickFiles(type: FileType.image);
-    if (result != null && result.files.single.path != null) {
+  Future<void> _pickAndUpload(
+    TextEditingController controller,
+    String label,
+  ) async {
+    PlatformFile? result = await FilePicker.pickFile(type: FileType.image);
+    debugPrint("${result?.path}");
+    if (result != null && result.path != null) {
       isLoading.value = true;
       try {
         final url = await DatabaseService.instance.uploadFile(
-          File(result.files.single.path!),
-          result.files.single.path!,
+          File(result.path!),
+          result.path!,
         );
         controller.text = url;
         setState(() {});
@@ -150,7 +153,12 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
             child: Icon(icon, size: 16, color: kColor(context).primary),
           ),
           const SizedBox(width: 12),
-          Label(title, fontSize: 13, weight: 700, color: kColor(context).primary).regular,
+          Label(
+            title,
+            fontSize: 13,
+            weight: 700,
+            color: kColor(context).primary,
+          ).regular,
           const SizedBox(width: 12),
           Expanded(
             child: Divider(
@@ -186,7 +194,10 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
     double aspectRatio = 16 / 4,
   }) {
     final hasImage = controller.text.isNotEmpty;
-    final isUrl = hasImage && (controller.text.startsWith('http://') || controller.text.startsWith('https://'));
+    final isUrl =
+        hasImage &&
+        (controller.text.startsWith('http://') ||
+            controller.text.startsWith('https://'));
     final isLocalFile = hasImage && !isUrl;
 
     return Column(
@@ -208,18 +219,27 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
                 label: const Text("Remove", style: TextStyle(fontSize: 12)),
                 style: TextButton.styleFrom(
                   foregroundColor: kColor(context).error,
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                 ),
               ),
             FilledButton.icon(
               onPressed: () => _pickAndUpload(controller, label),
-              icon: Icon(hasImage ? LucideIcons.refreshCw : LucideIcons.upload, size: 14),
+              icon: Icon(
+                hasImage ? LucideIcons.refreshCw : LucideIcons.upload,
+                size: 14,
+              ),
               label: Text(
                 hasImage ? "Replace" : "Upload",
                 style: const TextStyle(fontSize: 12),
               ),
               style: FilledButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
                 textStyle: const TextStyle(fontSize: 12),
               ),
             ),
@@ -238,7 +258,8 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
                           ? Image.file(
                               File(controller.text),
                               fit: BoxFit.cover,
-                              errorBuilder: (_, __, ___) => _imagePlaceholder(description, icon),
+                              errorBuilder: (_, _, _) =>
+                                  _imagePlaceholder(description, icon),
                             )
                           : Image.network(
                               controller.text,
@@ -246,17 +267,21 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
                               loadingBuilder: (context, child, progress) {
                                 if (progress == null) return child;
                                 return Container(
-                                  color: kColor(context).surfaceContainerHighest,
+                                  color: kColor(
+                                    context,
+                                  ).surfaceContainerHighest,
                                   child: Center(
                                     child: CircularProgressIndicator(
                                       value: progress.expectedTotalBytes != null
-                                          ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
+                                          ? progress.cumulativeBytesLoaded /
+                                                progress.expectedTotalBytes!
                                           : null,
                                     ),
                                   ),
                                 );
                               },
-                              errorBuilder: (_, __, ___) => _imagePlaceholder(description, icon),
+                              errorBuilder: (_, _, _) =>
+                                  _imagePlaceholder(description, icon),
                             ),
                       // Bottom overlay strip showing filename/url
                       Positioned(
@@ -264,11 +289,18 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
                         left: 0,
                         right: 0,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 12,
+                            vertical: 6,
+                          ),
                           color: Colors.black.withAlpha(130),
                           child: Row(
                             children: [
-                              Icon(LucideIcons.circleCheck, size: 12, color: Colors.greenAccent),
+                              Icon(
+                                LucideIcons.circleCheck,
+                                size: 12,
+                                color: Colors.greenAccent,
+                              ),
                               const SizedBox(width: 6),
                               Expanded(
                                 child: Text(
@@ -314,7 +346,11 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 28, color: kColor(context).onSurfaceVariant.withAlpha(100)),
+          Icon(
+            icon,
+            size: 28,
+            color: kColor(context).onSurfaceVariant.withAlpha(100),
+          ),
           const SizedBox(height: 8),
           Label(
             "No image uploaded",
@@ -345,7 +381,10 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _sectionHeader("BUSINESS IDENTITY", LucideIcons.building2),
+                      _sectionHeader(
+                        "BUSINESS IDENTITY",
+                        LucideIcons.building2,
+                      ),
                       KField(
                         controller: name,
                         label: "Business Name",
@@ -386,7 +425,10 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _sectionHeader("CONTACT DETAILS", LucideIcons.contactRound),
+                      _sectionHeader(
+                        "CONTACT DETAILS",
+                        LucideIcons.contactRound,
+                      ),
                       Row(
                         spacing: 15,
                         children: [
@@ -467,8 +509,7 @@ class _CompanyProfileUIState extends State<CompanyProfileUI> {
                       KField(
                         controller: bankDetails,
                         label: "Bank Details",
-                        hintText:
-                            "Bank Name, Account No., IFSC Code, Branch",
+                        hintText: "Bank Name, Account No., IFSC Code, Branch",
                         maxLines: 6,
                         prefix: const Icon(LucideIcons.landmark, size: 16),
                       ),

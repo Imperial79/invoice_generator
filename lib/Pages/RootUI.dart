@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:fluent_ui/fluent_ui.dart' as fluent;
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import 'package:prime_invoice/Helper/platform_helper.dart';
 import 'package:prime_invoice/Helper/responsive.dart';
 import 'package:prime_invoice/Resources/colors.dart';
 import 'package:prime_invoice/Essentials/Label.dart';
@@ -32,13 +34,10 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.paused) {
-      // 🕒 Record the time when app goes to background
       _backgroundTimestamp = DateTime.now();
     } else if (state == AppLifecycleState.resumed) {
       if (_backgroundTimestamp != null) {
         final elapsed = DateTime.now().difference(_backgroundTimestamp!);
-        // 🔒 Logout only if app was in background for more than 20 seconds
-        // This avoids logging out during quick app switches but captures device sleep.
         if (elapsed.inSeconds >= 20) {
           context.go('/login');
         }
@@ -88,6 +87,99 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final selectedIndex = _calculateSelectedIndex(context);
+
+    if (PlatformHelper.isWindows) {
+      return _buildFluentShell(context, selectedIndex);
+    }
+
+    return _buildMaterialShell(context, selectedIndex);
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // WINDOWS — Fluent NavigationView shell
+  // ──────────────────────────────────────────────────────────────────────────
+
+  Widget _buildFluentShell(BuildContext context, int selectedIndex) {
+    final fluentTheme = fluent.FluentTheme.of(context);
+    final isDark = fluentTheme.brightness == Brightness.dark;
+    final surfaceBg = isDark
+        ? const Color(0xFF1C1C1C)
+        : const Color(0xFFF3F3F3);
+    final contentBody = fluent.ScaffoldPage(
+      padding: EdgeInsets.zero,
+      content: Container(color: surfaceBg, child: widget.child),
+    );
+
+    return fluent.NavigationView(
+
+      pane: fluent.NavigationPane(
+        selected: selectedIndex,
+        onChanged: (index) => _onItemTapped(index, context),
+        displayMode: fluent.PaneDisplayMode.auto,
+        size: const fluent.NavigationPaneSize(openWidth: 240),
+        header: const SizedBox(height: 8),
+        footerItems: [
+          fluent.PaneItemSeparator(),
+          fluent.PaneItem(
+            key: const Key('settings'),
+            icon: const Icon(LucideIcons.settings, size: 18),
+            title: const Text('Settings'),
+            body: contentBody,
+          ),
+          fluent.PaneItemAction(
+            key: const Key('logout'),
+            icon: const Icon(LucideIcons.logOut, size: 18),
+            title: const Text('Logout'),
+            onTap: () => context.go('/login'),
+          ),
+        ],
+        items: [
+          fluent.PaneItem(
+            key: const Key('dashboard'),
+            icon: const Icon(LucideIcons.layoutGrid, size: 18),
+            title: const Text('Dashboard'),
+            body: contentBody,
+          ),
+          fluent.PaneItem(
+            key: const Key('invoices'),
+            icon: const Icon(LucideIcons.fileText, size: 18),
+            title: const Text('All Invoices'),
+            body: contentBody,
+          ),
+          fluent.PaneItem(
+            key: const Key('new_invoice'),
+            icon: const Icon(LucideIcons.plus, size: 18),
+            title: const Text('New Invoice'),
+            body: contentBody,
+          ),
+          fluent.PaneItem(
+            key: const Key('clients'),
+            icon: const Icon(LucideIcons.users, size: 18),
+            title: const Text('Clients'),
+            body: contentBody,
+          ),
+          fluent.PaneItem(
+            key: const Key('inventory'),
+            icon: const Icon(LucideIcons.package2, size: 18),
+            title: const Text('Inventory'),
+            body: contentBody,
+          ),
+          fluent.PaneItem(
+            key: const Key('reports'),
+            icon: const Icon(LucideIcons.chartPie, size: 18),
+            title: const Text('Reports'),
+            body: contentBody,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ──────────────────────────────────────────────────────────────────────────
+  // Non-Windows — existing Material shell (unchanged)
+  // ──────────────────────────────────────────────────────────────────────────
+
+  Widget _buildMaterialShell(BuildContext context, int selectedIndex) {
     final isMobile = Responsive.isMobile(context);
 
     return Scaffold(
@@ -154,7 +246,7 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 32),
       width: 300,
       height: double.infinity,
-      color: Colors.transparent, // Let background show through
+      color: Colors.transparent,
       child: Column(
         children: [
           _buildSidebarHeader(context),
@@ -233,11 +325,9 @@ class _RootUIState extends State<RootUI> with WidgetsBindingObserver {
         Container(
           height: 50,
           width: 50,
-
           decoration: BoxDecoration(
             image: DecorationImage(image: AssetImage("assets/images/logo.png")),
           ),
-          // child: const Icon(LucideIcons.gem, color: Colors.white, size: 20),
         ),
         const SizedBox(width: 14),
         Column(

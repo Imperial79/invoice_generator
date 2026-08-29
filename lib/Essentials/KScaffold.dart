@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
+import '../Helper/platform_helper.dart';
 import '../Resources/colors.dart';
 import '../Resources/commons.dart';
 import '../Resources/constants.dart';
@@ -76,14 +77,13 @@ class KScaffold extends StatelessWidget {
           ? Container(
               height: double.maxFinite,
               width: double.maxFinite,
-              color: kColor(context).surface.withAlpha(200),
+              color: Colors.black.lighten(.9),
               child: Center(
                 child: KCard(
                   width: 300,
-                  color: color ?? kColor(context).surfaceContainerLow,
+                  color: color ?? Colors.black,
                   padding: const EdgeInsets.all(30),
-                  borderColor: borderColor ?? kColor(context).outlineVariant,
-                  borderWidth: borderColor != null ? 1 : 0,
+                  borderWidth: 0,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [

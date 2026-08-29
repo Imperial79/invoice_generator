@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:fluent_ui/fluent_ui.dart' as fluent;
+import 'package:prime_invoice/Helper/platform_helper.dart';
 import 'package:prime_invoice/Resources/commons.dart';
 import '../Resources/colors.dart';
 import 'Label.dart';
@@ -36,6 +38,7 @@ class KField extends StatelessWidget {
   final void Function(String val)? onFieldSubmitted;
   final Iterable<String>? autofillHints;
   final String? initialValue;
+
   const KField({
     super.key,
     this.showRequired = true,
@@ -73,6 +76,113 @@ class KField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (PlatformHelper.isWindows) {
+      return _buildFluentField(context);
+    }
+    return _buildMaterialField(context);
+  }
+
+  // ── Windows: Fluent TextBox ───────────────────────────────────────────────
+  Widget _buildFluentField(BuildContext context) {
+    final fluentTheme = fluent.FluentTheme.of(context);
+    final isDark = fluentTheme.brightness == Brightness.dark;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (label != null) ...[
+          _buildLabelRow(context),
+          const SizedBox(height: 6),
+        ],
+        fluent.TextBox(
+          autofocus: autoFocus,
+          controller: controller,
+          focusNode: focusNode,
+          placeholder: hintText,
+          readOnly: readOnly ?? false,
+          obscureText: obscureText ?? false,
+          keyboardType: keyboardType,
+          maxLength: maxLength,
+          maxLines: maxLines,
+          minLines: minLines,
+          onChanged: onChanged,
+          onSubmitted: onFieldSubmitted,
+          inputFormatters: [
+            if (textCapitalization == TextCapitalization.words)
+              CapitalizeWordsFormatter(),
+            ...?inputFormatters,
+          ],
+          style: TextStyle(
+            fontSize: fontSize ?? kFontSize,
+            fontVariations: const [FontVariation.weight(600)],
+            color: textColor,
+            letterSpacing: .5,
+          ),
+          placeholderStyle: TextStyle(
+            fontSize: fontSize ?? kFontSize,
+            color: hintTextColor ??
+                (isDark ? Colors.grey.shade400 : Colors.grey.shade600),
+          ),
+          prefix: prefix != null
+              ? Padding(
+                  padding: const EdgeInsets.only(left: 8, right: 4),
+                  child: prefix,
+                )
+              : prefixText != null
+                  ? Padding(
+                      padding: const EdgeInsets.only(left: 8, right: 4),
+                      child: Text(
+                        prefixText!,
+                        style: TextStyle(
+                          fontSize: fontSize ?? kFontSize,
+                          fontVariations: const [FontVariation.weight(700)],
+                        ),
+                      ),
+                    )
+                  : null,
+          suffix: suffix != null
+              ? Padding(
+                  padding: const EdgeInsets.only(left: 4, right: 8),
+                  child: suffix,
+                )
+              : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLabelRow(BuildContext context) {
+    return Row(
+      children: [
+        ?labelIcon,
+        kLabel,
+        if (subLabel != null)
+          Padding(
+            padding: const EdgeInsets.only(left: 6.0),
+            child: Label(
+              subLabel!,
+              color: kColor(context).onSurfaceVariant,
+              fontSize: 11,
+              height: 1,
+            ).regular,
+          ),
+        if (validator != null && showRequired)
+          Padding(
+            padding: const EdgeInsets.only(left: 3.0),
+            child: Label(
+              "(Required)",
+              color: kColor(context).error,
+              fontSize: 10,
+              height: 1,
+            ).regular,
+          ),
+      ],
+    );
+  }
+
+  // ── Material: existing implementation ────────────────────────────────────
+  Widget _buildMaterialField(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -82,7 +192,7 @@ class KField extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 7.0),
             child: Row(
               children: [
-                if (labelIcon != null) labelIcon!,
+                ?labelIcon,
                 kLabel,
                 if (subLabel != null)
                   Padding(
@@ -96,7 +206,7 @@ class KField extends StatelessWidget {
                   ),
                 if (validator != null && showRequired)
                   Padding(
-                    padding: EdgeInsets.only(left: 3.0),
+                    padding: const EdgeInsets.only(left: 3.0),
                     child: Label(
                       "(Required)",
                       color: kColor(context).error,
@@ -270,9 +380,6 @@ class CapitalizeWordsFormatter extends TextInputFormatter {
 
     final String result = capitalizedWords.join(' ');
 
-    return newValue.copyWith(
-      text: result,
-      selection: newValue.selection,
-    );
+    return newValue.copyWith(text: result, selection: newValue.selection);
   }
 }
