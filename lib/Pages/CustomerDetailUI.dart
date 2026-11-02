@@ -13,6 +13,7 @@ import 'package:prime_invoice/Resources/constants.dart';
 import 'package:prime_invoice/Helper/pdf_helper.dart';
 import 'package:prime_invoice/Helper/responsive.dart';
 import 'package:prime_invoice/Essentials/KTable.dart';
+import 'package:prime_invoice/Helper/vcf_helper.dart';
 
 class CustomerDetailUI extends StatefulWidget {
   final CustomerModel customer;
@@ -59,7 +60,25 @@ class _CustomerDetailUIState extends State<CustomerDetailUI> {
   Widget build(BuildContext context) {
     return KScaffold(
       isLoading: isLoading,
-      appBar: KAppBar(context, title: "Customer Overview"),
+      appBar: KAppBar(
+        context,
+        title: "Customer Overview",
+        actions: [
+          IconButton(
+            onPressed: () async {
+              isLoading.value = true;
+              try {
+                await VcfHelper.shareVcf(context, [widget.customer]);
+              } finally {
+                isLoading.value = false;
+              }
+            },
+            icon: const Icon(LucideIcons.share2),
+            tooltip: "Export Contact (VCF)",
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(kPadding),
         child: Center(

@@ -16,6 +16,7 @@ import 'package:prime_invoice/Resources/commons.dart';
 import 'package:prime_invoice/Resources/constants.dart';
 import 'package:prime_invoice/Essentials/KFilterBar.dart';
 import 'package:prime_invoice/Essentials/KTable.dart';
+import 'package:prime_invoice/Helper/vcf_helper.dart';
 
 class ClientsUI extends StatefulWidget {
   const ClientsUI({super.key});
@@ -447,11 +448,296 @@ class _ClientsUIState extends State<ClientsUI> {
     );
   }
 
+  Future<void> _showExportContactsDialog() async {
+    if (allCustomers.isEmpty) {
+      KSnackbar(context, message: "No contacts available to export", error: true);
+      return;
+    }
+
+    bool exportAll = true;
+    final hasFilter = searchQuery.isNotEmpty || selectedType != "All";
+
+    await showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            final activeList =
+                (exportAll || !hasFilter) ? allCustomers : filteredCustomers;
+            return Dialog(
+              backgroundColor: Colors.transparent,
+              insetPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 24,
+              ),
+              child: Container(
+                width: 480,
+                decoration: BoxDecoration(
+                  color: kColor(context).surface,
+                  borderRadius: kRadius(16),
+                  border: Border.all(
+                    color: kColor(context).outlineVariant.withAlpha(80),
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withAlpha(40),
+                      blurRadius: 24,
+                      offset: const Offset(0, 8),
+                    ),
+                  ],
+                ),
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: kColor(context).primary.withAlpha(25),
+                            borderRadius: kRadius(12),
+                          ),
+                          child: Icon(
+                            LucideIcons.fileSpreadsheet,
+                            color: kColor(context).primary,
+                            size: 24,
+                          ),
+                        ),
+                        const SizedBox(width: 14),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Label(
+                                "Export Contacts",
+                                fontSize: 18,
+                                weight: 800,
+                              ).title,
+                              Label(
+                                "Standard vCard (.vcf) format",
+                                fontSize: 12,
+                                color: kColor(context).onSurfaceVariant,
+                              ).regular,
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => Navigator.pop(dialogContext),
+                          icon: const Icon(LucideIcons.x, size: 18),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    if (hasFilter) ...[
+                      Label(
+                        "Select contacts to export:",
+                        fontSize: 12,
+                        weight: 600,
+                      ).regular,
+                      const SizedBox(height: 8),
+                      SegmentedButton<bool>(
+                        segments: [
+                          ButtonSegment<bool>(
+                            value: true,
+                            label: Text("All (${allCustomers.length})"),
+                            icon: const Icon(LucideIcons.users, size: 16),
+                          ),
+                          ButtonSegment<bool>(
+                            value: false,
+                            label: Text(
+                              "Filtered (${filteredCustomers.length})",
+                            ),
+                            icon: const Icon(LucideIcons.filter, size: 16),
+                          ),
+                        ],
+                        selected: {exportAll},
+                        onSelectionChanged: (val) {
+                          setDialogState(() => exportAll = val.first);
+                        },
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+                    Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: kColor(context).surfaceContainerLow,
+                        borderRadius: kRadius(10),
+                        border: Border.all(
+                          color: kColor(context).outlineVariant.withAlpha(50),
+                        ),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            LucideIcons.info,
+                            size: 18,
+                            color: kColor(context).primary,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Label(
+                              "${activeList.length} contact(s) will be exported with name and mobile number. Compatible with Android, iPhone, Mac, Windows, and Google Contacts.",
+                              fontSize: 12,
+                              color: kColor(context).onSurfaceVariant,
+                            ).regular,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    _buildExportActionTile(
+                      icon: LucideIcons.share2,
+                      title: "Share VCF File",
+                      subtitle:
+                          "Share via WhatsApp, Email, AirDrop or save to Files",
+                      isPrimary: true,
+                      onTap: () async {
+                        Navigator.pop(dialogContext);
+                        isLoading.value = true;
+                        try {
+                          await VcfHelper.shareVcf(context, activeList);
+                        } finally {
+                          isLoading.value = false;
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    _buildExportActionTile(
+                      icon: LucideIcons.download,
+                      title: "Save to Device",
+                      subtitle: "Choose location and save .vcf file to storage",
+                      isPrimary: false,
+                      onTap: () async {
+                        Navigator.pop(dialogContext);
+                        isLoading.value = true;
+                        try {
+                          await VcfHelper.saveVcfToDevice(context, activeList);
+                        } finally {
+                          isLoading.value = false;
+                        }
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    _buildExportActionTile(
+                      icon: LucideIcons.userCheck,
+                      title: "Import to Contacts",
+                      subtitle:
+                          "Directly open in your device Contacts address book",
+                      isPrimary: false,
+                      onTap: () async {
+                        Navigator.pop(dialogContext);
+                        isLoading.value = true;
+                        try {
+                          await VcfHelper.openInSystemContacts(
+                            context,
+                            activeList,
+                          );
+                        } finally {
+                          isLoading.value = false;
+                        }
+                      },
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildExportActionTile({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+    bool isPrimary = false,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: kRadius(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isPrimary
+              ? kColor(context).primary.withAlpha(20)
+              : kColor(context).surfaceContainerLow,
+          borderRadius: kRadius(12),
+          border: Border.all(
+            color: isPrimary
+                ? kColor(context).primary.withAlpha(80)
+                : kColor(context).outlineVariant.withAlpha(60),
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isPrimary
+                    ? kColor(context).primary
+                    : kColor(context).surfaceContainerHighest,
+                borderRadius: kRadius(8),
+              ),
+              child: Icon(
+                icon,
+                size: 18,
+                color: isPrimary ? Colors.white : kColor(context).onSurface,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Label(
+                    title,
+                    fontSize: 14,
+                    weight: 700,
+                    color: isPrimary
+                        ? kColor(context).primary
+                        : kColor(context).onSurface,
+                  ).regular,
+                  Label(
+                    subtitle,
+                    fontSize: 11,
+                    color: kColor(context).onSurfaceVariant,
+                  ).regular,
+                ],
+              ),
+            ),
+            Icon(
+              LucideIcons.chevronRight,
+              size: 16,
+              color: kColor(context).onSurfaceVariant,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return KScaffold(
       isLoading: isLoading,
-      appBar: KAppBar(context, title: "Client Management", showBack: false),
+      appBar: KAppBar(
+        context,
+        title: "Client Management",
+        showBack: false,
+        actions: [
+          IconButton(
+            onPressed:
+                allCustomers.isEmpty ? null : () => _showExportContactsDialog(),
+            icon: const Icon(LucideIcons.fileSpreadsheet),
+            tooltip: "Export Contacts (VCF)",
+          ),
+          const SizedBox(width: 8),
+        ],
+      ),
       body: Column(
         children: [
           KFilterBar(
@@ -489,20 +775,64 @@ class _ClientsUIState extends State<ClientsUI> {
                 _applyFilter();
               });
             },
-            action: ElevatedButton.icon(
-              onPressed: () => _showAddEditCustomerSidebar(),
-              icon: const Icon(LucideIcons.userPlus, size: 18),
-              label: Label("Add Client", weight: 700).regular,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 20,
-                ),
-                backgroundColor: kColor(context).primary,
-                foregroundColor: kColor(context).onPrimary,
-                shape: RoundedRectangleBorder(borderRadius: kRadius(12)),
-              ),
-            ),
+            action: Responsive.isMobile(context)
+                ? ElevatedButton.icon(
+                    onPressed: () => _showAddEditCustomerSidebar(),
+                    icon: const Icon(LucideIcons.userPlus, size: 18),
+                    label: Label("Add Client", weight: 700).regular,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 18,
+                      ),
+                      backgroundColor: kColor(context).primary,
+                      foregroundColor: kColor(context).onPrimary,
+                      shape: RoundedRectangleBorder(borderRadius: kRadius(12)),
+                    ),
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      OutlinedButton.icon(
+                        onPressed: allCustomers.isEmpty
+                            ? null
+                            : () => _showExportContactsDialog(),
+                        icon: const Icon(LucideIcons.download, size: 18),
+                        label: Label("Export Contacts", weight: 700).regular,
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 18,
+                          ),
+                          side: BorderSide(
+                            color: kColor(
+                              context,
+                            ).outlineVariant.withAlpha(120),
+                          ),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: kRadius(12),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      ElevatedButton.icon(
+                        onPressed: () => _showAddEditCustomerSidebar(),
+                        icon: const Icon(LucideIcons.userPlus, size: 18),
+                        label: Label("Add Client", weight: 700).regular,
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 18,
+                          ),
+                          backgroundColor: kColor(context).primary,
+                          foregroundColor: kColor(context).onPrimary,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: kRadius(12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
           ),
           Expanded(child: _buildMainContent()),
           if (filteredCustomers.isNotEmpty && !Responsive.isMobile(context))
