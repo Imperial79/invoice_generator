@@ -36,6 +36,7 @@ If you want to generate the `.dmg` installer manually:
 
 2.  **Generate the DMG Installer**: Ensure you have `create-dmg` installed (`brew install create-dmg`), then run:
     ```bash
+    rm -f Prime-Invoice-Installer.dmg
     create-dmg \
       --volname "Prime Invoice Installer" \
       --window-pos 200 120 \
